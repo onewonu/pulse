@@ -5,11 +5,11 @@ import com.pulse.client.transport.dto.subway.SubwayApiResponse;
 import com.pulse.client.transport.dto.subway.SubwayRidershipData;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.*;
+import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayLineStationRepository;
 import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
-import com.pulse.mapper.SubwayDataMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -115,7 +118,8 @@ public class SubwayDataLoadService {
             subwayRidershipRepository.deleteByStatDate(statDate);
             log.info("Existing subway statistical data has been deleted: {}", yearMonth);
 
-            int totalCount = 0;
+            Map<String, SubwayRidershipHourly> hourlyDataMap = new HashMap<>();
+            int apiRecordCount = 0;
             int startIndex = 1;
 
             while (true) {
@@ -139,16 +143,32 @@ public class SubwayDataLoadService {
                                     "No station master data: " + data.getSttn()));
 
                     List<SubwayRidershipHourly> hourlyData = mapper.toSubwayRidershipHourlyList(data, line, station);
-                    subwayRidershipRepository.saveAll(hourlyData);
 
-                    totalCount += 24;
+                    for (SubwayRidershipHourly hourly : hourlyData) {
+                        String key = String.format("%s-%s-%s-%d",
+                                hourly.getStatDate(),
+                                hourly.getSubwayLine().getLineName(),
+                                hourly.getSubwayStation().getStationName(),
+                                hourly.getHourSlot());
+
+                        hourlyDataMap.put(key, hourly);
+                    }
+
+                    apiRecordCount++;
                 }
 
-                log.info("Subway Statistical data progress: {} ~ {} (total - {})", startIndex, endIndex, totalCount);
+                log.info("Subway Statistical data progress: {} ~ {} (API records: {})",
+                        startIndex, endIndex, apiRecordCount);
                 startIndex = endIndex + 1;
             }
 
-            log.info("Subway statistical data loaded: total - {}", totalCount);
+            List<SubwayRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
+            subwayRidershipRepository.saveAll(uniqueHourlyData);
+
+            int totalCount = uniqueHourlyData.size();
+            log.info("Subway statistical data loaded: {} API records -> {} unique hourly records",
+                    apiRecordCount, totalCount);
+
             return DataLoadResult.success("Subway statistical data", totalCount);
 
         } catch (Exception e) {

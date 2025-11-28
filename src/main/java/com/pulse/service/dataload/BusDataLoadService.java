@@ -5,11 +5,11 @@ import com.pulse.client.transport.dto.bus.BusApiResponse;
 import com.pulse.client.transport.dto.bus.BusRidershipData;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.bus.*;
+import com.pulse.mapper.BusDataMapper;
 import com.pulse.repository.bus.BusRidershipHourlyRepository;
 import com.pulse.repository.bus.BusRouteRepository;
 import com.pulse.repository.bus.BusRouteStopRepository;
 import com.pulse.repository.bus.BusStopRepository;
-import com.pulse.mapper.BusDataMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -115,7 +118,8 @@ public class BusDataLoadService {
             busRidershipRepository.deleteByStatDate(statDate);
             log.info("Existing bus statistical data has been deleted: {}", yearMonth);
 
-            int totalCount = 0;
+            Map<String, BusRidershipHourly> hourlyDataMap = new HashMap<>();
+            int apiRecordCount = 0;
             int startIndex = 1;
 
             while (true) {
@@ -139,16 +143,33 @@ public class BusDataLoadService {
                                     "No stop master data: " + data.getStopsId()));
 
                     List<BusRidershipHourly> hourlyData = mapper.toBusRidershipHourlyList(data, route, stop);
-                    busRidershipRepository.saveAll(hourlyData);
 
-                    totalCount += 24;
+                    for (BusRidershipHourly hourly : hourlyData) {
+                        String key = String.format("%s-%s-%s-%d",
+                                hourly.getStatDate(),
+                                hourly.getBusRoute().getRouteNumber(),
+                                hourly.getBusStop().getStopId(),
+                                hourly.getHourSlot());
+
+                        hourlyDataMap.put(key, hourly);
+                    }
+
+                    apiRecordCount++;
                 }
 
-                log.info("Bus statistics data progress: {} ~ {} (total - {})", startIndex, endIndex, totalCount);
+                log.info("Bus statistics data progress: {} ~ {} (API records: {})",
+                        startIndex, endIndex, apiRecordCount);
+
                 startIndex = endIndex + 1;
             }
 
-            log.info("Bus statistics data loading completed: total - {}", totalCount);
+            List<BusRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
+            busRidershipRepository.saveAll(uniqueHourlyData);
+
+            int totalCount = uniqueHourlyData.size();
+            log.info("Bus statistics data loading completed: {} API records -> {} unique hourly records",
+                    apiRecordCount, totalCount);
+
             return DataLoadResult.success("Bus statistical data", totalCount);
 
         } catch (Exception e) {
