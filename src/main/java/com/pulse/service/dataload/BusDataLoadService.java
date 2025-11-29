@@ -19,10 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Transactional
@@ -60,7 +57,15 @@ public class BusDataLoadService {
         log.info("Start loading bus master data: {}", yearMonth);
 
         try {
-            int totalCount = 0;
+            busRouteStopRepository.deleteAll();
+            busRouteRepository.deleteAll();
+            busStopRepository.deleteAll();
+            log.info("Existing bus master data has been deleted");
+
+            Map<String, BusRoute> routeMap = new HashMap<>();
+            Map<String, BusStop> stopMap = new HashMap<>();
+            Set<BusRouteStopId> routeStopSet = new HashSet<>();
+            int apiRecordCount = 0;
             int startIndex = 1;
 
             while (true) {
@@ -73,25 +78,40 @@ public class BusDataLoadService {
                 }
 
                 for (BusRidershipData data : response.getData()) {
-                    BusRoute route = busRouteRepository
-                            .findByRouteNumber(data.getRteNo())
-                            .orElseGet(() -> busRouteRepository.save(mapper.toBusRoute(data)));
+                    BusRoute route = mapper.toBusRoute(data);
+                    routeMap.put(route.getRouteNumber(), route);
 
-                    BusStop stop = busStopRepository
-                            .findById(data.getStopsId())
-                            .orElseGet(() -> busStopRepository.save(mapper.toBusStop(data)));
+                    BusStop stop = mapper.toBusStop(data);
+                    stopMap.put(stop.getStopId(), stop);
 
-                    saveBusRouteStopIfNotExists(route, stop);
+                    routeStopSet.add(BusRouteStopId.of(route.getRouteNumber(), stop.getStopId()));
 
-                    totalCount++;
+                    apiRecordCount++;
                 }
 
-                log.info("Bus master data progress: {} ~ {} (total - {})", startIndex, endIndex, totalCount);
-
+                log.info("Bus master data progress: {} ~ {} (API records: {})",
+                        startIndex, endIndex, apiRecordCount);
                 startIndex = endIndex + 1;
             }
 
-            log.info("Bus master data loading completed: total - {}", totalCount);
+            List<BusRoute> uniqueRoutes = new ArrayList<>(routeMap.values());
+            List<BusStop> uniqueStops = new ArrayList<>(stopMap.values());
+
+            busRouteRepository.saveAll(uniqueRoutes);
+            busStopRepository.saveAll(uniqueStops);
+            log.info("Saved {} unique routes and {} unique stops", uniqueRoutes.size(), uniqueStops.size());
+
+            List<BusRouteStop> routeStops = new ArrayList<>();
+            for (BusRouteStopId id : routeStopSet) {
+                BusRoute route = routeMap.get(id.getRouteNumber());
+                BusStop stop = stopMap.get(id.getStopId());
+                routeStops.add(BusRouteStop.of(route, stop));
+            }
+            busRouteStopRepository.saveAll(routeStops);
+
+            int totalCount = apiRecordCount;
+            log.info("Bus master data loading completed: {} API records -> {} routes, {} stops, {} route-stops",
+                    apiRecordCount, uniqueRoutes.size(), uniqueStops.size(), routeStops.size());
 
             return DataLoadResult.success("Bus master data", totalCount);
 
@@ -99,14 +119,6 @@ public class BusDataLoadService {
             log.error("Bus master data load failure", e);
 
             return DataLoadResult.failure("Bus master data", e.getMessage());
-        }
-    }
-
-    private void saveBusRouteStopIfNotExists(BusRoute route, BusStop stop) {
-        BusRouteStopId id = BusRouteStopId.of(route.getRouteNumber(), stop.getStopId());
-
-        if (!busRouteStopRepository.existsById(id)) {
-            busRouteStopRepository.save(BusRouteStop.of(route, stop));
         }
     }
 

@@ -19,10 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Transactional
@@ -60,7 +57,15 @@ public class SubwayDataLoadService {
         log.info("Start loading subway master data: {}", yearMonth);
 
         try {
-            int totalCount = 0;
+            subwayLineStationRepository.deleteAll();
+            subwayLineRepository.deleteAll();
+            subwayStationRepository.deleteAll();
+            log.info("Existing subway master data has been deleted");
+
+            Map<String, SubwayLine> lineMap = new HashMap<>();
+            Map<String, SubwayStation> stationMap = new HashMap<>();
+            Set<SubwayLineStationId> lineStationSet = new HashSet<>();
+            int apiRecordCount = 0;
             int startIndex = 1;
 
             while (true) {
@@ -68,30 +73,45 @@ public class SubwayDataLoadService {
                 SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
                 if (response == null || response.getData() == null || response.getData().isEmpty()) {
-                    log.info("SubWay master data is empty.");
+                    log.info("Subway master data is empty.");
                     break;
                 }
 
                 for (SubwayRidershipData data : response.getData()) {
-                    SubwayLine line = subwayLineRepository
-                            .findByLineName(data.getSbwyRoutLnNm())
-                            .orElseGet(() -> subwayLineRepository.save(mapper.toSubwayLine(data)));
+                    SubwayLine line = mapper.toSubwayLine(data);
+                    lineMap.put(line.getLineName(), line);
 
-                    SubwayStation station = subwayStationRepository
-                            .findByStationName(data.getSttn())
-                            .orElseGet(() -> subwayStationRepository.save(mapper.toSubwayStation(data)));
+                    SubwayStation station = mapper.toSubwayStation(data);
+                    stationMap.put(station.getStationName(), station);
 
-                    saveSubwayLineStationIfNotExists(line, station);
+                    lineStationSet.add(SubwayLineStationId.of(line.getLineName(), station.getStationName()));
 
-                    totalCount++;
+                    apiRecordCount++;
                 }
 
-                log.info("Subway master data progress: {} ~ {} (total - {})", startIndex, endIndex, totalCount);
-
+                log.info("Subway master data progress: {} ~ {} (API records: {})",
+                        startIndex, endIndex, apiRecordCount);
                 startIndex = endIndex + 1;
             }
 
-            log.info("Subway master data loading completed: total - {}", totalCount);
+            List<SubwayLine> uniqueLines = new ArrayList<>(lineMap.values());
+            List<SubwayStation> uniqueStations = new ArrayList<>(stationMap.values());
+
+            subwayLineRepository.saveAll(uniqueLines);
+            subwayStationRepository.saveAll(uniqueStations);
+            log.info("Saved {} unique lines and {} unique stations", uniqueLines.size(), uniqueStations.size());
+
+            List<SubwayLineStation> lineStations = new ArrayList<>();
+            for (SubwayLineStationId id : lineStationSet) {
+                SubwayLine line = lineMap.get(id.getLineName());
+                SubwayStation station = stationMap.get(id.getStationName());
+                lineStations.add(SubwayLineStation.of(line, station));
+            }
+            subwayLineStationRepository.saveAll(lineStations);
+
+            int totalCount = apiRecordCount;
+            log.info("Subway master data loading completed: {} API records -> {} lines, {} stations, {} line-stations",
+                    apiRecordCount, uniqueLines.size(), uniqueStations.size(), lineStations.size());
 
             return DataLoadResult.success("Subway master data", totalCount);
 
@@ -99,14 +119,6 @@ public class SubwayDataLoadService {
             log.error("Subway master data load failure", e);
 
             return DataLoadResult.failure("Subway master data", e.getMessage());
-        }
-    }
-
-    private void saveSubwayLineStationIfNotExists(SubwayLine line, SubwayStation station) {
-        SubwayLineStationId id = SubwayLineStationId.of(line.getLineName(), station.getStationName());
-
-        if (!subwayLineStationRepository.existsById(id)) {
-            subwayLineStationRepository.save(SubwayLineStation.of(line, station));
         }
     }
 
