@@ -130,6 +130,18 @@ public class BusDataLoadService {
             busRidershipRepository.deleteByStatDate(statDate);
             log.info("Existing bus statistical data has been deleted: {}", yearMonth);
 
+            Map<String, BusRoute> routeCache = new HashMap<>();
+            for (BusRoute route : busRouteRepository.findAll()) {
+                routeCache.put(route.getRouteNumber(), route);
+            }
+            log.info("Loaded {} routes into cache", routeCache.size());
+
+            Map<String, BusStop> stopCache = new HashMap<>();
+            for (BusStop stop : busStopRepository.findAll()) {
+                stopCache.put(stop.getStopId(), stop);
+            }
+            log.info("Loaded {} stops into cache", stopCache.size());
+
             Map<String, BusRidershipHourly> hourlyDataMap = new HashMap<>();
             int apiRecordCount = 0;
             int startIndex = 1;
@@ -144,15 +156,15 @@ public class BusDataLoadService {
                 }
 
                 for (BusRidershipData data : response.getData()) {
-                    BusRoute route = busRouteRepository
-                            .findByRouteNumber(data.getRteNo())
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "No route master data: " + data.getRteNo()));
+                    BusRoute route = routeCache.get(data.getRteNo());
+                    if (route == null) {
+                        throw new IllegalStateException("No route master data: " + data.getRteNo());
+                    }
 
-                    BusStop stop = busStopRepository
-                            .findById(data.getStopsId())
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "No stop master data: " + data.getStopsId()));
+                    BusStop stop = stopCache.get(data.getStopsId());
+                    if (stop == null) {
+                        throw new IllegalStateException("No stop master data: " + data.getStopsId());
+                    }
 
                     List<BusRidershipHourly> hourlyData = mapper.toBusRidershipHourlyList(data, route, stop);
 

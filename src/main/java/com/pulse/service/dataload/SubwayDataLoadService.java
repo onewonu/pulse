@@ -130,6 +130,18 @@ public class SubwayDataLoadService {
             subwayRidershipRepository.deleteByStatDate(statDate);
             log.info("Existing subway statistical data has been deleted: {}", yearMonth);
 
+            Map<String, SubwayLine> lineCache = new HashMap<>();
+            for (SubwayLine line : subwayLineRepository.findAll()) {
+                lineCache.put(line.getLineName(), line);
+            }
+            log.info("Loaded {} lines into cache", lineCache.size());
+
+            Map<String, SubwayStation> stationCache = new HashMap<>();
+            for (SubwayStation station : subwayStationRepository.findAll()) {
+                stationCache.put(station.getStationName(), station);
+            }
+            log.info("Loaded {} stations into cache", stationCache.size());
+
             Map<String, SubwayRidershipHourly> hourlyDataMap = new HashMap<>();
             int apiRecordCount = 0;
             int startIndex = 1;
@@ -144,15 +156,15 @@ public class SubwayDataLoadService {
                 }
 
                 for (SubwayRidershipData data : response.getData()) {
-                    SubwayLine line = subwayLineRepository
-                            .findByLineName(data.getSbwyRoutLnNm())
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "No route master data: " + data.getSbwyRoutLnNm()));
+                    SubwayLine line = lineCache.get(data.getSbwyRoutLnNm());
+                    if (line == null) {
+                        throw new IllegalStateException("No route master data: " + data.getSbwyRoutLnNm());
+                    }
 
-                    SubwayStation station = subwayStationRepository
-                            .findByStationName(data.getSttn())
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "No station master data: " + data.getSttn()));
+                    SubwayStation station = stationCache.get(data.getSttn());
+                    if (station == null) {
+                        throw new IllegalStateException("No station master data: " + data.getSttn());
+                    }
 
                     List<SubwayRidershipHourly> hourlyData = mapper.toSubwayRidershipHourlyList(data, line, station);
 
