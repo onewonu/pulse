@@ -20,7 +20,12 @@ import java.time.LocalDateTime;
 public class BusRidershipHourly {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "bus_ridership_hourly_seq")
+    @SequenceGenerator(
+            name = "bus_ridership_hourly_seq",
+            sequenceName = "bus_ridership_hourly_seq",
+            allocationSize = 500
+    )
     @Column(name = "id")
     private Long id;
 
