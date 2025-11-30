@@ -72,7 +72,26 @@ public class BusDataLoadService {
                 int endIndex = startIndex + pageSize - 1;
                 BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
 
-                if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                if (response == null) {
+                    log.warn("Bus master data API response is null");
+                    break;
+                }
+
+                if (response.getCardBusTimeNew() != null && response.getCardBusTimeNew().getResult() != null) {
+                    String code = response.getCardBusTimeNew().getResult().getCode();
+                    String message = response.getCardBusTimeNew().getResult().getMessage();
+                    log.info("Bus master data API response - CODE: {}, MESSAGE: {}", code, message);
+
+                    if (!"INFO-000".equals(code)) {
+                        log.warn("Bus master data API returned non-success code: {} - {}", code, message);
+                        if ("INFO-200".equals(code)) {
+                            log.info("No more bus master data available");
+                            break;
+                        }
+                    }
+                }
+
+                if (response.getData() == null || response.getData().isEmpty()) {
                     log.info("Bus master data is empty.");
                     break;
                 }
@@ -150,7 +169,26 @@ public class BusDataLoadService {
                 int endIndex = startIndex + pageSize - 1;
                 BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
 
-                if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                if (response == null) {
+                    log.warn("Bus statistics data API response is null");
+                    break;
+                }
+
+                if (response.getCardBusTimeNew() != null && response.getCardBusTimeNew().getResult() != null) {
+                    String code = response.getCardBusTimeNew().getResult().getCode();
+                    String message = response.getCardBusTimeNew().getResult().getMessage();
+                    log.info("Bus statistics data API response - CODE: {}, MESSAGE: {}", code, message);
+
+                    if (!"INFO-000".equals(code)) {
+                        log.warn("Bus statistics data API returned non-success code: {} - {}", code, message);
+                        if ("INFO-200".equals(code)) {
+                            log.info("No more bus statistics data available");
+                            break;
+                        }
+                    }
+                }
+
+                if (response.getData() == null || response.getData().isEmpty()) {
                     log.info("Bus statistics data is empty.");
                     break;
                 }

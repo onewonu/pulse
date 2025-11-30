@@ -72,7 +72,26 @@ public class SubwayDataLoadService {
                 int endIndex = startIndex + pageSize - 1;
                 SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
-                if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                if (response == null) {
+                    log.warn("Subway master data API response is null");
+                    break;
+                }
+
+                if (response.getCardSubwayTime() != null && response.getCardSubwayTime().getResult() != null) {
+                    String code = response.getCardSubwayTime().getResult().getCode();
+                    String message = response.getCardSubwayTime().getResult().getMessage();
+                    log.info("Subway master data API response - CODE: {}, MESSAGE: {}", code, message);
+
+                    if (!"INFO-000".equals(code)) {
+                        log.warn("Subway master data API returned non-success code: {} - {}", code, message);
+                        if ("INFO-200".equals(code)) {
+                            log.info("No more subway master data available");
+                            break;
+                        }
+                    }
+                }
+
+                if (response.getData() == null || response.getData().isEmpty()) {
                     log.info("Subway master data is empty.");
                     break;
                 }
@@ -150,7 +169,26 @@ public class SubwayDataLoadService {
                 int endIndex = startIndex + pageSize - 1;
                 SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
-                if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                if (response == null) {
+                    log.warn("Subway statistics data API response is null");
+                    break;
+                }
+
+                if (response.getCardSubwayTime() != null && response.getCardSubwayTime().getResult() != null) {
+                    String code = response.getCardSubwayTime().getResult().getCode();
+                    String message = response.getCardSubwayTime().getResult().getMessage();
+                    log.info("Subway statistics data API response - CODE: {}, MESSAGE: {}", code, message);
+
+                    if (!"INFO-000".equals(code)) {
+                        log.warn("Subway statistics data API returned non-success code: {} - {}", code, message);
+                        if ("INFO-200".equals(code)) {
+                            log.info("No more subway statistics data available");
+                            break;
+                        }
+                    }
+                }
+
+                if (response.getData() == null || response.getData().isEmpty()) {
                     log.info("Subway statistics data is empty.");
                     break;
                 }
