@@ -123,12 +123,12 @@ public class SubwayDataLoadService {
     }
 
     public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
-        log.info("Start loading subway statistical Data: {}", yearMonth);
+        log.info("Start loading subway statistics data: {}", yearMonth);
 
         try {
             LocalDate statDate = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyyMM")).atDay(1);
             subwayRidershipRepository.deleteByStatDate(statDate);
-            log.info("Existing subway statistical data has been deleted: {}", yearMonth);
+            log.info("Existing subway statistics data has been deleted: {}", yearMonth);
 
             Map<String, SubwayLine> lineCache = new HashMap<>();
             for (SubwayLine line : subwayLineRepository.findAll()) {
@@ -151,14 +151,14 @@ public class SubwayDataLoadService {
                 SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
                 if (response == null || response.getData() == null || response.getData().isEmpty()) {
-                    log.info("Subway statistical data is empty.");
+                    log.info("Subway statistics data is empty.");
                     break;
                 }
 
                 for (SubwayRidershipData data : response.getData()) {
                     SubwayLine line = lineCache.get(data.getSbwyRoutLnNm());
                     if (line == null) {
-                        throw new IllegalStateException("No route master data: " + data.getSbwyRoutLnNm());
+                        throw new IllegalStateException("No line master data: " + data.getSbwyRoutLnNm());
                     }
 
                     SubwayStation station = stationCache.get(data.getSttn());
@@ -181,8 +181,9 @@ public class SubwayDataLoadService {
                     apiRecordCount++;
                 }
 
-                log.info("Subway Statistical data progress: {} ~ {} (API records: {})",
+                log.info("Subway statistics data progress: {} ~ {} (API records: {})",
                         startIndex, endIndex, apiRecordCount);
+
                 startIndex = endIndex + 1;
             }
 
@@ -190,14 +191,14 @@ public class SubwayDataLoadService {
             subwayRidershipRepository.saveAll(uniqueHourlyData);
 
             int totalCount = uniqueHourlyData.size();
-            log.info("Subway statistical data loaded: {} API records -> {} unique hourly records",
+            log.info("Subway statistics data loading completed: {} API records -> {} unique hourly records",
                     apiRecordCount, totalCount);
 
-            return DataLoadResult.success("Subway statistical data", totalCount);
+            return DataLoadResult.success("Subway statistics data", totalCount);
 
         } catch (Exception e) {
-            log.error("Failure to load subway statistical data", e);
-            return DataLoadResult.failure("Subway statistical data", e.getMessage());
+            log.error("Failure to load subway statistics data", e);
+            return DataLoadResult.failure("Subway statistics data", e.getMessage());
         }
     }
 }

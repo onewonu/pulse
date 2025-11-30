@@ -128,7 +128,7 @@ public class BusDataLoadService {
         try {
             LocalDate statDate = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyyMM")).atDay(1);
             busRidershipRepository.deleteByStatDate(statDate);
-            log.info("Existing bus statistical data has been deleted: {}", yearMonth);
+            log.info("Existing bus statistics data has been deleted: {}", yearMonth);
 
             Map<String, BusRoute> routeCache = new HashMap<>();
             for (BusRoute route : busRouteRepository.findAll()) {
@@ -194,11 +194,11 @@ public class BusDataLoadService {
             log.info("Bus statistics data loading completed: {} API records -> {} unique hourly records",
                     apiRecordCount, totalCount);
 
-            return DataLoadResult.success("Bus statistical data", totalCount);
+            return DataLoadResult.success("Bus statistics data", totalCount);
 
         } catch (Exception e) {
-            log.error("failure to load bus statistics data", e);
-            return DataLoadResult.failure("Bus statistical data", e.getMessage());
+            log.error("Failure to load bus statistics data", e);
+            return DataLoadResult.failure("Bus statistics data", e.getMessage());
         }
     }
 }
