@@ -1,4 +1,4 @@
-package com.pulse.api.seoulopendataplaza.ridershipData;
+package com.pulse.api.seoulopendataplaza;
 
 public interface ApiResponse {
 

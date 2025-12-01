@@ -1,15 +1,14 @@
-package com.pulse.api;
+package com.pulse.api.seoulopendataplaza;
 
-import com.pulse.api.seoulopendataplaza.ridershipData.ApiResponse;
-import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusApiResponse;
-import com.pulse.api.seoulopendataplaza.ridershipData.dto.subway.SubwayApiResponse;
-import com.pulse.api.seoulopendataplaza.ridershipData.validator.ApiResponseValidator;
+import com.pulse.api.seoulopendataplaza.dto.bus.BusApiResponse;
+import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
+import com.pulse.api.seoulopendataplaza.validator.ApiResponseValidator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-public class ApiClient {
+public class SeoulOpenDataPlazaClient {
 
     private final RestTemplate restTemplate;
     private final ApiResponseValidator validator;
@@ -28,7 +27,7 @@ public class ApiClient {
 
     private static final String SEOUL_OPEN_API_FORMAT = "%s/%s/json/%s/%d/%d/%s";
 
-    public ApiClient(RestTemplate restTemplate, ApiResponseValidator validator) {
+    public SeoulOpenDataPlazaClient(RestTemplate restTemplate, ApiResponseValidator validator) {
         this.restTemplate = restTemplate;
         this.validator = validator;
     }

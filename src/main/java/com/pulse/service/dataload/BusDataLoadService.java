@@ -1,8 +1,8 @@
 package com.pulse.service.dataload;
 
-import com.pulse.api.ApiClient;
-import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusApiResponse;
-import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusRidershipData;
+import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
+import com.pulse.api.seoulopendataplaza.dto.bus.BusApiResponse;
+import com.pulse.api.seoulopendataplaza.dto.bus.BusRidershipData;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.bus.*;
 import com.pulse.mapper.BusDataMapper;
@@ -29,7 +29,7 @@ public class BusDataLoadService {
     private static final Logger log = LoggerFactory.getLogger(BusDataLoadService.class);
 
     private final EntityManager entityManager;
-    private final ApiClient apiClient;
+    private final SeoulOpenDataPlazaClient apiClient;
     private final BusDataMapper mapper;
     private final BusRouteRepository busRouteRepository;
     private final BusStopRepository busStopRepository;
@@ -41,7 +41,7 @@ public class BusDataLoadService {
 
     public BusDataLoadService(
             EntityManager entityManager,
-            ApiClient apiClient,
+            SeoulOpenDataPlazaClient apiClient,
             BusDataMapper mapper,
             BusRouteRepository busRouteRepository,
             BusStopRepository busStopRepository,
