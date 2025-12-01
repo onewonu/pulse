@@ -1,8 +1,10 @@
 package com.pulse.controller.admin;
 
-import com.pulse.service.dataload.BusDataLoadService;
+import com.pulse.service.dataload.bus.BusMasterDataLoadService;
 import com.pulse.dto.DataLoadResult;
-import com.pulse.service.dataload.SubwayDataLoadService;
+import com.pulse.service.dataload.bus.BusStatisticsDataLoadService;
+import com.pulse.service.dataload.subway.SubwayMasterDataLoadService;
+import com.pulse.service.dataload.subway.SubwayStatisticsDataLoadService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,35 +18,39 @@ import java.util.Map;
 @RequestMapping("/api/admin/data-load")
 public class DataLoadController {
 
-    private final BusDataLoadService busDataLoadService;
-    private final SubwayDataLoadService subwayDataLoadService;
+    private final BusMasterDataLoadService busMasterDataLoadService;
+    private final BusStatisticsDataLoadService busStatisticsDataLoadService;
+    private final SubwayMasterDataLoadService subwayMasterDataLoadService;
+    private final SubwayStatisticsDataLoadService subwayStatisticsDataLoadService;
 
-    public DataLoadController(BusDataLoadService busDataLoadService, SubwayDataLoadService subwayDataLoadService) {
-        this.busDataLoadService = busDataLoadService;
-        this.subwayDataLoadService = subwayDataLoadService;
+    public DataLoadController(BusMasterDataLoadService busDataLoadService, BusStatisticsDataLoadService busStatisticsDataLoadService, SubwayMasterDataLoadService subwayDataLoadService, SubwayStatisticsDataLoadService subwayStatisticsData) {
+        this.busMasterDataLoadService = busDataLoadService;
+        this.busStatisticsDataLoadService = busStatisticsDataLoadService;
+        this.subwayMasterDataLoadService = subwayDataLoadService;
+        this.subwayStatisticsDataLoadService = subwayStatisticsData;
     }
 
     @PostMapping("/bus/master")
     public ResponseEntity<DataLoadResult> loadBusMasterData(@RequestParam String yearMonth) {
-        DataLoadResult result = busDataLoadService.loadBusMasterData(yearMonth);
+        DataLoadResult result = busMasterDataLoadService.loadBusMasterData(yearMonth);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/bus/statistics")
     public ResponseEntity<DataLoadResult> loadBusStatistics(@RequestParam String yearMonth) {
-        DataLoadResult result = busDataLoadService.loadBusStatisticsData(yearMonth);
+        DataLoadResult result = busStatisticsDataLoadService.loadBusStatisticsData(yearMonth);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/subway/master")
     public ResponseEntity<DataLoadResult> loadSubwayMasterData(@RequestParam String yearMonth) {
-        DataLoadResult result = subwayDataLoadService.loadSubwayMasterData(yearMonth);
+        DataLoadResult result = subwayMasterDataLoadService.loadSubwayMasterData(yearMonth);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/subway/statistics")
     public ResponseEntity<DataLoadResult> loadSubwayStatistics(@RequestParam String yearMonth) {
-        DataLoadResult result = subwayDataLoadService.loadSubwayStatisticsData(yearMonth);
+        DataLoadResult result = subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth);
         return ResponseEntity.ok(result);
     }
 
@@ -52,11 +58,11 @@ public class DataLoadController {
     public ResponseEntity<Map<String, DataLoadResult>> loadAllData(@RequestParam String yearMonth) {
         Map<String, DataLoadResult> results = new HashMap<>();
 
-        results.put("subwayMaster", subwayDataLoadService.loadSubwayMasterData(yearMonth));
-        results.put("subwayStatistics", subwayDataLoadService.loadSubwayStatisticsData(yearMonth));
+        results.put("subwayMaster", subwayMasterDataLoadService.loadSubwayMasterData(yearMonth));
+        results.put("subwayStatistics", subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth));
 
-        results.put("busMaster", busDataLoadService.loadBusMasterData(yearMonth));
-        results.put("busStatistics", busDataLoadService.loadBusStatisticsData(yearMonth));
+        results.put("busMaster", busMasterDataLoadService.loadBusMasterData(yearMonth));
+        results.put("busStatistics", busStatisticsDataLoadService.loadBusStatisticsData(yearMonth));
 
         return ResponseEntity.ok(results);
     }
