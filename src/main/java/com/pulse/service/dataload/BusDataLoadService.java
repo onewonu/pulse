@@ -10,6 +10,7 @@ import com.pulse.repository.bus.BusRidershipHourlyRepository;
 import com.pulse.repository.bus.BusRouteRepository;
 import com.pulse.repository.bus.BusRouteStopRepository;
 import com.pulse.repository.bus.BusStopRepository;
+import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class BusDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(BusDataLoadService.class);
 
+    private final EntityManager entityManager;
     private final SeoulOpenApiClient apiClient;
     private final BusDataMapper mapper;
     private final BusRouteRepository busRouteRepository;
@@ -38,6 +40,7 @@ public class BusDataLoadService {
     private int pageSize;
 
     public BusDataLoadService(
+            EntityManager entityManager,
             SeoulOpenApiClient apiClient,
             BusDataMapper mapper,
             BusRouteRepository busRouteRepository,
@@ -45,6 +48,7 @@ public class BusDataLoadService {
             BusRouteStopRepository busRouteStopRepository,
             BusRidershipHourlyRepository busRidershipRepository
     ) {
+        this.entityManager = entityManager;
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.busRouteRepository = busRouteRepository;
@@ -60,6 +64,8 @@ public class BusDataLoadService {
             busRouteStopRepository.deleteAll();
             busRouteRepository.deleteAll();
             busStopRepository.deleteAll();
+            entityManager.flush();
+            entityManager.clear();
             log.info("Existing bus master data has been deleted");
 
             Map<String, BusRoute> routeMap = new HashMap<>();
@@ -118,6 +124,7 @@ public class BusDataLoadService {
 
             busRouteRepository.saveAll(uniqueRoutes);
             busStopRepository.saveAll(uniqueStops);
+            entityManager.flush();
             log.info("Saved {} unique routes and {} unique stops", uniqueRoutes.size(), uniqueStops.size());
 
             List<BusRouteStop> routeStops = new ArrayList<>();

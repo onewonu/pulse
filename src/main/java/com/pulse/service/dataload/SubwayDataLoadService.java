@@ -10,6 +10,7 @@ import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayLineStationRepository;
 import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
+import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class SubwayDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayDataLoadService.class);
 
+    private final EntityManager entityManager;
     private final SeoulOpenApiClient apiClient;
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
@@ -38,6 +40,7 @@ public class SubwayDataLoadService {
     private int pageSize;
 
     public SubwayDataLoadService(
+            EntityManager entityManager,
             SeoulOpenApiClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
@@ -45,6 +48,7 @@ public class SubwayDataLoadService {
             SubwayLineStationRepository subwayLineStationRepository,
             SubwayRidershipHourlyRepository subwayRidershipRepository
     ) {
+        this.entityManager = entityManager;
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
@@ -60,6 +64,8 @@ public class SubwayDataLoadService {
             subwayLineStationRepository.deleteAll();
             subwayLineRepository.deleteAll();
             subwayStationRepository.deleteAll();
+            entityManager.flush();
+            entityManager.clear();
             log.info("Existing subway master data has been deleted");
 
             Map<String, SubwayLine> lineMap = new HashMap<>();
@@ -118,6 +124,7 @@ public class SubwayDataLoadService {
 
             subwayLineRepository.saveAll(uniqueLines);
             subwayStationRepository.saveAll(uniqueStations);
+            entityManager.flush();
             log.info("Saved {} unique lines and {} unique stations", uniqueLines.size(), uniqueStations.size());
 
             List<SubwayLineStation> lineStations = new ArrayList<>();
