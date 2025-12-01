@@ -1,11 +1,12 @@
 package com.pulse.client.transport.dto.bus;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.pulse.client.transport.dto.ApiResponse;
 import com.pulse.client.transport.dto.ApiResult;
 
 import java.util.List;
 
-public class BusApiResponse {
+public class BusApiResponse implements ApiResponse {
 
     @JsonProperty("CardBusTimeNew")
     private BusApiData cardBusTimeNew;
@@ -20,6 +21,17 @@ public class BusApiResponse {
 
     public List<BusRidershipData> getData() {
         return cardBusTimeNew != null ? cardBusTimeNew.getRow() : null;
+    }
+
+    @Override
+    public ApiResult getResult() {
+        return cardBusTimeNew != null ? cardBusTimeNew.getResult() : null;
+    }
+
+    @Override
+    public boolean hasData() {
+        List<BusRidershipData> data = getData();
+        return data != null && !data.isEmpty();
     }
 
     public static class BusApiData {

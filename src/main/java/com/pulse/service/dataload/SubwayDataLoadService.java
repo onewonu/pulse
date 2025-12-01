@@ -1,6 +1,6 @@
 package com.pulse.service.dataload;
 
-import com.pulse.client.transport.SeoulOpenApiClient;
+import com.pulse.client.transport.ApiClient;
 import com.pulse.client.transport.dto.subway.SubwayApiResponse;
 import com.pulse.client.transport.dto.subway.SubwayRidershipData;
 import com.pulse.dto.DataLoadResult;
@@ -29,7 +29,7 @@ public class SubwayDataLoadService {
     private static final Logger log = LoggerFactory.getLogger(SubwayDataLoadService.class);
 
     private final EntityManager entityManager;
-    private final SeoulOpenApiClient apiClient;
+    private final ApiClient apiClient;
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
@@ -41,7 +41,7 @@ public class SubwayDataLoadService {
 
     public SubwayDataLoadService(
             EntityManager entityManager,
-            SeoulOpenApiClient apiClient,
+            ApiClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
@@ -79,26 +79,6 @@ public class SubwayDataLoadService {
                 SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
                 if (response == null) {
-                    log.warn("Subway master data API response is null");
-                    break;
-                }
-
-                if (response.getCardSubwayTime() != null && response.getCardSubwayTime().getResult() != null) {
-                    String code = response.getCardSubwayTime().getResult().getCode();
-                    String message = response.getCardSubwayTime().getResult().getMessage();
-                    log.info("Subway master data API response - CODE: {}, MESSAGE: {}", code, message);
-
-                    if (!"INFO-000".equals(code)) {
-                        log.warn("Subway master data API returned non-success code: {} - {}", code, message);
-                        if ("INFO-200".equals(code)) {
-                            log.info("No more subway master data available");
-                            break;
-                        }
-                    }
-                }
-
-                if (response.getData() == null || response.getData().isEmpty()) {
-                    log.info("Subway master data is empty.");
                     break;
                 }
 
@@ -177,26 +157,6 @@ public class SubwayDataLoadService {
                 SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
                 if (response == null) {
-                    log.warn("Subway statistics data API response is null");
-                    break;
-                }
-
-                if (response.getCardSubwayTime() != null && response.getCardSubwayTime().getResult() != null) {
-                    String code = response.getCardSubwayTime().getResult().getCode();
-                    String message = response.getCardSubwayTime().getResult().getMessage();
-                    log.info("Subway statistics data API response - CODE: {}, MESSAGE: {}", code, message);
-
-                    if (!"INFO-000".equals(code)) {
-                        log.warn("Subway statistics data API returned non-success code: {} - {}", code, message);
-                        if ("INFO-200".equals(code)) {
-                            log.info("No more subway statistics data available");
-                            break;
-                        }
-                    }
-                }
-
-                if (response.getData() == null || response.getData().isEmpty()) {
-                    log.info("Subway statistics data is empty.");
                     break;
                 }
 
