@@ -1,9 +1,9 @@
-package com.pulse.client.transport;
+package com.pulse.api;
 
-import com.pulse.client.transport.dto.ApiResponse;
-import com.pulse.client.transport.dto.bus.BusApiResponse;
-import com.pulse.client.transport.dto.subway.SubwayApiResponse;
-import com.pulse.client.transport.validator.ApiResponseValidator;
+import com.pulse.api.seoulopendataplaza.ridershipData.ApiResponse;
+import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusApiResponse;
+import com.pulse.api.seoulopendataplaza.ridershipData.dto.subway.SubwayApiResponse;
+import com.pulse.api.seoulopendataplaza.ridershipData.validator.ApiResponseValidator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;

@@ -1,8 +1,8 @@
-package com.pulse.client.transport.dto.subway;
+package com.pulse.api.seoulopendataplaza.ridershipData.dto.subway;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.pulse.client.transport.dto.ApiResponse;
-import com.pulse.client.transport.dto.ApiResult;
+import com.pulse.api.seoulopendataplaza.ridershipData.ApiResponse;
+import com.pulse.api.seoulopendataplaza.ridershipData.ApiResult;
 
 import java.util.List;
 

@@ -1,7 +1,7 @@
-package com.pulse.client.transport.validator;
+package com.pulse.api.seoulopendataplaza.ridershipData.validator;
 
-import com.pulse.client.transport.dto.ApiResponse;
-import com.pulse.client.transport.dto.ApiResult;
+import com.pulse.api.seoulopendataplaza.ridershipData.ApiResponse;
+import com.pulse.api.seoulopendataplaza.ridershipData.ApiResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

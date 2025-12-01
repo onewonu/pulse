@@ -1,4 +1,4 @@
-package com.pulse.client.transport.dto.bus;
+package com.pulse.api.seoulopendataplaza.ridershipData.dto.bus;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

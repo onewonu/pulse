@@ -1,8 +1,8 @@
 package com.pulse.service.dataload;
 
-import com.pulse.client.transport.ApiClient;
-import com.pulse.client.transport.dto.bus.BusApiResponse;
-import com.pulse.client.transport.dto.bus.BusRidershipData;
+import com.pulse.api.ApiClient;
+import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusApiResponse;
+import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusRidershipData;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.bus.*;
 import com.pulse.mapper.BusDataMapper;

@@ -1,4 +1,4 @@
-package com.pulse.client.transport.dto.subway;
+package com.pulse.api.seoulopendataplaza.ridershipData.dto.subway;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

@@ -1,6 +1,6 @@
 package com.pulse.mapper;
 
-import com.pulse.client.transport.dto.bus.BusRidershipData;
+import com.pulse.api.seoulopendataplaza.ridershipData.dto.bus.BusRidershipData;
 import com.pulse.entity.bus.BusRidershipHourly;
 import com.pulse.entity.bus.BusRoute;
 import com.pulse.entity.bus.BusStop;
