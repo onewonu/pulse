@@ -9,7 +9,6 @@ import com.pulse.entity.bus.BusRouteStop;
 import com.pulse.entity.bus.BusRouteStopId;
 import com.pulse.entity.bus.BusStop;
 import com.pulse.mapper.BusDataMapper;
-import com.pulse.repository.bus.BusRidershipHourlyRepository;
 import com.pulse.repository.bus.BusRouteRepository;
 import com.pulse.repository.bus.BusRouteStopRepository;
 import com.pulse.repository.bus.BusStopRepository;
@@ -44,8 +43,7 @@ public class BusMasterDataLoadService {
             BusDataMapper mapper,
             BusRouteRepository busRouteRepository,
             BusStopRepository busStopRepository,
-            BusRouteStopRepository busRouteStopRepository,
-            BusRidershipHourlyRepository busRidershipRepository
+            BusRouteStopRepository busRouteStopRepository
     ) {
         this.entityManager = entityManager;
         this.apiClient = apiClient;
@@ -59,70 +57,117 @@ public class BusMasterDataLoadService {
         log.info("Start loading bus master data: {}", yearMonth);
 
         try {
-            busRouteStopRepository.deleteAll();
-            busRouteRepository.deleteAll();
-            busStopRepository.deleteAll();
-            entityManager.flush();
-            entityManager.clear();
-            log.info("Existing bus master data has been deleted");
+            deleteAllExistingMasterData();
 
-            Map<String, BusRoute> routeMap = new HashMap<>();
-            Map<String, BusStop> stopMap = new HashMap<>();
-            Set<BusRouteStopId> routeStopSet = new HashSet<>();
-            int apiRecordCount = 0;
-            int startIndex = 1;
+            List<BusRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
 
-            while (true) {
-                int endIndex = startIndex + pageSize - 1;
-                BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
+            MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList);
 
-                if (response == null) {
-                    break;
-                }
+            saveRoutesAndStops(collections);
 
-                for (BusRidershipData data : response.getData()) {
-                    BusRoute route = mapper.toBusRoute(data);
-                    routeMap.put(route.getRouteNumber(), route);
+            saveRouteStopAssociations(collections);
 
-                    BusStop stop = mapper.toBusStop(data);
-                    stopMap.put(stop.getStopId(), stop);
-
-                    routeStopSet.add(BusRouteStopId.of(route.getRouteNumber(), stop.getStopId()));
-
-                    apiRecordCount++;
-                }
-
-                log.info("Bus master data progress: {} ~ {} (API records: {})",
-                        startIndex, endIndex, apiRecordCount);
-                startIndex = endIndex + 1;
-            }
-
-            List<BusRoute> uniqueRoutes = new ArrayList<>(routeMap.values());
-            List<BusStop> uniqueStops = new ArrayList<>(stopMap.values());
-
-            busRouteRepository.saveAll(uniqueRoutes);
-            busStopRepository.saveAll(uniqueStops);
-            entityManager.flush();
-            log.info("Saved {} unique routes and {} unique stops", uniqueRoutes.size(), uniqueStops.size());
-
-            List<BusRouteStop> routeStops = new ArrayList<>();
-            for (BusRouteStopId id : routeStopSet) {
-                BusRoute route = routeMap.get(id.getRouteNumber());
-                BusStop stop = stopMap.get(id.getStopId());
-                routeStops.add(BusRouteStop.of(route, stop));
-            }
-            busRouteStopRepository.saveAll(routeStops);
-
-            int totalCount = apiRecordCount;
+            int totalCount = apiDataList.size();
             log.info("Bus master data loading completed: {} API records -> {} routes, {} stops, {} route-stops",
-                    apiRecordCount, uniqueRoutes.size(), uniqueStops.size(), routeStops.size());
+                    totalCount, collections.routes().size(), collections.stops().size(),
+                    collections.routeStopIds().size());
 
             return DataLoadResult.success("Bus master data", totalCount);
 
         } catch (Exception e) {
             log.error("Bus master data load failure", e);
-
             return DataLoadResult.failure("Bus master data", e.getMessage());
         }
     }
+
+    private void deleteAllExistingMasterData() {
+        busRouteStopRepository.deleteAll();
+        busRouteRepository.deleteAll();
+        busStopRepository.deleteAll();
+        entityManager.flush();
+        entityManager.clear();
+        log.info("Existing bus master data has been deleted");
+    }
+
+    private List<BusRidershipData> fetchAllDataFromApi(String yearMonth) {
+        log.info("Starting to fetch bus master data from API: {}", yearMonth);
+
+        List<BusRidershipData> allData = new ArrayList<>();
+        int startIndex = 1;
+
+        while (true) {
+            int endIndex = startIndex + pageSize - 1;
+            BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
+
+            if (response == null) {
+                break;
+            }
+
+            List<BusRidershipData> pageData = response.getData();
+            allData.addAll(pageData);
+
+            log.info("Fetched bus master data: {} ~ {} ({} records in this page, {} total)",
+                    startIndex, endIndex, pageData.size(), allData.size());
+
+            startIndex = endIndex + 1;
+        }
+
+        log.info("Completed fetching bus master data: {} API records", allData.size());
+        return allData;
+    }
+
+    private MasterDataCollections extractAndDeduplicateMasterData(List<BusRidershipData> apiDataList) {
+        log.info("Starting to extract and deduplicate master data from {} API records", apiDataList.size());
+
+        Map<String, BusRoute> routeMap = new HashMap<>();
+        Map<String, BusStop> stopMap = new HashMap<>();
+        Set<BusRouteStopId> routeStopSet = new HashSet<>();
+
+        for (BusRidershipData data : apiDataList) {
+            BusRoute route = mapper.toBusRoute(data);
+            routeMap.put(route.getRouteNumber(), route);
+
+            BusStop stop = mapper.toBusStop(data);
+            stopMap.put(stop.getStopId(), stop);
+
+            routeStopSet.add(BusRouteStopId.of(route.getRouteNumber(), stop.getStopId()));
+        }
+
+        List<BusRoute> uniqueRoutes = new ArrayList<>(routeMap.values());
+        List<BusStop> uniqueStops = new ArrayList<>(stopMap.values());
+
+        log.info("Extracted and deduplicated: {} unique routes, {} unique stops, {} route-stop associations",
+                uniqueRoutes.size(), uniqueStops.size(), routeStopSet.size());
+
+        return new MasterDataCollections(routeMap, stopMap, uniqueRoutes, uniqueStops, routeStopSet);
+    }
+
+    private void saveRoutesAndStops(MasterDataCollections collections) {
+        busRouteRepository.saveAll(collections.routes());
+        busStopRepository.saveAll(collections.stops());
+        entityManager.flush();
+        log.info("Saved {} unique routes and {} unique stops",
+                collections.routes().size(), collections.stops().size());
+    }
+
+    private void saveRouteStopAssociations(MasterDataCollections collections) {
+        List<BusRouteStop> routeStops = new ArrayList<>();
+
+        for (BusRouteStopId id : collections.routeStopIds()) {
+            BusRoute route = collections.routeMap().get(id.getRouteNumber());
+            BusStop stop = collections.stopMap().get(id.getStopId());
+            routeStops.add(BusRouteStop.of(route, stop));
+        }
+
+        busRouteStopRepository.saveAll(routeStops);
+        log.info("Saved {} route-stop associations", routeStops.size());
+    }
+
+    private record MasterDataCollections(
+            Map<String, BusRoute> routeMap,
+            Map<String, BusStop> stopMap,
+            List<BusRoute> routes,
+            List<BusStop> stops,
+            Set<BusRouteStopId> routeStopIds
+    ) {}
 }

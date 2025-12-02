@@ -58,73 +58,15 @@ public class BusStatisticsDataLoadService {
         log.info("Start loading bus statistics data: {}", yearMonth);
 
         try {
-            LocalDate statDate = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyyMM")).atDay(1);
-            busRidershipRepository.deleteByStatDate(statDate);
-            log.info("Existing bus statistics data has been deleted: {}", yearMonth);
+            deleteSameYearAndMonth(yearMonth);
 
-            Map<String, BusRoute> routeCache = new HashMap<>();
-            for (BusRoute route : busRouteRepository.findAll()) {
-                routeCache.put(route.getRouteNumber(), route);
-            }
-            log.info("Loaded {} routes into cache", routeCache.size());
+            MasterDataCaches caches = loadMasterDataCaches();
 
-            Map<String, BusStop> stopCache = new HashMap<>();
-            for (BusStop stop : busStopRepository.findAll()) {
-                stopCache.put(stop.getStopId(), stop);
-            }
-            log.info("Loaded {} stops into cache", stopCache.size());
+            List<BusRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
 
-            Map<String, BusRidershipHourly> hourlyDataMap = new HashMap<>();
-            int apiRecordCount = 0;
-            int startIndex = 1;
+            Map<String, BusRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches);
 
-            while (true) {
-                int endIndex = startIndex + pageSize - 1;
-                BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
-
-                if (response == null) {
-                    break;
-                }
-
-                for (BusRidershipData data : response.getData()) {
-                    BusRoute route = routeCache.get(data.getRteNo());
-                    if (route == null) {
-                        throw new IllegalStateException("No route master data: " + data.getRteNo());
-                    }
-
-                    BusStop stop = stopCache.get(data.getStopsId());
-                    if (stop == null) {
-                        throw new IllegalStateException("No stop master data: " + data.getStopsId());
-                    }
-
-                    List<BusRidershipHourly> hourlyData = mapper.toBusRidershipHourlyList(data, route, stop);
-
-                    for (BusRidershipHourly hourly : hourlyData) {
-                        String key = String.format("%s-%s-%s-%d",
-                                hourly.getStatDate(),
-                                hourly.getBusRoute().getRouteNumber(),
-                                hourly.getBusStop().getStopId(),
-                                hourly.getHourSlot());
-
-                        hourlyDataMap.put(key, hourly);
-                    }
-
-                    apiRecordCount++;
-                }
-
-                log.info("Bus statistics data progress: {} ~ {} (API records: {})",
-                        startIndex, endIndex, apiRecordCount);
-
-                startIndex = endIndex + 1;
-            }
-
-            List<BusRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
-            busRidershipRepository.saveAll(uniqueHourlyData);
-
-            int totalCount = uniqueHourlyData.size();
-            log.info("Bus statistics data loading completed: {} API records -> {} unique hourly records",
-                    apiRecordCount, totalCount);
-
+            int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size());
             return DataLoadResult.success("Bus statistics data", totalCount);
 
         } catch (Exception e) {
@@ -132,4 +74,117 @@ public class BusStatisticsDataLoadService {
             return DataLoadResult.failure("Bus statistics data", e.getMessage());
         }
     }
+
+    private void deleteSameYearAndMonth(String yearMonth) {
+        LocalDate statDate = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyyMM")).atDay(1);
+        busRidershipRepository.deleteByStatDate(statDate);
+        log.info("Existing bus statistics data has been deleted: {}", yearMonth);
+    }
+
+    private MasterDataCaches loadMasterDataCaches() {
+        Map<String, BusRoute> routeCache = new HashMap<>();
+        for (BusRoute route : busRouteRepository.findAll()) {
+            routeCache.put(route.getRouteNumber(), route);
+        }
+
+        Map<String, BusStop> stopCache = new HashMap<>();
+        for (BusStop stop : busStopRepository.findAll()) {
+            stopCache.put(stop.getStopId(), stop);
+        }
+
+        log.info("Loaded master data into cache: {} routes, {} stops",
+                routeCache.size(), stopCache.size());
+
+        return new MasterDataCaches(routeCache, stopCache);
+    }
+
+    private List<BusRidershipData> fetchAllDataFromApi(String yearMonth) {
+        log.info("Starting to fetch bus statistics data from API: {}", yearMonth);
+
+        List<BusRidershipData> allData = new ArrayList<>();
+        int startIndex = 1;
+
+        while (true) {
+            int endIndex = startIndex + pageSize - 1;
+            BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
+
+            if (response == null) {
+                break;
+            }
+
+            List<BusRidershipData> pageData = response.getData();
+            allData.addAll(pageData);
+
+            log.info("Fetched bus statistics data: {} ~ {} ({} records in this page, {} total)",
+                    startIndex, endIndex, pageData.size(), allData.size());
+
+            startIndex = endIndex + 1;
+        }
+
+        log.info("Completed fetching bus statistics data: {} API records", allData.size());
+        return allData;
+    }
+
+    private Map<String, BusRidershipHourly> processRidershipData(
+            List<BusRidershipData> apiDataList,
+            MasterDataCaches caches
+    ) {
+        log.info("Starting to process {} API records", apiDataList.size());
+
+        Map<String, BusRidershipHourly> hourlyDataMap = new HashMap<>();
+
+        for (BusRidershipData data : apiDataList) {
+            List<BusRidershipHourly> hourlyDataList = convertToHourlyRidership(data, caches);
+
+            for (BusRidershipHourly hourly : hourlyDataList) {
+                String key = generateUniqueKey(hourly);
+                hourlyDataMap.put(key, hourly);
+            }
+        }
+
+        log.info("Completed processing: {} API records -> {} unique hourly records",
+                apiDataList.size(), hourlyDataMap.size());
+
+        return hourlyDataMap;
+    }
+
+    private List<BusRidershipHourly> convertToHourlyRidership(
+            BusRidershipData data,
+            MasterDataCaches caches
+    ) {
+        BusRoute route = caches.routeCache().get(data.getRteNo());
+        if (route == null) {
+            throw new IllegalStateException("No route master data: " + data.getRteNo());
+        }
+
+        BusStop stop = caches.stopCache().get(data.getStopsId());
+        if (stop == null) {
+            throw new IllegalStateException("No stop master data: " + data.getStopsId());
+        }
+
+        return mapper.toBusRidershipHourlyList(data, route, stop);
+    }
+
+    private String generateUniqueKey(BusRidershipHourly hourly) {
+        return String.format("%s-%s-%s-%d",
+                hourly.getStatDate(),
+                hourly.getBusRoute().getRouteNumber(),
+                hourly.getBusStop().getStopId(),
+                hourly.getHourSlot());
+    }
+
+    private int saveRidershipData(Map<String, BusRidershipHourly> hourlyDataMap, int apiRecordCount) {
+        List<BusRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
+        busRidershipRepository.saveAll(uniqueHourlyData);
+
+        int totalCount = uniqueHourlyData.size();
+        log.info("Bus statistics data loading completed: {} API records -> {} unique hourly records",
+                apiRecordCount, totalCount);
+        return totalCount;
+    }
+
+    private record MasterDataCaches(
+            Map<String, BusRoute> routeCache,
+            Map<String, BusStop> stopCache
+    ) {}
 }
