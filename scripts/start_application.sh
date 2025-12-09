@@ -8,7 +8,7 @@ APP_DIR="/home/ec2-user/pulse"
 JAR_FILE="$APP_DIR/pulse-0.0.1-SNAPSHOT.jar"
 LOG_FILE="$APP_DIR/logs/application.log"
 PID_FILE="$APP_DIR/application.pid"
-JAVA_OPTS="-Xms512m -Xmx1024m -Dspring.profiles.active=prod"
+JAVA_OPTS="-Xms256m -Xmx512m -Dspring.profiles.active=prod"
 
 echo "=== Application Start: 애플리케이션 시작 ==="
 
