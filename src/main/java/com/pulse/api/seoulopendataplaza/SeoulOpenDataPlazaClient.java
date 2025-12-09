@@ -3,6 +3,8 @@ package com.pulse.api.seoulopendataplaza;
 import com.pulse.api.seoulopendataplaza.dto.bus.BusApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendataplaza.validator.ApiResponseValidator;
+import com.pulse.config.AwsSecretsConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -13,10 +15,10 @@ public class SeoulOpenDataPlazaClient {
     private final RestTemplate restTemplate;
     private final ApiResponseValidator validator;
 
-    @Value("${seoul-api.base-url}")
+    @Value("${seoul-api.base-url:#{null}}")
     private String baseUrl;
 
-    @Value("${seoul-api.key}")
+    @Value("${seoul-api.key:#{null}}")
     private String apiKey;
 
     @Value("${seoul-api.services.bus}")
@@ -27,9 +29,18 @@ public class SeoulOpenDataPlazaClient {
 
     private static final String SEOUL_OPEN_API_FORMAT = "%s/%s/json/%s/%d/%d/%s";
 
-    public SeoulOpenDataPlazaClient(RestTemplate restTemplate, ApiResponseValidator validator) {
+    public SeoulOpenDataPlazaClient(
+            RestTemplate restTemplate,
+            ApiResponseValidator validator,
+            @Autowired(required = false) AwsSecretsConfig.SeoulApiConfig seoulApiConfig
+    ) {
         this.restTemplate = restTemplate;
         this.validator = validator;
+
+        if (seoulApiConfig != null) {
+            this.baseUrl = seoulApiConfig.getBaseUrl();
+            this.apiKey = seoulApiConfig.getApiKey();
+        }
     }
 
     public BusApiResponse fetchBusRidershipData(String yearMonth, int startIndex, int endIndex) {

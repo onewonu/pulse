@@ -1,0 +1,32 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        format_sql: false
+        generate_statistics: false
+
+logging:
+  level:
+    root: INFO
+    com.pulse: INFO
+  file:
+    name: /home/ec2-user/pulse/logs/application.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+server:
+  port: 8080
+  shutdown: graceful
+
+seoul-api:
+  services:
+    bus: CardBusTimeNew
+    subway: CardSubwayTime
