@@ -3,8 +3,10 @@ spring:
     hibernate:
       ddl-auto: create
     show-sql: false
+    database-platform: org.hibernate.dialect.MySQL8Dialect
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
         jdbc:
           batch_size: 500
         order_inserts: true
@@ -17,6 +19,8 @@ logging:
   level:
     root: INFO
     com.pulse: INFO
+    com.pulse.config.AwsSecretsConfig: DEBUG
+    software.amazon.awssdk: DEBUG
   file:
     name: /home/ec2-user/pulse/logs/application.log
   pattern:
@@ -27,6 +31,7 @@ server:
   shutdown: graceful
 
 seoul-api:
+  page-size: 1000
   services:
     bus: CardBusTimeNew
     subway: CardSubwayTime

@@ -76,14 +76,12 @@ public class AwsSecretsConfig {
 
         try {
             String apiKey = getSecret(secretsClient, "/pulse/prod/seoul-api-key");
-
             String baseUrl = getParameter(ssmClient, "/pulse/prod/seoul-api-base-url");
-            String pageSize = getParameter(ssmClient, "/pulse/prod/seoul-api-page-size");
 
             SeoulApiConfig config = new SeoulApiConfig();
             config.setApiKey(apiKey);
             config.setBaseUrl(baseUrl);
-            config.setPageSize(Integer.parseInt(pageSize));
+            // page-size는 application-prod.yml에서 관리
 
             log.info("Seoul API configuration loaded successfully");
             return config;
