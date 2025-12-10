@@ -29,6 +29,12 @@ logging:
 server:
   port: 8080
   shutdown: graceful
+  forward-headers-strategy: native
+  tomcat:
+    # noinspection SpellCheckingInspection
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
 
 seoul-api:
   page-size: 1000
