@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/data-load")
+@RequestMapping("/admin/data-load")
 public class DataLoadController {
 
     private final BusMasterDataLoadService busMasterDataLoadService;
@@ -23,7 +23,12 @@ public class DataLoadController {
     private final SubwayMasterDataLoadService subwayMasterDataLoadService;
     private final SubwayStatisticsDataLoadService subwayStatisticsDataLoadService;
 
-    public DataLoadController(BusMasterDataLoadService busDataLoadService, BusStatisticsDataLoadService busStatisticsDataLoadService, SubwayMasterDataLoadService subwayDataLoadService, SubwayStatisticsDataLoadService subwayStatisticsData) {
+    public DataLoadController(
+            BusMasterDataLoadService busDataLoadService,
+            BusStatisticsDataLoadService busStatisticsDataLoadService,
+            SubwayMasterDataLoadService subwayDataLoadService,
+            SubwayStatisticsDataLoadService subwayStatisticsData
+    ) {
         this.busMasterDataLoadService = busDataLoadService;
         this.busStatisticsDataLoadService = busStatisticsDataLoadService;
         this.subwayMasterDataLoadService = subwayDataLoadService;
