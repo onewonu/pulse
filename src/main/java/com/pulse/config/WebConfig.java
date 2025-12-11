@@ -12,6 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOriginPatterns(
                         "https://pulse.it.kr",
+                        "https://www.pulse.it.kr",
                         "http://localhost:3000",
                         "http://localhost:5173"
                 )
