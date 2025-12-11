@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
@@ -24,6 +25,7 @@ public class AwsSecretsConfig {
     public SecretsManagerClient secretsManagerClient() {
         return SecretsManagerClient.builder()
                 .region(Region.AP_NORTHEAST_2)
+                .credentialsProvider(InstanceProfileCredentialsProvider.create())
                 .build();
     }
 
@@ -31,6 +33,7 @@ public class AwsSecretsConfig {
     public SsmClient ssmClient() {
         return SsmClient.builder()
                 .region(Region.AP_NORTHEAST_2)
+                .credentialsProvider(InstanceProfileCredentialsProvider.create())
                 .build();
     }
 
