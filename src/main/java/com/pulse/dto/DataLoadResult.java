@@ -29,7 +29,7 @@ public class DataLoadResult {
                 true,
                 dataCategory,
                 count,
-                count + "Loading completed",
+                count + " Loading completed",
                 LocalDateTime.now()
         );
     }

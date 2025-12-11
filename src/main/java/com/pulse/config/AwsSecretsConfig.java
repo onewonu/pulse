@@ -84,7 +84,6 @@ public class AwsSecretsConfig {
             SeoulApiConfig config = new SeoulApiConfig();
             config.setApiKey(apiKey);
             config.setBaseUrl(baseUrl);
-            // page-size는 application-prod.yml에서 관리
 
             log.info("Seoul API configuration loaded successfully");
             return config;
