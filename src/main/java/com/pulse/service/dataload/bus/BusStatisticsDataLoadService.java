@@ -7,6 +7,7 @@ import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.bus.BusRidershipHourly;
 import com.pulse.entity.bus.BusRoute;
 import com.pulse.entity.bus.BusStop;
+import com.pulse.exception.dataload.MasterDataNotFoundException;
 import com.pulse.mapper.BusDataMapper;
 import com.pulse.repository.bus.BusRidershipHourlyRepository;
 import com.pulse.repository.bus.BusRouteRepository;
@@ -29,7 +30,7 @@ import java.util.Map;
 @Transactional
 public class BusStatisticsDataLoadService {
 
-    private static final Logger log = LoggerFactory.getLogger(BusMasterDataLoadService.class);
+    private static final Logger log = LoggerFactory.getLogger(BusStatisticsDataLoadService.class);
 
     private final SeoulOpenDataPlazaClient apiClient;
     private final BusDataMapper mapper;
@@ -57,22 +58,16 @@ public class BusStatisticsDataLoadService {
     public DataLoadResult loadBusStatisticsData(String yearMonth) {
         log.info("Start loading bus statistics data: {}", yearMonth);
 
-        try {
-            deleteSameYearAndMonth(yearMonth);
+        deleteSameYearAndMonth(yearMonth);
 
-            MasterDataCaches caches = loadMasterDataCaches();
+        MasterDataCaches caches = loadMasterDataCaches();
 
-            List<BusRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
+        List<BusRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
 
-            Map<String, BusRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches);
+        Map<String, BusRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches);
 
-            int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size());
-            return DataLoadResult.success("Bus statistics data", totalCount);
-
-        } catch (Exception e) {
-            log.error("Failure to load bus statistics data", e);
-            return DataLoadResult.failure("Bus statistics data", e.getMessage());
-        }
+        int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size());
+        return DataLoadResult.success("Bus statistics data", totalCount);
     }
 
     private void deleteSameYearAndMonth(String yearMonth) {
@@ -113,6 +108,10 @@ public class BusStatisticsDataLoadService {
             }
 
             List<BusRidershipData> pageData = response.getData();
+            if (pageData == null || pageData.isEmpty()) {
+                break;
+            }
+
             allData.addAll(pageData);
 
             log.info("Fetched bus statistics data: {} ~ {} ({} records in this page, {} total)",
@@ -154,12 +153,12 @@ public class BusStatisticsDataLoadService {
     ) {
         BusRoute route = caches.routeCache().get(data.getRteNo());
         if (route == null) {
-            throw new IllegalStateException("No route master data: " + data.getRteNo());
+            throw new MasterDataNotFoundException("route", data.getRteNo());
         }
 
         BusStop stop = caches.stopCache().get(data.getStopsId());
         if (stop == null) {
-            throw new IllegalStateException("No stop master data: " + data.getStopsId());
+            throw new MasterDataNotFoundException("stop", data.getStopsId());
         }
 
         return mapper.toBusRidershipHourlyList(data, route, stop);

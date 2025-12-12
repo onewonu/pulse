@@ -7,6 +7,7 @@ import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayRidershipHourly;
 import com.pulse.entity.subway.SubwayStation;
+import com.pulse.exception.dataload.MasterDataNotFoundException;
 import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
@@ -29,7 +30,7 @@ import java.util.Map;
 @Transactional
 public class SubwayStatisticsDataLoadService {
     
-    private static final Logger log = LoggerFactory.getLogger(SubwayMasterDataLoadService.class);
+    private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
 
     private final SeoulOpenDataPlazaClient apiClient;
     private final SubwayDataMapper mapper;
@@ -57,22 +58,16 @@ public class SubwayStatisticsDataLoadService {
     public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
         log.info("Start loading subway statistics data: {}", yearMonth);
 
-        try {
-            deleteSameYearAndMonth(yearMonth);
+        deleteSameYearAndMonth(yearMonth);
 
-            MasterDataCaches caches = loadMasterDataCaches();
+        MasterDataCaches caches = loadMasterDataCaches();
 
-            List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
+        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
 
-            Map<String, SubwayRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches);
+        Map<String, SubwayRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches);
 
-            int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size());
-            return DataLoadResult.success("Subway statistics data", totalCount);
-
-        } catch (Exception e) {
-            log.error("Failure to load subway statistics data", e);
-            return DataLoadResult.failure("Subway statistics data", e.getMessage());
-        }
+        int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size());
+        return DataLoadResult.success("Subway statistics data", totalCount);
     }
 
     private void deleteSameYearAndMonth(String yearMonth) {
@@ -113,6 +108,10 @@ public class SubwayStatisticsDataLoadService {
             }
 
             List<SubwayRidershipData> pageData = response.getData();
+            if (pageData == null || pageData.isEmpty()) {
+                break;
+            }
+
             allData.addAll(pageData);
 
             log.info("Fetched subway statistics data: {} ~ {} ({} records in this page, {} total)",
@@ -154,12 +153,12 @@ public class SubwayStatisticsDataLoadService {
     ) {
         SubwayLine line = caches.lineCache().get(data.getSbwyRoutLnNm());
         if (line == null) {
-            throw new IllegalStateException("No line master data: " + data.getSbwyRoutLnNm());
+            throw new MasterDataNotFoundException("line", data.getSbwyRoutLnNm());
         }
 
         SubwayStation station = caches.stationCache().get(data.getSttn());
         if (station == null) {
-            throw new IllegalStateException("No station master data: " + data.getSttn());
+            throw new MasterDataNotFoundException("station", data.getSttn());
         }
 
         return mapper.toSubwayRidershipHourlyList(data, line, station);
