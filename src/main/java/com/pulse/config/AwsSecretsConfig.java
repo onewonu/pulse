@@ -1,5 +1,6 @@
 package com.pulse.config;
 
+import com.pulse.exception.config.AwsConfigurationException;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +11,10 @@ import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvide
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
+import software.amazon.awssdk.services.ssm.model.SsmException;
 
 import javax.sql.DataSource;
 
@@ -67,9 +70,15 @@ public class AwsSecretsConfig {
             log.info("DataSource configured successfully for database: {}", database);
             return dataSource;
 
+        } catch (SsmException e) {
+            String errorMessage = "Database configuration failed: unable to access SSM parameters - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (SecretsManagerException e) {
+            String errorMessage = "Database configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
         } catch (Exception e) {
-            log.error("Failed to configure DataSource from Secrets Manager", e);
-            throw new RuntimeException("Failed to configure DataSource", e);
+            String errorMessage = "Database configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
         }
     }
 
@@ -88,9 +97,15 @@ public class AwsSecretsConfig {
             log.info("Seoul API configuration loaded successfully");
             return config;
 
+        } catch (SsmException e) {
+            String errorMessage = "Seoul API configuration failed: unable to access SSM parameters - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (SecretsManagerException e) {
+            String errorMessage = "Seoul API configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
         } catch (Exception e) {
-            log.error("Failed to configure Seoul API settings", e);
-            throw new RuntimeException("Failed to configure Seoul API", e);
+            String errorMessage = "Seoul API configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
         }
     }
 
