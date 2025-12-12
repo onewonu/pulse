@@ -1,6 +1,7 @@
 package com.pulse.exception;
 
 import com.pulse.dto.ErrorResponse;
+import com.pulse.exception.config.AwsConfigurationException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -20,6 +21,15 @@ public class GlobalExceptionHandler {
         log.error("Application exception occurred: {}", e.getMessage(), e);
 
         return ResponseEntity.status(e.getHttpStatus()).body(ErrorResponse.of(e));
+    }
+
+    @ExceptionHandler(AwsConfigurationException.class)
+    public ResponseEntity<ErrorResponse> handleAwsConfigurationException(AwsConfigurationException e) {
+        log.error("AWS configuration exception occurred: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage()));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
