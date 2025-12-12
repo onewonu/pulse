@@ -4,9 +4,11 @@ import com.pulse.api.seoulopendataplaza.dto.bus.BusApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendataplaza.validator.ApiResponseValidator;
 import com.pulse.config.AwsSecretsConfig;
+import com.pulse.exception.dataload.ApiCommunicationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
@@ -49,12 +51,18 @@ public class SeoulOpenDataPlazaClient {
     }
 
     public SubwayApiResponse fetchSubwayRidershipData(String yearMonth, int startIndex, int endIndex) {
-        String url = String.format(SEOUL_OPEN_API_FORMAT, baseUrl, apiKey, subwayService, startIndex, endIndex, yearMonth);
+        String url = String.format(
+                SEOUL_OPEN_API_FORMAT, baseUrl, apiKey, subwayService, startIndex, endIndex, yearMonth
+        );
         return fetchData(url, SubwayApiResponse.class);
     }
 
     private <T extends ApiResponse> T fetchData(String url, Class<T> responseType) {
-        T response = restTemplate.getForObject(url, responseType);
-        return validator.validate(response, responseType);
+        try {
+            T response = restTemplate.getForObject(url, responseType);
+            return validator.validate(response, responseType);
+        } catch (RestClientException e) {
+            throw new ApiCommunicationException("Failed to communicate with Seoul Open Data Plaza API: " + url, e);
+        }
     }
 }

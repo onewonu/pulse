@@ -56,28 +56,22 @@ public class BusMasterDataLoadService {
     public DataLoadResult loadBusMasterData(String yearMonth) {
         log.info("Start loading bus master data: {}", yearMonth);
 
-        try {
-            deleteAllExistingMasterData();
+        deleteAllExistingMasterData();
 
-            List<BusRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
+        List<BusRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
 
-            MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList);
+        MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList);
 
-            saveRoutesAndStops(collections);
+        saveRoutesAndStops(collections);
 
-            saveRouteStopAssociations(collections);
+        saveRouteStopAssociations(collections);
 
-            int totalCount = apiDataList.size();
-            log.info("Bus master data loading completed: {} API records -> {} routes, {} stops, {} route-stops",
-                    totalCount, collections.routes().size(), collections.stops().size(),
-                    collections.routeStopIds().size());
+        int totalCount = apiDataList.size();
+        log.info("Bus master data loading completed: {} API records -> {} routes, {} stops, {} route-stops",
+                totalCount, collections.routes().size(), collections.stops().size(),
+                collections.routeStopIds().size());
 
-            return DataLoadResult.success("Bus master data", totalCount);
-
-        } catch (Exception e) {
-            log.error("Bus master data load failure", e);
-            return DataLoadResult.failure("Bus master data", e.getMessage());
-        }
+        return DataLoadResult.success("Bus master data", totalCount);
     }
 
     private void deleteAllExistingMasterData() {
@@ -94,22 +88,22 @@ public class BusMasterDataLoadService {
 
         List<BusRidershipData> allData = new ArrayList<>();
         int startIndex = 1;
+        boolean hasMoreData = true;
 
-        while (true) {
+        while (hasMoreData) {
             int endIndex = startIndex + pageSize - 1;
             BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
 
-            if (response == null) {
-                break;
+            List<BusRidershipData> pageData = (response != null) ? response.getData() : null;
+
+            if (pageData != null && !pageData.isEmpty()) {
+                allData.addAll(pageData);
+                log.info("Fetched bus master data: {} ~ {} ({} records in this page, {} total)",
+                        startIndex, endIndex, pageData.size(), allData.size());
+                startIndex = endIndex + 1;
+            } else {
+                hasMoreData = false;
             }
-
-            List<BusRidershipData> pageData = response.getData();
-            allData.addAll(pageData);
-
-            log.info("Fetched bus master data: {} ~ {} ({} records in this page, {} total)",
-                    startIndex, endIndex, pageData.size(), allData.size());
-
-            startIndex = endIndex + 1;
         }
 
         log.info("Completed fetching bus master data: {} API records", allData.size());

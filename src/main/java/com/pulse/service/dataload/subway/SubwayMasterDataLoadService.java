@@ -56,28 +56,22 @@ public class SubwayMasterDataLoadService {
     public DataLoadResult loadSubwayMasterData(String yearMonth) {
         log.info("Start loading subway master data: {}", yearMonth);
 
-        try {
-            deleteAllExistingMasterData();
+        deleteAllExistingMasterData();
 
-            List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
+        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
 
-            MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList);
+        MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList);
 
-            saveLinesAndStations(collections);
+        saveLinesAndStations(collections);
 
-            saveLineStationAssociations(collections);
+        saveLineStationAssociations(collections);
 
-            int totalCount = apiDataList.size();
-            log.info("Subway master data loading completed: {} API records -> {} lines, {} stations, {} line-stations",
-                    totalCount, collections.lines().size(), collections.stations().size(),
-                    collections.lineStationIds().size());
+        int totalCount = apiDataList.size();
+        log.info("Subway master data loading completed: {} API records -> {} lines, {} stations, {} line-stations",
+                totalCount, collections.lines().size(), collections.stations().size(),
+                collections.lineStationIds().size());
 
-            return DataLoadResult.success("Subway master data", totalCount);
-
-        } catch (Exception e) {
-            log.error("Subway master data load failure", e);
-            return DataLoadResult.failure("Subway master data", e.getMessage());
-        }
+        return DataLoadResult.success("Subway master data", totalCount);
     }
 
     private void deleteAllExistingMasterData() {
@@ -94,22 +88,22 @@ public class SubwayMasterDataLoadService {
 
         List<SubwayRidershipData> allData = new ArrayList<>();
         int startIndex = 1;
+        boolean hasMoreData = true;
 
-        while (true) {
+        while (hasMoreData) {
             int endIndex = startIndex + pageSize - 1;
             SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
-            if (response == null) {
-                break;
+            List<SubwayRidershipData> pageData = (response != null) ? response.getData() : null;
+
+            if (pageData != null && !pageData.isEmpty()) {
+                allData.addAll(pageData);
+                log.info("Fetched subway master data: {} ~ {} ({} records in this page, {} total)",
+                        startIndex, endIndex, pageData.size(), allData.size());
+                startIndex = endIndex + 1;
+            } else {
+                hasMoreData = false;
             }
-
-            List<SubwayRidershipData> pageData = response.getData();
-            allData.addAll(pageData);
-
-            log.info("Fetched subway master data: {} ~ {} ({} records in this page, {} total)",
-                    startIndex, endIndex, pageData.size(), allData.size());
-
-            startIndex = endIndex + 1;
         }
 
         log.info("Completed fetching subway master data: {} API records", allData.size());
