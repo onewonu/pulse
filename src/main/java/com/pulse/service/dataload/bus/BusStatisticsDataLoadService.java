@@ -98,26 +98,22 @@ public class BusStatisticsDataLoadService {
 
         List<BusRidershipData> allData = new ArrayList<>();
         int startIndex = 1;
+        boolean hasMoreData = true;
 
-        while (true) {
+        while (hasMoreData) {
             int endIndex = startIndex + pageSize - 1;
             BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
 
-            if (response == null) {
-                break;
+            List<BusRidershipData> pageData = (response != null) ? response.getData() : null;
+
+            if (pageData != null && !pageData.isEmpty()) {
+                allData.addAll(pageData);
+                log.info("Fetched bus statistics data: {} ~ {} ({} records in this page, {} total)",
+                        startIndex, endIndex, pageData.size(), allData.size());
+                startIndex = endIndex + 1;
+            } else {
+                hasMoreData = false;
             }
-
-            List<BusRidershipData> pageData = response.getData();
-            if (pageData == null || pageData.isEmpty()) {
-                break;
-            }
-
-            allData.addAll(pageData);
-
-            log.info("Fetched bus statistics data: {} ~ {} ({} records in this page, {} total)",
-                    startIndex, endIndex, pageData.size(), allData.size());
-
-            startIndex = endIndex + 1;
         }
 
         log.info("Completed fetching bus statistics data: {} API records", allData.size());
