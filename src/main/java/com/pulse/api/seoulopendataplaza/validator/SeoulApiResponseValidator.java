@@ -2,6 +2,7 @@ package com.pulse.api.seoulopendataplaza.validator;
 
 import com.pulse.api.seoulopendataplaza.ApiResponse;
 import com.pulse.api.seoulopendataplaza.ApiResult;
+import com.pulse.exception.dataload.ApiResponseInvalidException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,8 +19,9 @@ public class SeoulApiResponseValidator implements ApiResponseValidator {
         String className = responseType.getSimpleName();
 
         if (response == null) {
-            log.warn("{} data API response is null", className);
-            return null;
+            String errorMessage = String.format("%s data API response is null", className);
+            log.error(errorMessage);
+            throw new ApiResponseInvalidException(errorMessage);
         }
 
         ApiResult result = response.getResult();
@@ -37,11 +39,16 @@ public class SeoulApiResponseValidator implements ApiResponseValidator {
                 return response;
             }
 
-            log.warn("{} data API returned non-success code: {} - {}", className, code, message);
-            return null;
-        } else if (!response.hasData()) {
-            log.warn("{} data API response has no data", className);
-            return null;
+            String errorMessage = String.format(
+                    "%s data API returned non-success code: %s - %s", className, code, message
+            );
+            log.error(errorMessage);
+            throw new ApiResponseInvalidException(errorMessage);
+        }
+
+        if (!response.hasData()) {
+            log.info("{} data API returned empty response (end of pagination)", className);
+            return response;
         }
 
         return response;
