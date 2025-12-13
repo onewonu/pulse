@@ -3,6 +3,7 @@ package com.pulse.service.dataload.subway;
 import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayRidershipData;
+import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayLineStation;
@@ -15,7 +16,6 @@ import com.pulse.repository.subway.SubwayStationRepository;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,9 +33,7 @@ public class SubwayMasterDataLoadService {
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
     private final SubwayLineStationRepository subwayLineStationRepository;
-
-    @Value("${seoul-api.page-size}")
-    private int pageSize;
+    private final SeoulApiProperties properties;
 
     public SubwayMasterDataLoadService(
             EntityManager entityManager,
@@ -43,7 +41,8 @@ public class SubwayMasterDataLoadService {
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SubwayLineStationRepository subwayLineStationRepository
+            SubwayLineStationRepository subwayLineStationRepository,
+            SeoulApiProperties properties
     ) {
         this.entityManager = entityManager;
         this.apiClient = apiClient;
@@ -51,6 +50,7 @@ public class SubwayMasterDataLoadService {
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
         this.subwayLineStationRepository = subwayLineStationRepository;
+        this.properties = properties;
     }
 
     public DataLoadResult loadSubwayMasterData(String yearMonth) {
@@ -91,7 +91,7 @@ public class SubwayMasterDataLoadService {
         boolean hasMoreData = true;
 
         while (hasMoreData) {
-            int endIndex = startIndex + pageSize - 1;
+            int endIndex = startIndex + properties.getPageSize() - 1;
             SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
             List<SubwayRidershipData> pageData = (response != null) ? response.getData() : null;

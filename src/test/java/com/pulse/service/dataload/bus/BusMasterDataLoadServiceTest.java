@@ -3,6 +3,7 @@ package com.pulse.service.dataload.bus;
 import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
 import com.pulse.api.seoulopendataplaza.dto.bus.BusApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.bus.BusRidershipData;
+import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.bus.BusRoute;
 import com.pulse.entity.bus.BusStop;
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
 import java.util.List;
@@ -48,6 +48,9 @@ class BusMasterDataLoadServiceTest {
     @Mock
     private BusRouteStopRepository busRouteStopRepository;
 
+    @Mock
+    private SeoulApiProperties properties;
+
     @InjectMocks
     private BusMasterDataLoadService service;
 
@@ -56,7 +59,7 @@ class BusMasterDataLoadServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(service, "pageSize", PAGE_SIZE);
+        when(properties.getPageSize()).thenReturn(PAGE_SIZE);
     }
 
     @Test

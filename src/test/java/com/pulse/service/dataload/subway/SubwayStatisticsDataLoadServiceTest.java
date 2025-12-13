@@ -3,6 +3,7 @@ package com.pulse.service.dataload.subway;
 import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayRidershipData;
+import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayRidershipHourly;
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -46,6 +46,9 @@ class SubwayStatisticsDataLoadServiceTest {
     @Mock
     private SubwayRidershipHourlyRepository subwayRidershipRepository;
 
+    @Mock
+    private SeoulApiProperties properties;
+
     @InjectMocks
     private SubwayStatisticsDataLoadService service;
 
@@ -54,7 +57,7 @@ class SubwayStatisticsDataLoadServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(service, "pageSize", PAGE_SIZE);
+        when(properties.getPageSize()).thenReturn(PAGE_SIZE);
     }
 
     @Test

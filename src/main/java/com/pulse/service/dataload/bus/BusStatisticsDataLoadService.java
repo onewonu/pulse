@@ -3,6 +3,7 @@ package com.pulse.service.dataload.bus;
 import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
 import com.pulse.api.seoulopendataplaza.dto.bus.BusApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.bus.BusRidershipData;
+import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.bus.BusRidershipHourly;
 import com.pulse.entity.bus.BusRoute;
@@ -14,7 +15,6 @@ import com.pulse.repository.bus.BusRouteRepository;
 import com.pulse.repository.bus.BusStopRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,22 +37,22 @@ public class BusStatisticsDataLoadService {
     private final BusRouteRepository busRouteRepository;
     private final BusStopRepository busStopRepository;
     private final BusRidershipHourlyRepository busRidershipRepository;
-
-    @Value("${seoul-api.page-size}")
-    private int pageSize;
+    private final SeoulApiProperties properties;
 
     public BusStatisticsDataLoadService(
             SeoulOpenDataPlazaClient apiClient,
             BusDataMapper mapper,
             BusRouteRepository busRouteRepository,
             BusStopRepository busStopRepository,
-            BusRidershipHourlyRepository busRidershipRepository
+            BusRidershipHourlyRepository busRidershipRepository,
+            SeoulApiProperties properties
     ) {
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.busRouteRepository = busRouteRepository;
         this.busStopRepository = busStopRepository;
         this.busRidershipRepository = busRidershipRepository;
+        this.properties = properties;
     }
 
     public DataLoadResult loadBusStatisticsData(String yearMonth) {
@@ -101,7 +101,7 @@ public class BusStatisticsDataLoadService {
         boolean hasMoreData = true;
 
         while (hasMoreData) {
-            int endIndex = startIndex + pageSize - 1;
+            int endIndex = startIndex + properties.getPageSize() - 1;
             BusApiResponse response = apiClient.fetchBusRidershipData(yearMonth, startIndex, endIndex);
 
             List<BusRidershipData> pageData = (response != null) ? response.getData() : null;

@@ -3,6 +3,7 @@ package com.pulse.service.dataload.subway;
 import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendataplaza.dto.subway.SubwayRidershipData;
+import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayRidershipHourly;
@@ -14,7 +15,6 @@ import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +29,7 @@ import java.util.Map;
 @Service
 @Transactional
 public class SubwayStatisticsDataLoadService {
-    
+
     private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
 
     private final SeoulOpenDataPlazaClient apiClient;
@@ -37,22 +37,22 @@ public class SubwayStatisticsDataLoadService {
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
     private final SubwayRidershipHourlyRepository subwayRidershipRepository;
-
-    @Value("${seoul-api.page-size}")
-    private int pageSize;
+    private final SeoulApiProperties properties;
 
     public SubwayStatisticsDataLoadService(
             SeoulOpenDataPlazaClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SubwayRidershipHourlyRepository subwayRidershipRepository
+            SubwayRidershipHourlyRepository subwayRidershipRepository,
+            SeoulApiProperties properties
     ) {
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
         this.subwayRidershipRepository = subwayRidershipRepository;
+        this.properties = properties;
     }
 
     public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
@@ -101,7 +101,7 @@ public class SubwayStatisticsDataLoadService {
         boolean hasMoreData = true;
 
         while (hasMoreData) {
-            int endIndex = startIndex + pageSize - 1;
+            int endIndex = startIndex + properties.getPageSize() - 1;
             SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
             List<SubwayRidershipData> pageData = (response != null) ? response.getData() : null;
