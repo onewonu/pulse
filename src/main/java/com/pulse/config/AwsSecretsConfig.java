@@ -83,19 +83,19 @@ public class AwsSecretsConfig {
     }
 
     @Bean
-    public SeoulApiConfig seoulApiConfig(SecretsManagerClient secretsClient, SsmClient ssmClient) {
+    public SeoulApiProperties seoulApiProperties(SecretsManagerClient secretsClient, SsmClient ssmClient) {
         log.info("Configuring Seoul API settings from AWS");
 
         try {
             String apiKey = getSecret(secretsClient, "/pulse/prod/seoul-api-key");
             String baseUrl = getParameter(ssmClient, "/pulse/prod/seoul-api-base-url");
 
-            SeoulApiConfig config = new SeoulApiConfig();
-            config.setApiKey(apiKey);
-            config.setBaseUrl(baseUrl);
+            SeoulApiProperties properties = new SeoulApiProperties();
+            properties.setKey(apiKey);
+            properties.setBaseUrl(baseUrl);
 
             log.info("Seoul API configuration loaded successfully");
-            return config;
+            return properties;
 
         } catch (SsmException e) {
             String errorMessage = "Seoul API configuration failed: unable to access SSM parameters - " + e.getMessage();
@@ -133,36 +133,5 @@ public class AwsSecretsConfig {
         log.debug("Successfully fetched parameter: {}", parameterName);
 
         return parameterValue;
-    }
-
-
-    public static class SeoulApiConfig {
-        private String apiKey;
-        private String baseUrl;
-        private int pageSize;
-
-        public String getApiKey() {
-            return apiKey;
-        }
-
-        public void setApiKey(String apiKey) {
-            this.apiKey = apiKey;
-        }
-
-        public String getBaseUrl() {
-            return baseUrl;
-        }
-
-        public void setBaseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
-        }
-
-        public int getPageSize() {
-            return pageSize;
-        }
-
-        public void setPageSize(int pageSize) {
-            this.pageSize = pageSize;
-        }
     }
 }
