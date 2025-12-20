@@ -45,19 +45,10 @@ public class SeoulApiProperties {
     }
 
     public static class Services {
-        private String bus;
         private String subway;
-
-        public String getBus() {
-            return bus;
-        }
 
         public String getSubway() {
             return subway;
-        }
-
-        public void setBus(String bus) {
-            this.bus = bus;
         }
 
         public void setSubway(String subway) {

@@ -39,5 +39,4 @@ server:
 seoul-api:
   page-size: 1000
   services:
-    bus: CardBusTimeNew
     subway: CardSubwayTime

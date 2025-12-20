@@ -1,22 +1,21 @@
 package com.pulse.api.seoulopendataplaza.validator;
 
-import com.pulse.api.seoulopendataplaza.ApiResponse;
 import com.pulse.api.seoulopendataplaza.ApiResult;
+import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class SeoulApiResponseValidator implements ApiResponseValidator {
+public class SeoulApiResponseValidator {
 
     private static final Logger log = LoggerFactory.getLogger(SeoulApiResponseValidator.class);
     private static final String SUCCESS_CODE = "INFO-000";
     private static final String NO_DATA_CODE = "INFO-200";
 
-    @Override
-    public <T extends ApiResponse> T validate(T response, Class<T> responseType) {
-        String className = responseType.getSimpleName();
+    public SubwayApiResponse validate(SubwayApiResponse response) {
+        String className = "SubwayApiResponse";
 
         if (response == null) {
             String errorMessage = String.format("%s data API response is null", className);
