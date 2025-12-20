@@ -1,4 +1,4 @@
-package com.pulse.api.seoulopendataplaza;
+package com.pulse.api.seoulopendata;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

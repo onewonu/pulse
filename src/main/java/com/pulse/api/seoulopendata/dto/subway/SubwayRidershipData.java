@@ -1,4 +1,4 @@
-package com.pulse.api.seoulopendataplaza.dto.subway;
+package com.pulse.api.seoulopendata.dto.subway;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

@@ -1,8 +1,8 @@
 package com.pulse.service.dataload.subway;
 
-import com.pulse.api.seoulopendataplaza.SeoulOpenDataPlazaClient;
-import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
-import com.pulse.api.seoulopendataplaza.dto.subway.SubwayRidershipData;
+import com.pulse.api.seoulopendata.SeoulOpenDataPlazaClient;
+import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
+import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
 import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;

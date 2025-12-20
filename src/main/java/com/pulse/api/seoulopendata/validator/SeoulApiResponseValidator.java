@@ -1,7 +1,7 @@
-package com.pulse.api.seoulopendataplaza.validator;
+package com.pulse.api.seoulopendata.validator;
 
-import com.pulse.api.seoulopendataplaza.ApiResult;
-import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
+import com.pulse.api.seoulopendata.ApiResult;
+import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

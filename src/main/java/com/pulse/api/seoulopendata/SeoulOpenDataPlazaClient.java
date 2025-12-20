@@ -1,7 +1,7 @@
-package com.pulse.api.seoulopendataplaza;
+package com.pulse.api.seoulopendata;
 
-import com.pulse.api.seoulopendataplaza.dto.subway.SubwayApiResponse;
-import com.pulse.api.seoulopendataplaza.validator.SeoulApiResponseValidator;
+import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
+import com.pulse.api.seoulopendata.validator.SeoulApiResponseValidator;
 import com.pulse.config.SeoulApiProperties;
 import com.pulse.exception.dataload.ApiCommunicationException;
 import org.springframework.stereotype.Component;

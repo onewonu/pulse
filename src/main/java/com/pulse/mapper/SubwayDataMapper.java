@@ -1,6 +1,6 @@
 package com.pulse.mapper;
 
-import com.pulse.api.seoulopendataplaza.dto.subway.SubwayRidershipData;
+import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayRidershipHourly;
 import com.pulse.entity.subway.SubwayStation;
