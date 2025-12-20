@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -66,5 +67,16 @@ public class DataLoadController {
         results.put("subwayStatistics", subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth));
 
         return ResponseEntity.ok(results);
+    }
+
+    @DeleteMapping("/subway/statistics")
+    public ResponseEntity<DataLoadResult> deleteSubwayStatistics(
+            @RequestParam
+            @NotBlank(message = "yearMonth cannot be blank")
+            @Pattern(regexp = "^\\d{6}$", message = "yearMonth must be 6 digits in yyyyMM format")
+            String yearMonth
+    ) {
+        DataLoadResult result = subwayStatisticsDataLoadService.deleteStatisticsByYearMonth(yearMonth);
+        return ResponseEntity.ok(result);
     }
 }

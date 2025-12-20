@@ -15,4 +15,8 @@ public interface SubwayRidershipHourlyRepository extends JpaRepository<SubwayRid
     @Modifying
     @Query("DELETE FROM SubwayRidershipHourly s WHERE s.statDate = :statDate")
     void deleteByStatDate(@Param("statDate") LocalDate statDate);
+
+    @Modifying
+    @Query("DELETE FROM SubwayRidershipHourly s WHERE FUNCTION('DATE_FORMAT', s.statDate, '%Y%m') = :yearMonth")
+    int deleteByYearMonth(@Param("yearMonth") String yearMonth);
 }

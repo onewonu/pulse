@@ -55,6 +55,11 @@ public class SubwayStatisticsDataLoadService {
         this.properties = properties;
     }
 
+    public DataLoadResult deleteStatisticsByYearMonth(String yearMonth) {
+        int deletedCount = subwayRidershipRepository.deleteByYearMonth(yearMonth);
+        return DataLoadResult.success("Subway statistics deleted", deletedCount);
+    }
+
     public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
         log.info("Start loading subway statistics data: {}", yearMonth);
 
