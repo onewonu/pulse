@@ -9,7 +9,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-public class SeoulOpenDataPlazaClient {
+public class SeoulOpenDataClient {
 
     private final RestTemplate restTemplate;
     private final SeoulApiResponseValidator validator;
@@ -17,7 +17,7 @@ public class SeoulOpenDataPlazaClient {
 
     private static final String SEOUL_OPEN_API_FORMAT = "%s/%s/json/%s/%d/%d/%s";
 
-    public SeoulOpenDataPlazaClient(
+    public SeoulOpenDataClient(
             RestTemplate restTemplate,
             SeoulApiResponseValidator validator,
             SeoulApiProperties properties

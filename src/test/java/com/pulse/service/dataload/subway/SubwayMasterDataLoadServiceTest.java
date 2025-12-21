@@ -1,6 +1,6 @@
 package com.pulse.service.dataload.subway;
 
-import com.pulse.api.seoulopendata.SeoulOpenDataPlazaClient;
+import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
 import com.pulse.config.SeoulApiProperties;
@@ -34,7 +34,7 @@ class SubwayMasterDataLoadServiceTest {
     private EntityManager entityManager;
 
     @Mock
-    private SeoulOpenDataPlazaClient apiClient;
+    private SeoulOpenDataClient apiClient;
 
     @Mock
     private SubwayDataMapper mapper;

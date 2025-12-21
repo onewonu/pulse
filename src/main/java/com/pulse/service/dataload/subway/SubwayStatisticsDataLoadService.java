@@ -1,6 +1,6 @@
 package com.pulse.service.dataload.subway;
 
-import com.pulse.api.seoulopendata.SeoulOpenDataPlazaClient;
+import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
 import com.pulse.config.SeoulApiProperties;
@@ -32,7 +32,7 @@ public class SubwayStatisticsDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
 
-    private final SeoulOpenDataPlazaClient apiClient;
+    private final SeoulOpenDataClient apiClient;
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
@@ -40,7 +40,7 @@ public class SubwayStatisticsDataLoadService {
     private final SeoulApiProperties properties;
 
     public SubwayStatisticsDataLoadService(
-            SeoulOpenDataPlazaClient apiClient,
+            SeoulOpenDataClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
