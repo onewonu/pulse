@@ -109,6 +109,33 @@ public class AwsSecretsConfig {
         }
     }
 
+    @Bean
+    public OdsayApiProperties odsayApiProperties(SecretsManagerClient secretsClient, SsmClient ssmClient) {
+        log.info("Configuring ODsay API settings from AWS");
+
+        try {
+            String apiKey = getSecret(secretsClient, "/pulse/prod/odsay-api-key");
+            String baseUrl = getParameter(ssmClient, "/pulse/prod/odsay-api-base-url");
+
+            OdsayApiProperties properties = new OdsayApiProperties();
+            properties.setKey(apiKey);
+            properties.setBaseUrl(baseUrl);
+
+            log.info("ODsay API configuration loaded successfully");
+            return properties;
+
+        } catch (SsmException e) {
+            String errorMessage = "ODsay API configuration failed: unable to access SSM parameters - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (SecretsManagerException e) {
+            String errorMessage = "ODsay API configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (Exception e) {
+            String errorMessage = "ODsay API configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        }
+    }
+
     private String getSecret(SecretsManagerClient client, String secretName) {
         log.debug("Fetching secret: {}", secretName);
 
