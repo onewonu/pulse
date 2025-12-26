@@ -34,9 +34,6 @@ public class SubwayTrainSchedule {
     @Column(name = "train_no", length = 50)
     private String trainNo;
 
-    @Column(name = "train_kind", length = 50)
-    private String trainKind;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "departure_station_name", nullable = false)
     private SubwayStation departureStation;
@@ -77,7 +74,6 @@ public class SubwayTrainSchedule {
 
     private SubwayTrainSchedule(
             String trainNo,
-            String trainKind,
             SubwayStation departureStation,
             SubwayStation arrivalStation,
             SubwayLine line,
@@ -90,7 +86,6 @@ public class SubwayTrainSchedule {
             LocalDateTime validTo
     ) {
         this.trainNo = trainNo;
-        this.trainKind = trainKind;
         this.departureStation = departureStation;
         this.arrivalStation = arrivalStation;
         this.line = line;
@@ -105,7 +100,6 @@ public class SubwayTrainSchedule {
 
     public static SubwayTrainSchedule of(
             String trainNo,
-            String trainKind,
             SubwayStation departureStation,
             SubwayStation arrivalStation,
             SubwayLine line,
@@ -119,7 +113,6 @@ public class SubwayTrainSchedule {
     ) {
         return new SubwayTrainSchedule(
                 trainNo,
-                trainKind,
                 departureStation,
                 arrivalStation,
                 line,
@@ -144,10 +137,6 @@ public class SubwayTrainSchedule {
 
     public String getTrainNo() {
         return trainNo;
-    }
-
-    public String getTrainKind() {
-        return trainKind;
     }
 
     public SubwayStation getDepartureStation() {
