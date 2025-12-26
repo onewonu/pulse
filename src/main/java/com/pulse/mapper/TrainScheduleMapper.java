@@ -1,0 +1,110 @@
+package com.pulse.mapper;
+
+import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
+import com.pulse.entity.subway.SubwayLine;
+import com.pulse.entity.subway.SubwayStation;
+import com.pulse.entity.subway.SubwayTrainSchedule;
+import com.pulse.repository.subway.SubwayLineRepository;
+import com.pulse.repository.subway.SubwayStationRepository;
+import com.pulse.util.SubwayTimeNormalizer;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@Component
+public class TrainScheduleMapper {
+
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+    private final SubwayLineRepository lineRepository;
+    private final SubwayStationRepository stationRepository;
+
+    public TrainScheduleMapper(
+            SubwayLineRepository lineRepository,
+            SubwayStationRepository stationRepository
+    ) {
+        this.lineRepository = lineRepository;
+        this.stationRepository = stationRepository;
+    }
+
+    public SubwayTrainSchedule toSubwayTrainSchedule(
+            TrainScheduleItem item,
+            String lineName,
+            Map<String, SubwayStation> stationCache
+    ) {
+        SubwayStation departureStation = findStationByName(item.getStnNm(), stationCache);
+        SubwayStation arrivalStation = findStationByName(item.getArvlStnNm(), stationCache);
+        SubwayLine line = lineRepository.findById(lineName).orElse(null);
+
+        if (departureStation == null || arrivalStation == null || line == null) {
+            return null;
+        }
+
+        LocalTime departureTime = parseTime(item.getTrainDptreTm());
+        LocalTime arrivalTime = parseTime(item.getTrainArvlTm());
+
+        if (departureTime == null || arrivalTime == null) {
+            return null;
+        }
+
+        Boolean isExpress = "Y".equalsIgnoreCase(item.getEtrnYn());
+        LocalDateTime validFrom = parseDateTime(item.getVldBgngDt());
+        LocalDateTime validTo = parseDateTime(item.getVldEndDt());
+
+        return SubwayTrainSchedule.of(
+                item.getTrainno(),
+                departureStation,
+                arrivalStation,
+                line,
+                departureTime,
+                arrivalTime,
+                item.getUpbdnbSe(),
+                item.getWkndSe(),
+                isExpress,
+                validFrom,
+                validTo
+        );
+    }
+
+    public SubwayStation findStationByName(String stationName, Map<String, SubwayStation> stationCache) {
+        return stationCache.computeIfAbsent(stationName, name -> {
+            Optional<SubwayStation> exact = stationRepository.findById(name);
+            if (exact.isPresent()) {
+                return exact.get();
+            }
+
+            List<SubwayStation> matches = stationRepository.findByStationNameStartingWith(name);
+            return matches.isEmpty() ? null : matches.getFirst();
+        });
+    }
+
+    private LocalTime parseTime(String timeString) {
+        if (timeString == null || timeString.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            String normalizedTime = SubwayTimeNormalizer.normalize(timeString);
+            return LocalTime.parse(normalizedTime, TIME_FORMATTER);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private LocalDateTime parseDateTime(String dateTimeString) {
+        if (dateTimeString == null || dateTimeString.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(dateTimeString, DATE_TIME_FORMATTER);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+}
