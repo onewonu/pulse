@@ -42,3 +42,7 @@ seoul-api:
 
 odsay-api:
   display-count: 10
+
+seoul-metro-api:
+  data-type: JSON
+  num-of-rows: 1000

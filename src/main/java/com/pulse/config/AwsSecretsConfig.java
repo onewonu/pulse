@@ -136,6 +136,33 @@ public class AwsSecretsConfig {
         }
     }
 
+    @Bean
+    public SeoulMetroApiProperties seoulMetroApiProperties(SecretsManagerClient secretsClient, SsmClient ssmClient) {
+        log.info("Configuring Seoul Metro API settings from AWS");
+
+        try {
+            String apiKey = getSecret(secretsClient, "/pulse/prod/seoul-metro-api-key");
+            String baseUrl = getParameter(ssmClient, "/pulse/prod/seoul-metro-api-base-url");
+
+            SeoulMetroApiProperties properties = new SeoulMetroApiProperties();
+            properties.setKey(apiKey);
+            properties.setBaseUrl(baseUrl);
+
+            log.info("Seoul Metro API configuration loaded successfully");
+            return properties;
+
+        } catch (SsmException e) {
+            String errorMessage = "Seoul Metro API configuration failed: unable to access SSM parameters - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (SecretsManagerException e) {
+            String errorMessage = "Seoul Metro API configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (Exception e) {
+            String errorMessage = "Seoul Metro API configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        }
+    }
+
     private String getSecret(SecretsManagerClient client, String secretName) {
         log.debug("Fetching secret: {}", secretName);
 
