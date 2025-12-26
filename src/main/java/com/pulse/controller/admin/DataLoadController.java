@@ -3,6 +3,7 @@ package com.pulse.controller.admin;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.service.dataload.subway.SubwayMasterDataLoadService;
 import com.pulse.service.dataload.subway.SubwayStatisticsDataLoadService;
+import com.pulse.service.dataload.subway.TrainScheduleDataLoadService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
@@ -23,13 +24,16 @@ public class DataLoadController {
 
     private final SubwayMasterDataLoadService subwayMasterDataLoadService;
     private final SubwayStatisticsDataLoadService subwayStatisticsDataLoadService;
+    private final TrainScheduleDataLoadService trainScheduleDataLoadService;
 
     public DataLoadController(
             SubwayMasterDataLoadService subwayMasterDataLoadService,
-            SubwayStatisticsDataLoadService subwayStatisticsDataLoadService
+            SubwayStatisticsDataLoadService subwayStatisticsDataLoadService,
+            TrainScheduleDataLoadService trainScheduleDataLoadService
     ) {
         this.subwayMasterDataLoadService = subwayMasterDataLoadService;
         this.subwayStatisticsDataLoadService = subwayStatisticsDataLoadService;
+        this.trainScheduleDataLoadService = trainScheduleDataLoadService;
     }
 
     @PostMapping("/subway/master")
@@ -78,5 +82,28 @@ public class DataLoadController {
     ) {
         DataLoadResult result = subwayStatisticsDataLoadService.deleteStatisticsByYearMonth(yearMonth);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/train-schedule/weekday")
+    public ResponseEntity<DataLoadResult> loadWeekdayTrainSchedule(
+            @RequestParam(required = false)
+            String stationName,
+            @RequestParam(required = false)
+            String lineName
+    ) {
+        DataLoadResult result = trainScheduleDataLoadService.loadTrainSchedules("평일", stationName, lineName);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/train-schedule/all")
+    public ResponseEntity<Map<String, DataLoadResult>> loadAllTrainSchedules() {
+        Map<String, DataLoadResult> results = new HashMap<>();
+        String[] dayTypes = {"평일", "주말", "공휴일"};
+
+        for (String dayType : dayTypes) {
+            results.put(dayType, trainScheduleDataLoadService.loadTrainSchedules(dayType, null, null));
+        }
+
+        return ResponseEntity.ok(results);
     }
 }
