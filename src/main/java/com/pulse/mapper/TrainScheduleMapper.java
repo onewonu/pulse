@@ -6,7 +6,7 @@ import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
-import com.pulse.util.SubwayTimeNormalizer;
+import com.pulse.util.TimeParser;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -20,7 +20,6 @@ import java.util.Optional;
 @Component
 public class TrainScheduleMapper {
 
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final SubwayLineRepository lineRepository;
@@ -47,8 +46,8 @@ public class TrainScheduleMapper {
             return null;
         }
 
-        LocalTime departureTime = parseTime(item.getTrainDptreTm());
-        LocalTime arrivalTime = parseTime(item.getTrainArvlTm());
+        LocalTime departureTime = TimeParser.parseHHmmssWithNormalization(item.getTrainDptreTm());
+        LocalTime arrivalTime = TimeParser.parseHHmmssWithNormalization(item.getTrainArvlTm());
 
         if (departureTime == null || arrivalTime == null) {
             return null;
@@ -83,18 +82,6 @@ public class TrainScheduleMapper {
             List<SubwayStation> matches = stationRepository.findByStationNameStartingWith(name);
             return matches.isEmpty() ? null : matches.getFirst();
         });
-    }
-
-    private LocalTime parseTime(String timeString) {
-        if (timeString == null || timeString.trim().isEmpty()) {
-            return null;
-        }
-        try {
-            String normalizedTime = SubwayTimeNormalizer.normalize(timeString);
-            return LocalTime.parse(normalizedTime, TIME_FORMATTER);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 
     private LocalDateTime parseDateTime(String dateTimeString) {
