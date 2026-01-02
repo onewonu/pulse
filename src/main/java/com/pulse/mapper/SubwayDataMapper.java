@@ -5,6 +5,7 @@ import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayRidershipHourly;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.util.LineNameNormalizer;
+import com.pulse.util.StationNameNormalizer;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -24,7 +25,10 @@ public class SubwayDataMapper {
     }
 
     public SubwayStation toSubwayStation(SubwayRidershipData data) {
-        return SubwayStation.of(data.getSttn());
+        String rawStationName = data.getSttn();
+        String normalizedStationName = StationNameNormalizer.normalize(rawStationName);
+
+        return SubwayStation.of(normalizedStationName);
     }
 
     public List<SubwayRidershipHourly> toSubwayRidershipHourlyList(

@@ -13,6 +13,8 @@ import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
+import com.pulse.util.LineNameNormalizer;
+import com.pulse.util.StationNameNormalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -152,12 +154,14 @@ public class SubwayStatisticsDataLoadService {
             SubwayRidershipData data,
             MasterDataCaches caches
     ) {
-        SubwayLine line = caches.lineCache().get(data.getSbwyRoutLnNm());
+        String normalizedLineName = LineNameNormalizer.normalize(data.getSbwyRoutLnNm());
+        SubwayLine line = caches.lineCache().get(normalizedLineName);
         if (line == null) {
             throw new MasterDataNotFoundException("line", data.getSbwyRoutLnNm());
         }
 
-        SubwayStation station = caches.stationCache().get(data.getSttn());
+        String normalizedStationName = StationNameNormalizer.normalize(data.getSttn());
+        SubwayStation station = caches.stationCache().get(normalizedStationName);
         if (station == null) {
             throw new MasterDataNotFoundException("station", data.getSttn());
         }
