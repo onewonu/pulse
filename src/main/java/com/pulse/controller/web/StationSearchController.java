@@ -5,12 +5,17 @@ import com.pulse.dto.TimeRecommendationRequest;
 import com.pulse.dto.TimeRecommendationResult;
 import com.pulse.service.search.TimeRecommendationService;
 import com.pulse.service.search.StationSearchService;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 @RestController
 @RequestMapping("/search")
@@ -39,10 +44,22 @@ public class StationSearchController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping("/route")
+    @GetMapping("/route")
     public ResponseEntity<TimeRecommendationResult> recommendTimes(
-            @Valid @RequestBody TimeRecommendationRequest request
+            @RequestParam("departureStationId") @NotNull @Positive Integer departureStationId,
+            @RequestParam("arrivalStationId") @NotNull @Positive Integer arrivalStationId,
+            @RequestParam("searchDate") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate searchDate,
+            @RequestParam("startTime") @NotNull @DateTimeFormat(pattern = "HH:mm") LocalTime startTime,
+            @RequestParam("endTime") @NotNull @DateTimeFormat(pattern = "HH:mm") LocalTime endTime
     ) {
+        TimeRecommendationRequest request = new TimeRecommendationRequest(
+                departureStationId,
+                arrivalStationId,
+                searchDate,
+                startTime,
+                endTime
+        );
+
         TimeRecommendationResult result = timeRecommendationService.recommendTimes(request);
         return ResponseEntity.ok(result);
     }
