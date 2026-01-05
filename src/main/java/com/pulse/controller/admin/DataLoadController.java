@@ -106,4 +106,10 @@ public class DataLoadController {
 
         return ResponseEntity.ok(results);
     }
+
+    @DeleteMapping("/train-schedule/all")
+    public ResponseEntity<DataLoadResult> deleteAllTrainSchedules() {
+        DataLoadResult result = trainScheduleDataLoadService.deleteAllTrainSchedules();
+        return ResponseEntity.ok(result);
+    }
 }
