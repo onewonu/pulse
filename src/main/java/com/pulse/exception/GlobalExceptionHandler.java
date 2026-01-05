@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -47,6 +48,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, message.toString()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.error("Type mismatch occurred: parameter '{}', value '{}'", e.getName(), e.getValue());
+
+        String message = String.format(
+                "Invalid parameter '%s': cannot convert value '%s' to type %s",
+                e.getName(),
+                e.getValue(),
+                e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown"
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, message));
     }
 
     @ExceptionHandler(Exception.class)
