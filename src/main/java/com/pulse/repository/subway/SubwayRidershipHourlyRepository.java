@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Repository
 public interface SubwayRidershipHourlyRepository extends JpaRepository<SubwayRidershipHourly, Long> {
@@ -19,4 +20,12 @@ public interface SubwayRidershipHourlyRepository extends JpaRepository<SubwayRid
     @Modifying
     @Query("DELETE FROM SubwayRidershipHourly s WHERE FUNCTION('DATE_FORMAT', s.statDate, '%Y%m') = :yearMonth")
     int deleteByYearMonth(@Param("yearMonth") String yearMonth);
+
+    @Query("SELECT s FROM SubwayRidershipHourly s WHERE " +
+           "s.subwayStation.stationName IN :stationNames AND " +
+           "s.hourSlot = :hourSlot")
+    List<SubwayRidershipHourly> findByStationNamesAndHourSlot(
+            @Param("stationNames") List<String> stationNames,
+            @Param("hourSlot") Byte hourSlot
+    );
 }
