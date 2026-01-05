@@ -51,6 +51,18 @@ public class TrainScheduleDataLoadService {
         this.mapper = mapper;
     }
 
+    public DataLoadResult deleteAllTrainSchedules() {
+        log.info("Starting to delete all train schedules");
+
+        long count = scheduleRepository.count();
+        scheduleRepository.deleteAll();
+        entityManager.flush();
+        entityManager.clear();
+
+        log.info("Deleted all train schedules: {} records", count);
+        return DataLoadResult.success("All train schedules deleted", (int) count);
+    }
+
     public DataLoadResult loadTrainSchedules(String dayType, String stationName, String lineName) {
         log.info(
                 "Start loading train schedules for dayType: {}, station: {}, line: {}",
