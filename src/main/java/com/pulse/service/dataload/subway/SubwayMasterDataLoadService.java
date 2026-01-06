@@ -189,8 +189,9 @@ public class SubwayMasterDataLoadService {
         }
 
         subwayLineStationRepository.saveAll(lineStations);
+        entityManager.flush();
 
-        log.info("[{}] Saved {} line-station associations", operationId, lineStations.size());
+        log.info("[{}] Saved and flushed {} line-station associations", operationId, lineStations.size());
     }
 
     private record MasterDataCollections(

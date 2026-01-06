@@ -15,6 +15,7 @@ import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
+import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class SubwayStatisticsDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
 
+    private final EntityManager entityManager;
     private final SeoulOpenDataClient apiClient;
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
@@ -43,6 +45,7 @@ public class SubwayStatisticsDataLoadService {
     private final SeoulApiProperties properties;
 
     public SubwayStatisticsDataLoadService(
+            EntityManager entityManager,
             SeoulOpenDataClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
@@ -50,6 +53,7 @@ public class SubwayStatisticsDataLoadService {
             SubwayRidershipHourlyRepository subwayRidershipRepository,
             SeoulApiProperties properties
     ) {
+        this.entityManager = entityManager;
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
@@ -215,11 +219,12 @@ public class SubwayStatisticsDataLoadService {
     private int saveRidershipData(Map<String, SubwayRidershipHourly> hourlyDataMap, int apiRecordCount, String operationId) {
         List<SubwayRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
         subwayRidershipRepository.saveAll(uniqueHourlyData);
+        entityManager.flush();
 
         int totalCount = uniqueHourlyData.size();
 
         log.info(
-                "[{}] Subway statistics data loading completed: {} API records -> {} unique hourly records",
+                "[{}] Subway statistics data loading completed: {} API records -> {} unique hourly records (saved and flushed)",
                 operationId,
                 apiRecordCount,
                 totalCount
