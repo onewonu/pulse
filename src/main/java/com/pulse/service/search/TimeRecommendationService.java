@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.UUID;
 
 @Service
 public class TimeRecommendationService {
@@ -46,6 +47,8 @@ public class TimeRecommendationService {
     }
 
     public TimeRecommendationResult recommendTimes(TimeRecommendationRequest request) {
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
+
         DayInfo dayInfo = convertToDayInfo(request);
 
         String departureStationName = fetchDepartureStationName(request, dayInfo);
@@ -53,21 +56,50 @@ public class TimeRecommendationService {
         List<LocalTime> departureTimes = getAvailableDepartureTimes(request, departureStationName, dayInfo);
 
         if (departureTimes.isEmpty()) {
+            log.warn(
+                    "[{}] No train schedules found: sid={}, eid={}, date={}, time={}-{}",
+                    requestId,
+                    request.getDepartureStationId(),
+                    request.getArrivalStationId(),
+                    request.getSearchDate(),
+                    request.getStartTime(),
+                    request.getEndTime()
+            );
+
             throw new NoSchedulesAvailableException(
-                    String.format("No train schedules found from %s to %s between %s and %s on %s",
-                            request.getDepartureStationId(), request.getArrivalStationId(),
-                            request.getStartTime(), request.getEndTime(), request.getSearchDate())
+                    String.format(
+                            "No train schedules found from %s to %s between %s and %s on %s",
+                            request.getDepartureStationId(),
+                            request.getArrivalStationId(),
+                            request.getStartTime(),
+                            request.getEndTime(),
+                            request.getSearchDate()
+                    )
             );
         }
 
-        List<RouteWithCongestion> routes = processAllDepartureTimes(request, dayInfo, departureTimes);
+        List<RouteWithCongestion> routes = processAllDepartureTimes(request, dayInfo, departureTimes, requestId);
 
         if (routes.isEmpty()) {
+
+            log.warn(
+                    "[{}] Routes have incomplete congestion data: sid={}, eid={}, date={}, found {} departure times",
+                    requestId,
+                    request.getDepartureStationId(),
+                    request.getArrivalStationId(),
+                    request.getSearchDate(),
+                    departureTimes.size()
+            );
+
             throw new IncompleteCongestionDataException(
-                    String.format("Congestion data incomplete for all routes from %s to %s on %s. " +
+                    String.format(
+                            "Congestion data incomplete for all routes from %s to %s on %s. " +
                             "Found %d departure times but none had sufficient congestion data (>=50%% coverage required)",
-                            request.getDepartureStationId(), request.getArrivalStationId(),
-                            request.getSearchDate(), departureTimes.size())
+                            request.getDepartureStationId(),
+                            request.getArrivalStationId(),
+                            request.getSearchDate(),
+                            departureTimes.size()
+                    )
             );
         }
 
@@ -109,25 +141,26 @@ public class TimeRecommendationService {
     private List<RouteWithCongestion> processAllDepartureTimes(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
-            List<LocalTime> departureTimes
+            List<LocalTime> departureTimes,
+            String requestId
     ) {
         List<RouteWithCongestion> routes = new ArrayList<>();
 
         for (LocalTime departureTime : departureTimes) {
-            RouteWithCongestion route = processSingleDepartureTime(request, dayInfo, departureTime);
+            RouteWithCongestion route = processSingleDepartureTime(request, dayInfo, departureTime, requestId);
             if (route != null) {
                 routes.add(route);
             }
         }
 
-        log.info("Found {} routes with complete congestion data", routes.size());
         return routes;
     }
 
     private RouteWithCongestion processSingleDepartureTime(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
-            LocalTime departureTime
+            LocalTime departureTime,
+            String requestId
     ) {
         try {
             Thread.sleep(200);
@@ -155,13 +188,14 @@ public class TimeRecommendationService {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("Interrupted while processing departure time: {}", departureTime);
+
+            log.warn("[{}] Interrupted while processing departure time: {}", requestId, departureTime);
+
             return null;
         } catch (OdsayApiException | DataAccessException e) {
-            log.warn("Expected failure while processing departure time: {}", departureTime, e);
             return null;
         } catch (RuntimeException e) {
-            log.error("Unexpected error while processing departure time: {}", departureTime, e);
+            log.error("[{}] Unexpected error while processing departure time: {}", requestId, departureTime, e);
             throw e;
         }
     }
@@ -343,22 +377,19 @@ public class TimeRecommendationService {
     private record DayInfo(
             int dayCode,
             String dayType
-    ) {
-    }
+    ) {}
 
     private record StationWithTime(
             String stationName,
             LocalTime arrivalTime,
             LocalTime departureTime
-    ) {
-    }
+    ) {}
 
     private record RouteWithCongestion(
             OdsaySubwayScheduleResponse.PathData path,
             List<StationWithTime> stationsWithTime,
             CongestionData congestionData
-    ) {
-    }
+    ) {}
 
     private record CongestionData(
             Map<String, StationWithTime> stationMap,
@@ -367,6 +398,5 @@ public class TimeRecommendationService {
             int validStationCount,
             int totalStationCount,
             double completenessPercentage
-    ) {
-    }
+    ) {}
 }

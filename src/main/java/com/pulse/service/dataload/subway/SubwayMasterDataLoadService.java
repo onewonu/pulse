@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -54,43 +55,54 @@ public class SubwayMasterDataLoadService {
     }
 
     public DataLoadResult loadSubwayMasterData(String yearMonth) {
-        log.info("Start loading subway master data: {}", yearMonth);
+        String operationId = UUID.randomUUID().toString().substring(0, 8);
 
-        deleteAllExistingMasterData();
+        log.info("[{}] Start loading subway master data: {}", operationId, yearMonth);
 
-        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
+        deleteAllExistingMasterData(operationId);
 
-        MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList);
+        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
 
-        saveLinesAndStations(collections);
+        MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList, operationId);
 
-        saveLineStationAssociations(collections);
+        saveLinesAndStations(collections, operationId);
+
+        saveLineStationAssociations(collections, operationId);
 
         int totalCount = apiDataList.size();
-        log.info("Subway master data loading completed: {} API records -> {} lines, {} stations, {} line-stations",
-                totalCount, collections.lines().size(), collections.stations().size(),
-                collections.lineStationIds().size());
+
+        log.info(
+                "[{}] Subway master data loading completed: {} API records -> {} lines, {} stations, {} line-stations",
+                operationId,
+                totalCount,
+                collections.lines().size(),
+                collections.stations().size(),
+                collections.lineStationIds().size()
+        );
 
         return DataLoadResult.success("Subway master data", totalCount);
     }
 
-    private void deleteAllExistingMasterData() {
+    private void deleteAllExistingMasterData(String operationId) {
         subwayLineStationRepository.deleteAll();
         subwayLineRepository.deleteAll();
         subwayStationRepository.deleteAll();
         entityManager.flush();
         entityManager.clear();
-        log.info("Existing subway master data has been deleted");
+
+        log.info("[{}] Existing subway master data has been deleted", operationId);
     }
 
-    private List<SubwayRidershipData> fetchAllDataFromApi(String yearMonth) {
-        log.info("Starting to fetch subway master data from API: {}", yearMonth);
+    private List<SubwayRidershipData> fetchAllDataFromApi(String yearMonth, String operationId) {
+        log.info("[{}] Starting to fetch subway master data from API: {}", operationId, yearMonth);
 
         List<SubwayRidershipData> allData = new ArrayList<>();
         int startIndex = 1;
+        int pageNumber = 0;
         boolean hasMoreData = true;
 
         while (hasMoreData) {
+            pageNumber++;
             int endIndex = startIndex + properties.getPageSize() - 1;
             SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
@@ -98,20 +110,33 @@ public class SubwayMasterDataLoadService {
 
             if (pageData != null && !pageData.isEmpty()) {
                 allData.addAll(pageData);
-                log.info("Fetched subway master data: {} ~ {} ({} records in this page, {} total)",
-                        startIndex, endIndex, pageData.size(), allData.size());
+
+                log.info(
+                        "[{}] Fetched page {} ({} records in this page, {} total)",
+                        operationId,
+                        pageNumber,
+                        pageData.size(),
+                        allData.size()
+                );
+
                 startIndex = endIndex + 1;
             } else {
                 hasMoreData = false;
             }
         }
 
-        log.info("Completed fetching subway master data: {} API records", allData.size());
+        log.info("[{}] Completed fetching subway master data: {} API records from {} pages",
+                operationId,
+                allData.size(),
+                pageNumber
+        );
+
         return allData;
     }
 
-    private MasterDataCollections extractAndDeduplicateMasterData(List<SubwayRidershipData> apiDataList) {
-        log.info("Starting to extract and deduplicate master data from {} API records", apiDataList.size());
+    private MasterDataCollections extractAndDeduplicateMasterData(List<SubwayRidershipData> apiDataList, String operationId) {
+        log.info("[{}] Starting to extract and deduplicate master data from {} API records",
+                operationId, apiDataList.size());
 
         Map<String, SubwayLine> lineMap = new HashMap<>();
         Map<String, SubwayStation> stationMap = new HashMap<>();
@@ -130,21 +155,31 @@ public class SubwayMasterDataLoadService {
         List<SubwayLine> uniqueLines = new ArrayList<>(lineMap.values());
         List<SubwayStation> uniqueStations = new ArrayList<>(stationMap.values());
 
-        log.info("Extracted and deduplicated: {} unique lines, {} unique stations, {} line-station associations",
-                uniqueLines.size(), uniqueStations.size(), lineStationSet.size());
+        log.info(
+                "[{}] Extracted and deduplicated: {} unique lines, {} unique stations, {} line-station associations",
+                operationId,
+                uniqueLines.size(),
+                uniqueStations.size(),
+                lineStationSet.size()
+        );
 
         return new MasterDataCollections(lineMap, stationMap, uniqueLines, uniqueStations, lineStationSet);
     }
 
-    private void saveLinesAndStations(MasterDataCollections collections) {
+    private void saveLinesAndStations(MasterDataCollections collections, String operationId) {
         subwayLineRepository.saveAll(collections.lines());
         subwayStationRepository.saveAll(collections.stations());
         entityManager.flush();
-        log.info("Saved {} unique lines and {} unique stations",
-                collections.lines().size(), collections.stations().size());
+
+        log.info(
+                "[{}] Saved and flushed {} unique lines and {} unique stations",
+                operationId,
+                collections.lines().size(),
+                collections.stations().size()
+        );
     }
 
-    private void saveLineStationAssociations(MasterDataCollections collections) {
+    private void saveLineStationAssociations(MasterDataCollections collections, String operationId) {
         List<SubwayLineStation> lineStations = new ArrayList<>();
 
         for (SubwayLineStationId id : collections.lineStationIds()) {
@@ -154,7 +189,8 @@ public class SubwayMasterDataLoadService {
         }
 
         subwayLineStationRepository.saveAll(lineStations);
-        log.info("Saved {} line-station associations", lineStations.size());
+
+        log.info("[{}] Saved {} line-station associations", operationId, lineStations.size());
     }
 
     private record MasterDataCollections(

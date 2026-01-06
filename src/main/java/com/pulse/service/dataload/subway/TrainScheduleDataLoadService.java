@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -52,57 +53,81 @@ public class TrainScheduleDataLoadService {
     }
 
     public DataLoadResult deleteAllTrainSchedules() {
-        log.info("Starting to delete all train schedules");
+        String operationId = UUID.randomUUID().toString().substring(0, 8);
+
+        log.info("[{}] Starting to delete all train schedules", operationId);
 
         long count = scheduleRepository.count();
         scheduleRepository.deleteAll();
         entityManager.flush();
         entityManager.clear();
 
-        log.info("Deleted all train schedules: {} records", count);
+        log.info("[{}] Deleted and flushed all train schedules: {} records", operationId, count);
+
         return DataLoadResult.success("All train schedules deleted", (int) count);
     }
 
     public DataLoadResult loadTrainSchedules(String dayType, String stationName, String lineName) {
+        String operationId = UUID.randomUUID().toString().substring(0, 8);
         log.info(
-                "Start loading train schedules for dayType: {}, station: {}, line: {}",
-                dayType, stationName != null ? stationName : "ALL", lineName != null ? lineName : "ALL"
+                "[{}] Start loading train schedules for dayType: {}, station: {}, line: {}",
+                operationId,
+                dayType,
+                stationName != null ? stationName : "ALL",
+                lineName != null ? lineName : "ALL"
         );
 
-        deleteExistingSchedules(dayType);
+        deleteExistingSchedules(dayType, operationId);
 
         Map<String, SubwayStation> stationCache = new ConcurrentHashMap<>();
 
-        List<StationDirection> stationDirections = generateStationDirections(stationName, lineName);
+        List<StationDirection> stationDirections = generateStationDirections(stationName, lineName, operationId);
 
         if (stationDirections.isEmpty()) {
-            log.warn("No station-direction combinations found for station: {}, line: {}", stationName, lineName);
+
+            log.warn(
+                    "[{}] No station-direction combinations found for station: {}, line: {}",
+                    operationId,
+                    stationName,
+                    lineName
+            );
+
             return DataLoadResult.failure(
                     "Train schedules",
                     "Station not found: " + stationName + " on line " + lineName
             );
         }
 
-        List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(stationDirections, dayType, stationCache);
+        log.info(
+                "[{}] Found {} station-direction combinations, starting parallel API fetching",
+                operationId,
+                stationDirections.size()
+        );
 
-        Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules);
+        List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(stationDirections, dayType, stationCache, operationId);
 
-        int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap);
+        Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules, operationId);
+
+        int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap, operationId);
 
         String description = dayType;
         if (stationName != null) description += ", " + stationName;
         if (lineName != null) description += ", " + lineName;
 
+        log.info("[{}] Train schedule loading completed: {} unique schedules saved", operationId, totalCount);
+
         return DataLoadResult.success("Train schedules (" + description + ")", totalCount);
     }
 
-    private void deleteExistingSchedules(String dayType) {
+    private void deleteExistingSchedules(String dayType, String operationId) {
         scheduleRepository.deleteByDayType(dayType);
         entityManager.flush();
         entityManager.clear();
+
+        log.info("[{}] Deleted existing schedules for dayType: {}", operationId, dayType);
     }
 
-    private List<StationDirection> generateStationDirections(String targetStationName, String targetLineName) {
+    private List<StationDirection> generateStationDirections(String targetStationName, String targetLineName, String operationId) {
         List<SubwayLineStation> lineStations = lineStationRepository.findAll();
         List<StationDirection> stationDirections = new ArrayList<>();
 
@@ -122,23 +147,32 @@ public class TrainScheduleDataLoadService {
             }
         }
 
+        log.info(
+                "[{}] Generated {} station-direction combinations from {} line-stations",
+                operationId,
+                stationDirections.size(),
+                lineStations.size()
+        );
+
         return stationDirections;
     }
 
     private List<SubwayTrainSchedule> fetchSchedulesFromApi(
             List<StationDirection> stationDirections,
             String dayType,
-            Map<String, SubwayStation> stationCache
+            Map<String, SubwayStation> stationCache,
+            String operationId
     ) {
         return stationDirections.parallelStream()
-                .flatMap(sd -> fetchSchedulesForDirection(sd, dayType, stationCache))
+                .flatMap(sd -> fetchSchedulesForDirection(sd, dayType, stationCache, operationId))
                 .toList();
     }
 
     private Stream<SubwayTrainSchedule> fetchSchedulesForDirection(
             StationDirection direction,
             String dayType,
-            Map<String, SubwayStation> stationCache
+            Map<String, SubwayStation> stationCache,
+            String operationId
     ) {
         try {
             SeoulMetroTrainScheduleResponse response = apiClient.getTrainSchedule(
@@ -152,6 +186,15 @@ public class TrainScheduleDataLoadService {
             List<TrainScheduleItem> items = extractItemsFromResponse(response);
             return convertToScheduleEntities(items, direction, stationCache).stream();
         } catch (ApiCommunicationException | ApiResponseInvalidException e) {
+
+            log.warn(
+                    "[{}][Thread-{}] Failed to fetch schedule for line={}, station={}, direction={}: {}",
+                    operationId,
+                    Thread.currentThread().threadId(),
+                    direction.lineName(), direction.stationName(), direction.updownType(),
+                    e.getMessage()
+            );
+
             return Stream.empty();
         }
     }
@@ -181,13 +224,20 @@ public class TrainScheduleDataLoadService {
         return schedules;
     }
 
-    private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules) {
+    private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules, String operationId) {
         Map<String, SubwayTrainSchedule> uniqueMap = new LinkedHashMap<>();
 
         for (SubwayTrainSchedule schedule : schedules) {
             String key = generateScheduleKey(schedule);
             uniqueMap.putIfAbsent(key, schedule);
         }
+
+        log.info(
+                "[{}] Deduplicated schedules: {} fetched -> {} unique",
+                operationId,
+                schedules.size(),
+                uniqueMap.size()
+        );
 
         return uniqueMap;
     }
@@ -200,12 +250,18 @@ public class TrainScheduleDataLoadService {
                 schedule.getDayType());
     }
 
-    private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap) {
+    private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap, String operationId) {
         scheduleRepository.saveAll(uniqueSchedulesMap.values());
         entityManager.flush();
+
+        log.info("[{}] Saved and flushed {} schedules to database", operationId, uniqueSchedulesMap.size());
 
         return uniqueSchedulesMap.size();
     }
 
-    private record StationDirection(String lineName, String stationName, String updownType) {}
+    private record StationDirection(
+            String lineName,
+            String stationName,
+            String updownType
+    ) {}
 }

@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -58,32 +59,42 @@ public class SubwayStatisticsDataLoadService {
     }
 
     public DataLoadResult deleteStatisticsByYearMonth(String yearMonth) {
+        String operationId = UUID.randomUUID().toString().substring(0, 8);
+
+        log.info("[{}] Start deleting subway statistics data: {}", operationId, yearMonth);
+
         int deletedCount = subwayRidershipRepository.deleteByYearMonth(yearMonth);
+
+        log.info("[{}] Deleted {} records for {}", operationId, deletedCount, yearMonth);
+
         return DataLoadResult.success("Subway statistics deleted", deletedCount);
     }
 
     public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
-        log.info("Start loading subway statistics data: {}", yearMonth);
+        String operationId = UUID.randomUUID().toString().substring(0, 8);
 
-        deleteSameYearAndMonth(yearMonth);
+        log.info("[{}] Start loading subway statistics data: {}", operationId, yearMonth);
 
-        MasterDataCaches caches = loadMasterDataCaches();
+        deleteSameYearAndMonth(yearMonth, operationId);
 
-        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth);
+        MasterDataCaches caches = loadMasterDataCaches(operationId);
 
-        Map<String, SubwayRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches);
+        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
 
-        int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size());
+        Map<String, SubwayRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches, operationId);
+
+        int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size(), operationId);
         return DataLoadResult.success("Subway statistics data", totalCount);
     }
 
-    private void deleteSameYearAndMonth(String yearMonth) {
+    private void deleteSameYearAndMonth(String yearMonth, String operationId) {
         LocalDate statDate = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyyMM")).atDay(1);
         subwayRidershipRepository.deleteByStatDate(statDate);
-        log.info("Existing subway statistics data has been deleted: {}", yearMonth);
+
+        log.info("[{}] Existing subway statistics data has been deleted: {}", operationId, yearMonth);
     }
 
-    private MasterDataCaches loadMasterDataCaches() {
+    private MasterDataCaches loadMasterDataCaches(String operationId) {
         Map<String, SubwayLine> lineCache = new HashMap<>();
         for (SubwayLine line : subwayLineRepository.findAll()) {
             lineCache.put(line.getLineName(), line);
@@ -94,20 +105,26 @@ public class SubwayStatisticsDataLoadService {
             stationCache.put(station.getStationName(), station);
         }
 
-        log.info("Loaded master data into cache: {} lines, {} stations",
-                lineCache.size(), stationCache.size());
+        log.info(
+                "[{}] Loaded master data into cache: {} lines, {} stations",
+                operationId,
+                lineCache.size(),
+                stationCache.size()
+        );
 
         return new MasterDataCaches(lineCache, stationCache);
     }
 
-    private List<SubwayRidershipData> fetchAllDataFromApi(String yearMonth) {
-        log.info("Starting to fetch subway statistics data from API: {}", yearMonth);
+    private List<SubwayRidershipData> fetchAllDataFromApi(String yearMonth, String operationId) {
+        log.info("[{}] Starting to fetch subway statistics data from API: {}", operationId, yearMonth);
 
         List<SubwayRidershipData> allData = new ArrayList<>();
         int startIndex = 1;
+        int pageNumber = 0;
         boolean hasMoreData = true;
 
         while (hasMoreData) {
+            pageNumber++;
             int endIndex = startIndex + properties.getPageSize() - 1;
             SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
 
@@ -115,23 +132,37 @@ public class SubwayStatisticsDataLoadService {
 
             if (pageData != null && !pageData.isEmpty()) {
                 allData.addAll(pageData);
-                log.info("Fetched subway statistics data: {} ~ {} ({} records in this page, {} total)",
-                        startIndex, endIndex, pageData.size(), allData.size());
+
+                log.info(
+                        "[{}] Fetched page {} ({} records in this page, {} total)",
+                        operationId,
+                        pageNumber,
+                        pageData.size(),
+                        allData.size()
+                );
+
                 startIndex = endIndex + 1;
             } else {
                 hasMoreData = false;
             }
         }
 
-        log.info("Completed fetching subway statistics data: {} API records", allData.size());
+        log.info(
+                "[{}] Completed fetching subway statistics data: {} API records from {} pages",
+                operationId,
+                allData.size(),
+                pageNumber
+        );
+
         return allData;
     }
 
     private Map<String, SubwayRidershipHourly> processRidershipData(
             List<SubwayRidershipData> apiDataList,
-            MasterDataCaches caches
+            MasterDataCaches caches,
+            String operationId
     ) {
-        log.info("Starting to process {} API records", apiDataList.size());
+        log.info("[{}] Starting to process {} API records", operationId, apiDataList.size());
 
         Map<String, SubwayRidershipHourly> hourlyDataMap = new HashMap<>();
 
@@ -144,8 +175,12 @@ public class SubwayStatisticsDataLoadService {
             }
         }
 
-        log.info("Completed processing: {} API records -> {} unique hourly records",
-                apiDataList.size(), hourlyDataMap.size());
+        log.info(
+                "[{}] Completed processing: {} API records -> {} unique hourly records",
+                operationId,
+                apiDataList.size(),
+                hourlyDataMap.size()
+        );
 
         return hourlyDataMap;
     }
@@ -177,13 +212,19 @@ public class SubwayStatisticsDataLoadService {
                 hourly.getHourSlot());
     }
 
-    private int saveRidershipData(Map<String, SubwayRidershipHourly> hourlyDataMap, int apiRecordCount) {
+    private int saveRidershipData(Map<String, SubwayRidershipHourly> hourlyDataMap, int apiRecordCount, String operationId) {
         List<SubwayRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
         subwayRidershipRepository.saveAll(uniqueHourlyData);
 
         int totalCount = uniqueHourlyData.size();
-        log.info("Subway statistics data loading completed: {} API records -> {} unique hourly records",
-                apiRecordCount, totalCount);
+
+        log.info(
+                "[{}] Subway statistics data loading completed: {} API records -> {} unique hourly records",
+                operationId,
+                apiRecordCount,
+                totalCount
+        );
+
         return totalCount;
     }
 
