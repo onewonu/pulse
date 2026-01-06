@@ -98,7 +98,7 @@ public class DataLoadController {
     @PostMapping("/train-schedule/all")
     public ResponseEntity<Map<String, DataLoadResult>> loadAllTrainSchedules() {
         Map<String, DataLoadResult> results = new HashMap<>();
-        String[] dayTypes = {"평일", "주말", "공휴일"};
+        String[] dayTypes = {"평일", "주말"};
 
         for (String dayType : dayTypes) {
             results.put(dayType, trainScheduleDataLoadService.loadTrainSchedules(dayType, null, null));
