@@ -7,8 +7,8 @@ import com.pulse.api.odsay.validator.OdsayApiResponseValidator;
 import com.pulse.api.odsay.validator.OdsaySubwayScheduleResponseValidator;
 import com.pulse.config.OdsayApiProperties;
 import com.pulse.exception.dataload.ApiCommunicationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -28,7 +28,8 @@ public class OdsayClient {
     private static final String SUBWAY = "2";
 
     private static final int BASED_ON_DEPARTURE_TIME = 1;
-    private static final Logger log = LogManager.getLogger(OdsayClient.class);
+
+    private static final Logger log = LoggerFactory.getLogger(OdsayClient.class);
 
     private final OdsayApiResponseValidator stationValidator;
     private final OdsaySubwayScheduleResponseValidator scheduleValidator;

@@ -14,8 +14,8 @@ import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.DayCodeConverter;
 import com.pulse.util.StationNameNormalizer;
 import com.pulse.util.TimeParser;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +29,7 @@ public class TimeRecommendationService {
     private static final int SHORTEST_TIME = 1;
     private static final int SUBWAY = 1;
 
-    private static final Logger log = LogManager.getLogger(TimeRecommendationService.class);
+    private static final Logger log = LoggerFactory.getLogger(TimeRecommendationService.class);
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
     private final SubwayRidershipHourlyRepository subwayRidershipHourlyRepository;
