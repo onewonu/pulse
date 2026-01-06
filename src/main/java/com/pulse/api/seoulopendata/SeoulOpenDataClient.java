@@ -41,7 +41,14 @@ public class SeoulOpenDataClient {
             SubwayApiResponse response = restTemplate.getForObject(url, SubwayApiResponse.class);
             return validator.validate(response);
         } catch (RestClientException e) {
-            throw new ApiCommunicationException("Failed to communicate with Seoul Open Data Plaza API: " + url, e);
+            throw new ApiCommunicationException(
+                    String.format(
+                            "Failed to communicate with Seoul Open Data Plaza API: yearMonth=%s, range=%d-%d",
+                            yearMonth,
+                            startIndex,
+                            endIndex
+                    ), e
+            );
         }
     }
 }

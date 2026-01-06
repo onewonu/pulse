@@ -39,7 +39,15 @@ public class SeoulMetroClient {
             SeoulMetroTrainScheduleResponse response = restTemplate.getForObject(url, SeoulMetroTrainScheduleResponse.class);
             return validator.validate(response);
         } catch (RestClientException e) {
-            throw new ApiCommunicationException("Failed to communicate with Seoul Metro API: " + url, e);
+            throw new ApiCommunicationException(
+                    String.format(
+                            "Failed to communicate with Seoul Metro API: line=%s, station=%s, updown=%s, dayType=%s",
+                            lineName,
+                            stationName,
+                            updownType,
+                            dayType
+                    ), e
+            );
         }
     }
 

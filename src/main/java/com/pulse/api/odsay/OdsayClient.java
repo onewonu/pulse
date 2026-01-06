@@ -7,8 +7,6 @@ import com.pulse.api.odsay.validator.OdsayApiResponseValidator;
 import com.pulse.api.odsay.validator.OdsaySubwayScheduleResponseValidator;
 import com.pulse.config.OdsayApiProperties;
 import com.pulse.exception.dataload.ApiCommunicationException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -28,8 +26,6 @@ public class OdsayClient {
     private static final String SUBWAY = "2";
 
     private static final int BASED_ON_DEPARTURE_TIME = 1;
-
-    private static final Logger log = LoggerFactory.getLogger(OdsayClient.class);
 
     private final OdsayApiResponseValidator stationValidator;
     private final OdsaySubwayScheduleResponseValidator scheduleValidator;
@@ -58,7 +54,9 @@ public class OdsayClient {
 
             return stationValidator.validate(response);
         } catch (IOException e) {
-            throw new ApiCommunicationException("Failed to communicate with ODsay API: " + urlString, e);
+            throw new ApiCommunicationException(
+                    "Failed to communicate with ODsay API for searchStation: " + stationName, e
+            );
         }
     }
 
@@ -85,7 +83,16 @@ public class OdsayClient {
 
             return scheduleValidator.validate(response);
         } catch (IOException e) {
-            throw new ApiCommunicationException("Failed to communicate with ODsay API: " + urlString, e);
+            throw new ApiCommunicationException(
+                    String.format(
+                            "Failed to communicate with ODsay API for searchSubwaySchedule:" +
+                                    " sid=%d, eid=%d, day=%d, time=%s",
+                            sid,
+                            eid,
+                            day,
+                            time
+                    ), e
+            );
         }
     }
 
