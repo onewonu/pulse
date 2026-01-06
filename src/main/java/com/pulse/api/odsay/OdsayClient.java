@@ -50,17 +50,14 @@ public class OdsayClient {
 
     public OdsayStationSearchResponse searchStation(String stationName) {
         String urlString = buildStationSearchUrl(stationName);
-        log.info("Request URL: {}", urlString);
 
         try {
             String rawResponse = getRawResponse(urlString);
-            log.info("Raw Response: {}", rawResponse);
 
             OdsayStationSearchResponse response = objectMapper.readValue(rawResponse, OdsayStationSearchResponse.class);
 
             return stationValidator.validate(response);
         } catch (IOException e) {
-            log.error("API call failed for URL: {}", urlString, e);
             throw new ApiCommunicationException("Failed to communicate with ODsay API: " + urlString, e);
         }
     }
@@ -80,17 +77,14 @@ public class OdsayClient {
 
     public OdsaySubwayScheduleResponse searchSubwaySchedule(int sid, int eid, int day, String time) {
         String urlString = buildSubwayScheduleUrl(sid, eid, day, time);
-        log.info("Request URL: {}", urlString);
 
         try {
             String rawResponse = getRawResponse(urlString);
-            log.info("Raw Response: {}", rawResponse);
 
             OdsaySubwayScheduleResponse response = objectMapper.readValue(rawResponse, OdsaySubwayScheduleResponse.class);
 
             return scheduleValidator.validate(response);
         } catch (IOException e) {
-            log.error("API call failed for URL: {}", urlString, e);
             throw new ApiCommunicationException("Failed to communicate with ODsay API: " + urlString, e);
         }
     }
