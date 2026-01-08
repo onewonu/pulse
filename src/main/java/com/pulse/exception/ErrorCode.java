@@ -12,6 +12,14 @@ public enum ErrorCode {
 
     AWS_CONFIGURATION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AWS configuration error occurred"),
 
+    TOKEN_MISSING(HttpStatus.UNAUTHORIZED, "Authorization token is missing"),
+    ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Access token has expired"),
+    ACCESS_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Access token is invalid or malformed"),
+    REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Refresh token has expired"),
+    REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Refresh token is invalid or malformed"),
+
+    FORBIDDEN(HttpStatus.FORBIDDEN, "Access forbidden - insufficient permissions"),
+
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid parameter provided"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
 
