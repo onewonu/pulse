@@ -163,6 +163,30 @@ public class AwsSecretsConfig {
         }
     }
 
+    @Bean
+    public JwtProperties jwtProperties(SecretsManagerClient secretsClient) {
+        log.info("Configuring JWT settings from AWS");
+
+        try {
+            String secret = getSecret(secretsClient, "/pulse/prod/jwt-secret");
+
+            JwtProperties properties = new JwtProperties();
+            properties.setSecret(secret);
+            properties.setAccessTokenExpirationSeconds(3600L);
+            properties.setRefreshTokenExpirationSeconds(2592000L);
+
+            log.info("JWT configuration loaded successfully");
+            return properties;
+
+        } catch (SecretsManagerException e) {
+            String errorMessage = "JWT configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (Exception e) {
+            String errorMessage = "JWT configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        }
+    }
+
     private String getSecret(SecretsManagerClient client, String secretName) {
         log.debug("Fetching secret: {}", secretName);
 
