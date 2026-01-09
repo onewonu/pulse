@@ -17,6 +17,7 @@ public enum ErrorCode {
     ACCESS_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Access token is invalid or malformed"),
     REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Refresh token has expired"),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Refresh token is invalid or malformed"),
+    SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "Social login verification failed"),
 
     FORBIDDEN(HttpStatus.FORBIDDEN, "Access forbidden - insufficient permissions"),
 
