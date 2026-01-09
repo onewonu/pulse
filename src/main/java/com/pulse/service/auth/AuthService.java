@@ -37,11 +37,10 @@ public class AuthService {
     @Transactional
     public LoginResponse login(
             ProviderType providerType,
-            String providerId,
             String nickname,
             String socialAccessToken
     ) {
-        User user = socialAuthService.authenticateAndGetUser(providerType, providerId, nickname, socialAccessToken);
+        User user = socialAuthService.authenticateAndGetUser(providerType, nickname, socialAccessToken);
 
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);

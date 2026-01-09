@@ -6,7 +6,6 @@ import com.pulse.api.kakao.KakaoApiClient;
 import com.pulse.api.kakao.dto.KakaoUserInfoResponse;
 import com.pulse.entity.user.ProviderType;
 import com.pulse.entity.user.User;
-import com.pulse.exception.auth.SocialLoginException;
 import com.pulse.repository.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +37,10 @@ public class SocialAuthService {
     @Transactional
     public User authenticateAndGetUser(
             ProviderType providerType,
-            String providerId,
             String nickname,
             String socialAccessToken
     ) {
-        verifySocialToken(providerType, providerId, socialAccessToken);
+        String providerId = getProviderIdFromToken(providerType, socialAccessToken);
 
         String finalNickname = (nickname == null || nickname.trim().isEmpty())
                 ? "User_" + UUID.randomUUID().toString().substring(0, 8)
@@ -51,35 +49,21 @@ public class SocialAuthService {
         return findOrCreateUser(providerType, providerId, finalNickname);
     }
 
-    private void verifySocialToken(
-            ProviderType providerType,
-            String providerId,
-            String socialAccessToken
-    ) {
+    private String getProviderIdFromToken(ProviderType providerType, String socialAccessToken) {
         switch (providerType) {
             case KAKAO:
                 KakaoUserInfoResponse kakaoInfo = kakaoApiClient.getUserInfo(socialAccessToken);
-                if (!String.valueOf(kakaoInfo.getId()).equals(providerId)) {
-                    log.error("ProviderId mismatch for Kakao: expected={}, actual={}", providerId, kakaoInfo.getId());
-                    throw new SocialLoginException("ProviderId mismatch");
-                }
-                break;
+                log.info("Retrieved providerId from Kakao: {}", kakaoInfo.getId());
+                return String.valueOf(kakaoInfo.getId());
 
             case GOOGLE:
                 GoogleTokenInfoResponse googleInfo = googleApiClient.getTokenInfo(socialAccessToken);
-                if (!googleInfo.getSub().equals(providerId)) {
-                    log.error(
-                            "ProviderId mismatch for Google: expected={}, actual={}", providerId, googleInfo.getSub()
-                    );
-                    throw new SocialLoginException("ProviderId mismatch");
-                }
-                break;
+                log.info("Retrieved providerId from Google: {}", googleInfo.getSub());
+                return googleInfo.getSub();
 
             default:
                 throw new IllegalArgumentException("Unsupported provider type: " + providerType);
         }
-
-        log.info("Social token verified successfully for provider: {}", providerType);
     }
 
     public User findOrCreateUser(ProviderType providerType, String providerId, String nickname) {
