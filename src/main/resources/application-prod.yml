@@ -19,8 +19,8 @@ logging:
   level:
     root: INFO
     com.pulse: INFO
-    com.pulse.config.AwsSecretsConfig: DEBUG
-    software.amazon.awssdk: DEBUG
+    com.pulse.config.AwsSecretsConfig: INFO
+    software.amazon.awssdk: WARN
   file:
     name: /home/ec2-user/pulse/logs/application.log
   pattern:
