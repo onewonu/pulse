@@ -42,19 +42,11 @@ public class SocialAuthService {
     ) {
         String providerId = getProviderIdFromToken(providerType, socialAccessToken);
 
-        Optional<User> existingUser = userRepository.findByProviderTypeAndProviderId(providerType, providerId);
+        String finalNickname = (nickname == null || nickname.trim().isEmpty())
+                ? "User_" + UUID.randomUUID().toString().substring(0, 8)
+                : nickname;
 
-        if (existingUser.isPresent()) {
-            return existingUser.get();
-        } else {
-            String finalNickname = (nickname == null || nickname.trim().isEmpty())
-                    ? "User_" + UUID.randomUUID().toString().substring(0, 8)
-                    : nickname;
-
-            log.info("Creating new user: provider={}, providerId={}, nickname={}", providerType, providerId, finalNickname);
-            User newUser = User.of(finalNickname, providerType, providerId);
-            return userRepository.save(newUser);
-        }
+        return findOrCreateUser(providerType, providerId, finalNickname);
     }
 
     private String getProviderIdFromToken(ProviderType providerType, String socialAccessToken) {
@@ -71,6 +63,24 @@ public class SocialAuthService {
 
             default:
                 throw new IllegalArgumentException("Unsupported provider type: " + providerType);
+        }
+    }
+
+    public User findOrCreateUser(ProviderType providerType, String providerId, String nickname) {
+        Optional<User> optionalUser = userRepository.findByProviderTypeAndProviderId(providerType, providerId);
+
+        if (optionalUser.isPresent()) {
+            User user = optionalUser.get();
+
+            if (!user.getNickname().equals(nickname)) {
+                user.updateNickname(nickname);
+                log.info("Updated nickname for user: providerId={}", providerId);
+            }
+            return user;
+        } else {
+            log.info("Creating new user: provider={}, providerId={}", providerType, providerId);
+            User newUser = User.of(nickname, providerType, providerId);
+            return userRepository.save(newUser);
         }
     }
 }
