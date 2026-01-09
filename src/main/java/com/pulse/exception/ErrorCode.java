@@ -19,6 +19,8 @@ public enum ErrorCode {
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Refresh token is invalid or malformed"),
     SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "Social login verification failed"),
 
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
+
     FORBIDDEN(HttpStatus.FORBIDDEN, "Access forbidden - insufficient permissions"),
 
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid parameter provided"),
