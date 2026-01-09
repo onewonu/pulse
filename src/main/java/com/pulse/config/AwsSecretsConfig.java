@@ -168,7 +168,7 @@ public class AwsSecretsConfig {
         log.info("Configuring JWT settings from AWS");
 
         try {
-            String secret = getSecret(secretsClient, "/pulse/prod/jwt-secret");
+            String secret = getSecret(secretsClient, "/pulse/prod/jwt/secret");
 
             JwtProperties properties = new JwtProperties();
             properties.setSecret(secret);
