@@ -70,23 +70,23 @@ public class JwtTokenProvider {
         } catch (ExpiredJwtException e) {
             String tokenType = getTokenTypeFromExpiredToken(e);
             if (TOKEN_TYPE_REFRESH.equals(tokenType)) {
-                log.error("Refresh token expired: {}", e.getMessage());
+                log.warn("Refresh token expired: {}", e.getMessage());
                 throw new RefreshTokenExpiredException();
             } else {
-                log.error("Access token expired: {}", e.getMessage());
+                log.warn("Access token expired: {}", e.getMessage());
                 throw new AccessTokenExpiredException();
             }
         } catch (SignatureException | MalformedJwtException | UnsupportedJwtException e) {
             String tokenType = getTokenTypeFromInvalidToken(token);
             if (TOKEN_TYPE_REFRESH.equals(tokenType)) {
-                log.error("Invalid refresh token: {}", e.getMessage());
+                log.warn("Invalid refresh token: {}", e.getMessage());
                 throw new RefreshTokenInvalidException();
             } else {
-                log.error("Invalid access token: {}", e.getMessage());
+                log.warn("Invalid access token: {}", e.getMessage());
                 throw new AccessTokenInvalidException();
             }
         } catch (IllegalArgumentException e) {
-            log.error("JWT token is empty or malformed: {}", e.getMessage());
+            log.warn("JWT token is empty or malformed: {}", e.getMessage());
             throw new AccessTokenInvalidException();
         }
     }
