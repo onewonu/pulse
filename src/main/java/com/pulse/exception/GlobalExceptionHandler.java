@@ -20,7 +20,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBaseException(BaseException e) {
-        log.error("Application exception occurred: {}", e.getMessage(), e);
+        if (e.getHttpStatus().is4xxClientError()) {
+            log.warn("Client error: [{}] {}", e.getErrorCode(), e.getMessage());
+        } else {
+            log.error("Application exception occurred: [{}] {}", e.getErrorCode(), e.getMessage(), e);
+        }
 
         return ResponseEntity.status(e.getHttpStatus()).body(ErrorResponse.of(e));
     }

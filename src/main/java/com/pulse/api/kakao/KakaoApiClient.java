@@ -39,7 +39,7 @@ public class KakaoApiClient {
 
             return response.getBody();
         } catch (RestClientException e) {
-            log.error("Failed to fetch Kakao user info: {}", e.getMessage());
+            log.warn("Failed to fetch Kakao user info: {}", e.getMessage());
             throw new SocialLoginException("Failed to verify Kakao token");
         }
     }

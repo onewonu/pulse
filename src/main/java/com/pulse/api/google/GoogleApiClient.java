@@ -31,7 +31,7 @@ public class GoogleApiClient {
 
             return response.getBody();
         } catch (RestClientException e) {
-            log.error("Failed to fetch Google token info: {}", e.getMessage());
+            log.warn("Failed to fetch Google token info: {}", e.getMessage());
             throw new SocialLoginException("Failed to verify Google token");
         }
     }
