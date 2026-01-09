@@ -3,10 +3,8 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
-    database-platform: org.hibernate.dialect.MySQL8Dialect
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
         jdbc:
           batch_size: 500
         order_inserts: true
