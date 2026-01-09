@@ -9,9 +9,6 @@ public class SocialLoginRequest {
     @NotNull(message = "Provider type is required")
     private ProviderType providerType;
 
-    @NotBlank(message = "Provider ID is required")
-    private String providerId;
-
     private String nickname;
 
     @NotBlank(message = "Social access token is required")
@@ -19,10 +16,6 @@ public class SocialLoginRequest {
 
     public ProviderType getProviderType() {
         return providerType;
-    }
-
-    public String getProviderId() {
-        return providerId;
     }
 
     public String getNickname() {
@@ -35,10 +28,6 @@ public class SocialLoginRequest {
 
     public void setProviderType(ProviderType providerType) {
         this.providerType = providerType;
-    }
-
-    public void setProviderId(String providerId) {
-        this.providerId = providerId;
     }
 
     public void setNickname(String nickname) {

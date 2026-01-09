@@ -27,7 +27,6 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody SocialLoginRequest request) {
         LoginResponse response = authService.login(
                 request.getProviderType(),
-                request.getProviderId(),
                 request.getNickname(),
                 request.getSocialAccessToken()
         );
