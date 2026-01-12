@@ -40,9 +40,10 @@ public class SocialAuthService {
     public User authenticateAndGetUser(
             ProviderType providerType,
             String nickname,
-            String authorizationCode
+            String authorizationCode,
+            String redirectUri
     ) {
-        String providerId = getProviderIdFromAuthCode(providerType, authorizationCode);
+        String providerId = getProviderIdFromAuthCode(providerType, authorizationCode, redirectUri);
 
         String finalNickname = (nickname == null || nickname.trim().isEmpty())
                 ? "User_" + UUID.randomUUID().toString().substring(0, 8)
@@ -51,15 +52,15 @@ public class SocialAuthService {
         return findOrCreateUser(providerType, providerId, finalNickname);
     }
 
-    private String getProviderIdFromAuthCode(ProviderType providerType, String authorizationCode) {
+    private String getProviderIdFromAuthCode(ProviderType providerType, String authorizationCode, String redirectUri) {
         switch (providerType) {
             case KAKAO:
-                KakaoTokenResponse kakaoToken = kakaoApiClient.getAccessToken(authorizationCode);
+                KakaoTokenResponse kakaoToken = kakaoApiClient.getAccessToken(authorizationCode, redirectUri);
                 KakaoUserInfoResponse kakaoInfo = kakaoApiClient.getUserInfo(kakaoToken.getAccessToken());
                 return String.valueOf(kakaoInfo.getId());
 
             case GOOGLE:
-                GoogleTokenResponse googleToken = googleApiClient.getAccessToken(authorizationCode);
+                GoogleTokenResponse googleToken = googleApiClient.getAccessToken(authorizationCode, redirectUri);
                 GoogleTokenInfoResponse googleInfo = googleApiClient.getUserInfo(googleToken.getAccessToken());
                 return googleInfo.getSub();
 

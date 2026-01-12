@@ -28,7 +28,8 @@ public class AuthController {
         LoginResponse response = authService.login(
                 request.getProviderType(),
                 request.getNickname(),
-                request.getAuthorizationCode()
+                request.getAuthorizationCode(),
+                request.getRedirectUri()
         );
         return ResponseEntity.ok(response);
     }

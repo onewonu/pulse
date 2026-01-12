@@ -14,6 +14,8 @@ public class SocialLoginRequest {
     @NotBlank(message = "Authorization code is required")
     private String authorizationCode;
 
+    private String redirectUri;
+
     public ProviderType getProviderType() {
         return providerType;
     }
@@ -26,6 +28,10 @@ public class SocialLoginRequest {
         return authorizationCode;
     }
 
+    public String getRedirectUri() {
+        return redirectUri;
+    }
+
     public void setProviderType(ProviderType providerType) {
         this.providerType = providerType;
     }
@@ -36,5 +42,9 @@ public class SocialLoginRequest {
 
     public void setAuthorizationCode(String authorizationCode) {
         this.authorizationCode = authorizationCode;
+    }
+
+    public void setRedirectUri(String redirectUri) {
+        this.redirectUri = redirectUri;
     }
 }

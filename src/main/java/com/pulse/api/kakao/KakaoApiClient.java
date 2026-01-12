@@ -32,12 +32,12 @@ public class KakaoApiClient {
         this.kakaoApiProperties = kakaoApiProperties;
     }
 
-    public KakaoTokenResponse getAccessToken(String authorizationCode) {
+    public KakaoTokenResponse getAccessToken(String authorizationCode, String redirectUri) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-            HttpEntity<MultiValueMap<String, String>> request = createAuthTokenRequest(authorizationCode, headers);
+            HttpEntity<MultiValueMap<String, String>> request = createAuthTokenRequest(authorizationCode, redirectUri, headers);
 
             ResponseEntity<KakaoTokenResponse> response = restTemplate.postForEntity(
                     TOKEN_URL,
@@ -52,11 +52,13 @@ public class KakaoApiClient {
         }
     }
 
-    private HttpEntity<MultiValueMap<String, String>> createAuthTokenRequest(String authorizationCode, HttpHeaders headers) {
+    private HttpEntity<MultiValueMap<String, String>> createAuthTokenRequest(String authorizationCode, String redirectUri, HttpHeaders headers) {
+        String actualRedirectUri = (redirectUri != null) ? redirectUri : kakaoApiProperties.getRedirectUri();
+
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "authorization_code");
         params.add("client_id", kakaoApiProperties.getClientId());
-        params.add("redirect_uri", kakaoApiProperties.getRedirectUri());
+        params.add("redirect_uri", actualRedirectUri);
         params.add("code", authorizationCode);
         params.add("client_secret", kakaoApiProperties.getClientSecret());
 

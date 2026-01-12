@@ -35,7 +35,7 @@ public class GoogleApiClient {
         this.googleApiProperties = googleApiProperties;
     }
 
-    public GoogleTokenResponse getAccessToken(String authorizationCode) {
+    public GoogleTokenResponse getAccessToken(String authorizationCode, String redirectUri) {
 
         String decodedCode = URLDecoder.decode(authorizationCode, StandardCharsets.UTF_8);
 
@@ -43,7 +43,7 @@ public class GoogleApiClient {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-            HttpEntity<MultiValueMap<String, String>> request = createTokenRequestEntity(decodedCode, headers);
+            HttpEntity<MultiValueMap<String, String>> request = createTokenRequestEntity(decodedCode, redirectUri, headers);
 
             ResponseEntity<GoogleTokenResponse> response = restTemplate.postForEntity(
                     TOKEN_URL,
@@ -58,12 +58,14 @@ public class GoogleApiClient {
         }
     }
 
-    private HttpEntity<MultiValueMap<String, String>> createTokenRequestEntity(String decodedCode, HttpHeaders headers) {
+    private HttpEntity<MultiValueMap<String, String>> createTokenRequestEntity(String decodedCode, String redirectUri, HttpHeaders headers) {
+        String actualRedirectUri = (redirectUri != null) ? redirectUri : googleApiProperties.getRedirectUri();
+
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "authorization_code");
         params.add("client_id", googleApiProperties.getClientId());
         params.add("client_secret", googleApiProperties.getClientSecret());
-        params.add("redirect_uri", googleApiProperties.getRedirectUri());
+        params.add("redirect_uri", actualRedirectUri);
         params.add("code", decodedCode);
 
         return new HttpEntity<>(params, headers);
