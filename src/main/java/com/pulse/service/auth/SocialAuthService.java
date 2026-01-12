@@ -2,7 +2,9 @@ package com.pulse.service.auth;
 
 import com.pulse.api.google.GoogleApiClient;
 import com.pulse.api.google.dto.GoogleTokenInfoResponse;
+import com.pulse.api.google.dto.GoogleTokenResponse;
 import com.pulse.api.kakao.KakaoApiClient;
+import com.pulse.api.kakao.dto.KakaoTokenResponse;
 import com.pulse.api.kakao.dto.KakaoUserInfoResponse;
 import com.pulse.entity.user.ProviderType;
 import com.pulse.entity.user.User;
@@ -38,9 +40,9 @@ public class SocialAuthService {
     public User authenticateAndGetUser(
             ProviderType providerType,
             String nickname,
-            String socialAccessToken
+            String authorizationCode
     ) {
-        String providerId = getProviderIdFromToken(providerType, socialAccessToken);
+        String providerId = getProviderIdFromAuthCode(providerType, authorizationCode);
 
         String finalNickname = (nickname == null || nickname.trim().isEmpty())
                 ? "User_" + UUID.randomUUID().toString().substring(0, 8)
@@ -49,16 +51,16 @@ public class SocialAuthService {
         return findOrCreateUser(providerType, providerId, finalNickname);
     }
 
-    private String getProviderIdFromToken(ProviderType providerType, String socialAccessToken) {
+    private String getProviderIdFromAuthCode(ProviderType providerType, String authorizationCode) {
         switch (providerType) {
             case KAKAO:
-                KakaoUserInfoResponse kakaoInfo = kakaoApiClient.getUserInfo(socialAccessToken);
-                log.info("Retrieved providerId from Kakao: {}", kakaoInfo.getId());
+                KakaoTokenResponse kakaoToken = kakaoApiClient.getAccessToken(authorizationCode);
+                KakaoUserInfoResponse kakaoInfo = kakaoApiClient.getUserInfo(kakaoToken.getAccessToken());
                 return String.valueOf(kakaoInfo.getId());
 
             case GOOGLE:
-                GoogleTokenInfoResponse googleInfo = googleApiClient.getTokenInfo(socialAccessToken);
-                log.info("Retrieved providerId from Google: {}", googleInfo.getSub());
+                GoogleTokenResponse googleToken = googleApiClient.getAccessToken(authorizationCode);
+                GoogleTokenInfoResponse googleInfo = googleApiClient.getUserInfo(googleToken.getAccessToken());
                 return googleInfo.getSub();
 
             default:
