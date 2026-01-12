@@ -38,9 +38,9 @@ public class AuthService {
     public LoginResponse login(
             ProviderType providerType,
             String nickname,
-            String socialAccessToken
+            String authorizationCode
     ) {
-        User user = socialAuthService.authenticateAndGetUser(providerType, nickname, socialAccessToken);
+        User user = socialAuthService.authenticateAndGetUser(providerType, nickname, authorizationCode);
 
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);

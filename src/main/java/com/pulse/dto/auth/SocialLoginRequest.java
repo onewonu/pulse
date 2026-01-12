@@ -11,8 +11,8 @@ public class SocialLoginRequest {
 
     private String nickname;
 
-    @NotBlank(message = "Social access token is required")
-    private String socialAccessToken;
+    @NotBlank(message = "Authorization code is required")
+    private String authorizationCode;
 
     public ProviderType getProviderType() {
         return providerType;
@@ -22,8 +22,8 @@ public class SocialLoginRequest {
         return nickname;
     }
 
-    public String getSocialAccessToken() {
-        return socialAccessToken;
+    public String getAuthorizationCode() {
+        return authorizationCode;
     }
 
     public void setProviderType(ProviderType providerType) {
@@ -34,7 +34,7 @@ public class SocialLoginRequest {
         this.nickname = nickname;
     }
 
-    public void setSocialAccessToken(String socialAccessToken) {
-        this.socialAccessToken = socialAccessToken;
+    public void setAuthorizationCode(String authorizationCode) {
+        this.authorizationCode = authorizationCode;
     }
 }
