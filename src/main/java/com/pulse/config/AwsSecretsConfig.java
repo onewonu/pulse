@@ -164,6 +164,64 @@ public class AwsSecretsConfig {
     }
 
     @Bean
+    public KakaoApiProperties kakaoApiProperties(SecretsManagerClient secretsClient, SsmClient ssmClient) {
+        log.info("Configuring Kakao API settings from AWS");
+
+        try {
+            String clientId = getSecret(secretsClient, "/pulse/prod/kakao-api-client-id");
+            String clientSecret = getSecret(secretsClient, "/pulse/prod/kakao-api-client-secret");
+            String redirectUri = getParameter(ssmClient, "/pulse/prod/kakao-api-redirect-uri");
+
+            KakaoApiProperties properties = new KakaoApiProperties();
+            properties.setClientId(clientId);
+            properties.setClientSecret(clientSecret);
+            properties.setRedirectUri(redirectUri);
+
+            log.info("Kakao API configuration loaded successfully");
+            return properties;
+
+        } catch (SsmException e) {
+            String errorMessage = "Kakao API configuration failed: unable to access SSM parameters - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (SecretsManagerException e) {
+            String errorMessage = "Kakao API configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (Exception e) {
+            String errorMessage = "Kakao API configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        }
+    }
+
+    @Bean
+    public GoogleApiProperties googleApiProperties(SecretsManagerClient secretsClient, SsmClient ssmClient) {
+        log.info("Configuring Google API settings from AWS");
+
+        try {
+            String clientId = getSecret(secretsClient, "/pulse/prod/google-api-client-id");
+            String clientSecret = getSecret(secretsClient, "/pulse/prod/google-api-client-secret");
+            String redirectUri = getParameter(ssmClient, "/pulse/prod/google-api-redirect-uri");
+
+            GoogleApiProperties properties = new GoogleApiProperties();
+            properties.setClientId(clientId);
+            properties.setClientSecret(clientSecret);
+            properties.setRedirectUri(redirectUri);
+
+            log.info("Google API configuration loaded successfully");
+            return properties;
+
+        } catch (SsmException e) {
+            String errorMessage = "Google API configuration failed: unable to access SSM parameters - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (SecretsManagerException e) {
+            String errorMessage = "Google API configuration failed: unable to access secrets - " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        } catch (Exception e) {
+            String errorMessage = "Google API configuration failed: " + e.getMessage();
+            throw new AwsConfigurationException(errorMessage, e);
+        }
+    }
+
+    @Bean
     public JwtProperties jwtProperties(SecretsManagerClient secretsClient) {
         log.info("Configuring JWT settings from AWS");
 
