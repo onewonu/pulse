@@ -2,8 +2,11 @@ package com.pulse.service.bookmark;
 
 import com.pulse.dto.bookmark.BookmarkCreateRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
+import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.entity.bookmark.Bookmark;
 import com.pulse.entity.user.User;
+import com.pulse.exception.bookmark.BookmarkAccessDeniedException;
+import com.pulse.exception.bookmark.BookmarkNotFoundException;
 import com.pulse.exception.user.UserNotFoundException;
 import com.pulse.repository.bookmark.BookmarkRepository;
 import com.pulse.repository.user.UserRepository;
@@ -39,4 +42,25 @@ public class BookmarkService {
         Bookmark savedBookmark = bookmarkRepository.save(bookmark);
         return BookmarkResponse.of(savedBookmark);
     }
+
+    @Transactional
+    public BookmarkResponse updateBookmark(Long userId, Long bookmarkId, BookmarkUpdateRequest request) {
+        Bookmark bookmark = bookmarkRepository.findById(bookmarkId).orElse(null);
+        if (bookmark == null) {
+            throw new BookmarkNotFoundException("Bookmark not found with id: " + bookmarkId);
+        }
+
+        if (!bookmark.isOwnedBy(userId)) {
+            throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
+        }
+
+        bookmark.update(
+            request.getName(),
+            request.getDepartureStationId(),
+            request.getArrivalStationId()
+        );
+
+        return BookmarkResponse.of(bookmark);
+    }
+
 }
