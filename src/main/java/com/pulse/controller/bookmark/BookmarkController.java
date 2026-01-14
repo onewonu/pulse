@@ -2,6 +2,7 @@ package com.pulse.controller.bookmark;
 
 import com.pulse.dto.bookmark.BookmarkCreateRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
+import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.service.bookmark.BookmarkService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,5 +27,16 @@ public class BookmarkController {
         Long userId = (Long) authentication.getPrincipal();
         BookmarkResponse response = bookmarkService.createBookmark(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<BookmarkResponse> updateBookmark(
+            @PathVariable Long id,
+            @Valid @RequestBody BookmarkUpdateRequest request
+    ) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) authentication.getPrincipal();
+        BookmarkResponse response = bookmarkService.updateBookmark(userId, id, request);
+        return ResponseEntity.ok(response);
     }
 }
