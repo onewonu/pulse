@@ -1,6 +1,7 @@
 package com.pulse.controller.bookmark;
 
 import com.pulse.dto.bookmark.BookmarkCreateRequest;
+import com.pulse.dto.bookmark.BookmarkReorderRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
 import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.service.bookmark.BookmarkService;
@@ -38,5 +39,13 @@ public class BookmarkController {
         Long userId = (Long) authentication.getPrincipal();
         BookmarkResponse response = bookmarkService.updateBookmark(userId, id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/reorder")
+    public ResponseEntity<String> reorderBookmarks(@Valid @RequestBody BookmarkReorderRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) authentication.getPrincipal();
+        bookmarkService.reorderBookmarks(userId, request);
+        return ResponseEntity.ok("Bookmarks reordered successfully");
     }
 }
