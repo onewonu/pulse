@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -27,6 +29,23 @@ public class GlobalExceptionHandler {
         }
 
         return ResponseEntity.status(e.getHttpStatus()).body(ErrorResponse.of(e));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        log.warn("Validation failed: {}", e.getMessage());
+
+        StringBuilder message = new StringBuilder();
+        for (FieldError error : e.getBindingResult().getFieldErrors()) {
+            if (!message.isEmpty()) {
+                message.append(", ");
+            }
+            message.append(error.getDefaultMessage());
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, message.toString()));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
