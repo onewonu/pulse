@@ -1,0 +1,42 @@
+package com.pulse.service.bookmark;
+
+import com.pulse.dto.bookmark.BookmarkCreateRequest;
+import com.pulse.dto.bookmark.BookmarkResponse;
+import com.pulse.entity.bookmark.Bookmark;
+import com.pulse.entity.user.User;
+import com.pulse.exception.user.UserNotFoundException;
+import com.pulse.repository.bookmark.BookmarkRepository;
+import com.pulse.repository.user.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class BookmarkService {
+
+    private final BookmarkRepository bookmarkRepository;
+    private final UserRepository userRepository;
+
+    public BookmarkService(BookmarkRepository bookmarkRepository, UserRepository userRepository) {
+        this.bookmarkRepository = bookmarkRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Transactional
+    public BookmarkResponse createBookmark(Long userId, BookmarkCreateRequest request) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with id: " + userId);
+        }
+
+        Bookmark bookmark = Bookmark.of(
+            request.getName(),
+            request.getDepartureStationId(),
+            request.getArrivalStationId(),
+            request.getDisplayOrder(),
+            user
+        );
+
+        Bookmark savedBookmark = bookmarkRepository.save(bookmark);
+        return BookmarkResponse.of(savedBookmark);
+    }
+}
