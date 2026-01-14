@@ -21,6 +21,9 @@ public enum ErrorCode {
 
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
 
+    BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "Bookmark not found"),
+    BOOKMARK_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Access denied - not the owner of this bookmark"),
+
     FORBIDDEN(HttpStatus.FORBIDDEN, "Access forbidden - insufficient permissions"),
 
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid parameter provided"),
