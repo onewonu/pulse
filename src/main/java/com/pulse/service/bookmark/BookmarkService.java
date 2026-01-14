@@ -1,6 +1,7 @@
 package com.pulse.service.bookmark;
 
 import com.pulse.dto.bookmark.BookmarkCreateRequest;
+import com.pulse.dto.bookmark.BookmarkReorderRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
 import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.entity.bookmark.Bookmark;
@@ -12,6 +13,9 @@ import com.pulse.repository.bookmark.BookmarkRepository;
 import com.pulse.repository.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class BookmarkService {
@@ -61,6 +65,29 @@ public class BookmarkService {
         );
 
         return BookmarkResponse.of(bookmark);
+    }
+
+    @Transactional
+    public void reorderBookmarks(Long userId, BookmarkReorderRequest request) {
+        List<Long> bookmarkIds = new ArrayList<>();
+        for (BookmarkReorderRequest.ReorderItem item : request.getItems()) {
+            bookmarkIds.add(item.getBookmarkId());
+        }
+
+        List<Bookmark> bookmarks = bookmarkRepository.findByIdsAndUserId(bookmarkIds, userId);
+
+        if (bookmarks.size() != bookmarkIds.size()) {
+            throw new BookmarkNotFoundException("Some bookmarks not found or access denied");
+        }
+
+        for (BookmarkReorderRequest.ReorderItem item : request.getItems()) {
+            for (Bookmark bookmark : bookmarks) {
+                if (bookmark.getId().equals(item.getBookmarkId())) {
+                    bookmark.updateDisplayOrder(item.getNewDisplayOrder());
+                    break;
+                }
+            }
+        }
     }
 
 }
