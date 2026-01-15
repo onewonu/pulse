@@ -12,6 +12,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/bookmarks")
 public class BookmarkController {
@@ -55,5 +57,13 @@ public class BookmarkController {
         Long userId = (Long) authentication.getPrincipal();
         bookmarkService.deleteBookmark(userId, id);
         return ResponseEntity.ok("Bookmark deleted successfully");
+    }
+
+    @GetMapping
+    public ResponseEntity<List<BookmarkResponse>> getBookmarks() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) authentication.getPrincipal();
+        List<BookmarkResponse> responses = bookmarkService.getBookmarks(userId);
+        return ResponseEntity.ok(responses);
     }
 }
