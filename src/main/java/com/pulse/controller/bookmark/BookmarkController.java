@@ -48,4 +48,12 @@ public class BookmarkController {
         bookmarkService.reorderBookmarks(userId, request);
         return ResponseEntity.ok("Bookmarks reordered successfully");
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteBookmark(@PathVariable Long id) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) authentication.getPrincipal();
+        bookmarkService.deleteBookmark(userId, id);
+        return ResponseEntity.ok("Bookmark deleted successfully");
+    }
 }
