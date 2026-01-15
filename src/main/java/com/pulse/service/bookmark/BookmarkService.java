@@ -94,4 +94,18 @@ public class BookmarkService {
         }
     }
 
+    @Transactional
+    public void deleteBookmark(Long userId, Long bookmarkId) {
+        Bookmark bookmark = bookmarkRepository.findById(bookmarkId).orElse(null);
+        if (bookmark == null) {
+            throw new BookmarkNotFoundException("Bookmark not found with id: " + bookmarkId);
+        }
+
+        if (!bookmark.isOwnedBy(userId)) {
+            throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
+        }
+
+        bookmarkRepository.delete(bookmark);
+    }
+
 }
