@@ -30,7 +30,7 @@ public class BookmarkController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<BookmarkResponse> updateBookmark(
             @PathVariable Long id,
             @Valid @RequestBody BookmarkUpdateRequest request

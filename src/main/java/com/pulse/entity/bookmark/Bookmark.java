@@ -74,9 +74,15 @@ public class Bookmark {
     }
 
     public void update(String name, Integer departureStationId, Integer arrivalStationId) {
-        this.name = name;
-        this.departureStationId = departureStationId;
-        this.arrivalStationId = arrivalStationId;
+        if (name != null) {
+            this.name = name;
+        }
+        if (departureStationId != null) {
+            this.departureStationId = departureStationId;
+        }
+        if (arrivalStationId != null) {
+            this.arrivalStationId = arrivalStationId;
+        }
     }
 
     public void updateDisplayOrder(Integer displayOrder) {

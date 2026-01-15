@@ -58,6 +58,10 @@ public class BookmarkService {
             throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
         }
 
+        if (request.getName() == null && request.getDepartureStationId() == null && request.getArrivalStationId() == null) {
+            throw new IllegalArgumentException("At least one field must be provided for update");
+        }
+
         bookmark.update(
             request.getName(),
             request.getDepartureStationId(),
