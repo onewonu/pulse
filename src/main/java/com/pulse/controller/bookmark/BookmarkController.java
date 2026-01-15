@@ -26,8 +26,7 @@ public class BookmarkController {
 
     @PostMapping
     public ResponseEntity<BookmarkResponse> createBookmark(@Valid @RequestBody BookmarkCreateRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = getCurrentUserId();
         BookmarkResponse response = bookmarkService.createBookmark(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -37,41 +36,41 @@ public class BookmarkController {
             @PathVariable Long id,
             @Valid @RequestBody BookmarkUpdateRequest request
     ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = getCurrentUserId();
         BookmarkResponse response = bookmarkService.updateBookmark(userId, id, request);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/reorder")
     public ResponseEntity<String> reorderBookmarks(@Valid @RequestBody BookmarkReorderRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = getCurrentUserId();
         bookmarkService.reorderBookmarks(userId, request);
         return ResponseEntity.ok("Bookmarks reordered successfully");
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteBookmark(@PathVariable Long id) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = getCurrentUserId();
         bookmarkService.deleteBookmark(userId, id);
         return ResponseEntity.ok("Bookmark deleted successfully");
     }
 
     @GetMapping
     public ResponseEntity<List<BookmarkResponse>> getBookmarks() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = getCurrentUserId();
         List<BookmarkResponse> responses = bookmarkService.getBookmarks(userId);
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<BookmarkResponse> getBookmark(@PathVariable Long id) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = getCurrentUserId();
         BookmarkResponse response = bookmarkService.getBookmark(userId, id);
         return ResponseEntity.ok(response);
+    }
+
+    private static Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return (Long) authentication.getPrincipal();
     }
 }
