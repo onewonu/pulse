@@ -2,12 +2,11 @@ package com.pulse.dto.auth;
 
 import com.pulse.entity.user.ProviderType;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public class SocialLoginRequest {
 
-    @NotNull(message = "Provider type is required")
-    private ProviderType providerType;
+    @NotBlank(message = "Provider type is required")
+    private String providerType;
 
     private String nickname;
 
@@ -17,7 +16,11 @@ public class SocialLoginRequest {
     private String redirectUri;
 
     public ProviderType getProviderType() {
-        return providerType;
+        try {
+            return ProviderType.valueOf(providerType);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unsupported provider type: " + providerType);
+        }
     }
 
     public String getNickname() {
@@ -32,7 +35,7 @@ public class SocialLoginRequest {
         return redirectUri;
     }
 
-    public void setProviderType(ProviderType providerType) {
+    public void setProviderType(String providerType) {
         this.providerType = providerType;
     }
 

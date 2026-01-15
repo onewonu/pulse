@@ -65,7 +65,7 @@ public class SocialAuthService {
                 return googleInfo.getSub();
 
             default:
-                throw new IllegalArgumentException("Unsupported provider type: " + providerType);
+                throw new AssertionError("Unreachable code");
         }
     }
 
