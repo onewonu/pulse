@@ -108,4 +108,14 @@ public class BookmarkService {
         bookmarkRepository.delete(bookmark);
     }
 
+    @Transactional(readOnly = true)
+    public List<BookmarkResponse> getBookmarks(Long userId) {
+        List<Bookmark> bookmarks = bookmarkRepository.findByUserIdOrderByDisplayOrderAsc(userId);
+        List<BookmarkResponse> responses = new ArrayList<>();
+        for (Bookmark bookmark : bookmarks) {
+            responses.add(BookmarkResponse.of(bookmark));
+        }
+        return responses;
+    }
+
 }
