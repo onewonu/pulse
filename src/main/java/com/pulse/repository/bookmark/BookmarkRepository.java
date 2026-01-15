@@ -20,4 +20,7 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 
     @Query("SELECT b FROM Bookmark b WHERE b.id IN :ids AND b.user.id = :userId")
     List<Bookmark> findByIdsAndUserId(@Param("ids") List<Long> ids, @Param("userId") Long userId);
+
+    @Query("SELECT COALESCE(MAX(b.displayOrder), -1) FROM Bookmark b WHERE b.user.id = :userId")
+    Integer findMaxDisplayOrderByUserId(@Param("userId") Long userId);
 }

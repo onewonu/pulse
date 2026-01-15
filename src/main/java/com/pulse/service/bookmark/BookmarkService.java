@@ -35,11 +35,14 @@ public class BookmarkService {
             throw new UserNotFoundException("User not found with id: " + userId);
         }
 
+        Integer maxDisplayOrder = bookmarkRepository.findMaxDisplayOrderByUserId(userId);
+        Integer newDisplayOrder = maxDisplayOrder + 1;
+
         Bookmark bookmark = Bookmark.of(
             request.getName(),
             request.getDepartureStationId(),
             request.getArrivalStationId(),
-            request.getDisplayOrder(),
+            newDisplayOrder,
             user
         );
 

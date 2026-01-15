@@ -1,6 +1,5 @@
 package com.pulse.dto.bookmark;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -17,10 +16,6 @@ public class BookmarkCreateRequest {
     @NotNull(message = "Arrival station ID is required")
     private Integer arrivalStationId;
 
-    @NotNull(message = "Display order is required")
-    @Min(value = 0, message = "Display order must be greater than or equal to 0")
-    private Integer displayOrder;
-
     public String getName() {
         return name;
     }
@@ -33,10 +28,6 @@ public class BookmarkCreateRequest {
         return arrivalStationId;
     }
 
-    public Integer getDisplayOrder() {
-        return displayOrder;
-    }
-
     public void setName(String name) {
         this.name = name;
     }
@@ -47,9 +38,5 @@ public class BookmarkCreateRequest {
 
     public void setArrivalStationId(Integer arrivalStationId) {
         this.arrivalStationId = arrivalStationId;
-    }
-
-    public void setDisplayOrder(Integer displayOrder) {
-        this.displayOrder = displayOrder;
     }
 }
