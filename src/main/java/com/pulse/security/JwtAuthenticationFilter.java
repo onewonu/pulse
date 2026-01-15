@@ -1,5 +1,10 @@
 package com.pulse.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pulse.dto.ErrorResponse;
+import com.pulse.exception.ErrorCode;
+import com.pulse.exception.auth.AccessTokenExpiredException;
+import com.pulse.exception.auth.AccessTokenInvalidException;
 import com.pulse.exception.auth.InvalidTokenTypeException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -27,9 +32,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final ObjectMapper objectMapper;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, ObjectMapper objectMapper) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -63,11 +70,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+        } catch (AccessTokenExpiredException e) {
+            log.warn("Access token expired: {}", e.getMessage());
+            sendErrorResponse(response, ErrorCode.ACCESS_TOKEN_EXPIRED, "Access token has expired");
+            return;
+        } catch (AccessTokenInvalidException | InvalidTokenTypeException e) {
+            log.warn("Invalid access token: {}", e.getMessage());
+            sendErrorResponse(response, ErrorCode.ACCESS_TOKEN_INVALID, e.getMessage());
+            return;
         } catch (RuntimeException e) {
-            log.warn("Authentication failed: {}", e.getMessage());
+            log.error("Unexpected authentication error: {}", e.getMessage());
+            sendErrorResponse(response, ErrorCode.ACCESS_TOKEN_INVALID, "Access token is invalid or malformed");
+            return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void sendErrorResponse(HttpServletResponse response, ErrorCode errorCode, String message) throws IOException {
+        response.setStatus(errorCode.getHttpStatus().value());
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        ErrorResponse errorResponse = ErrorResponse.of(errorCode, message);
+        String jsonResponse = objectMapper.writeValueAsString(errorResponse);
+        response.getWriter().write(jsonResponse);
     }
 
     private String extractJwtFromRequest(HttpServletRequest request) {
