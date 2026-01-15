@@ -11,6 +11,8 @@ import com.pulse.exception.bookmark.BookmarkNotFoundException;
 import com.pulse.exception.user.UserNotFoundException;
 import com.pulse.repository.bookmark.BookmarkRepository;
 import com.pulse.repository.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,8 @@ import java.util.List;
 
 @Service
 public class BookmarkService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookmarkService.class);
 
     private final BookmarkRepository bookmarkRepository;
     private final UserRepository userRepository;
@@ -32,7 +36,8 @@ public class BookmarkService {
     public BookmarkResponse createBookmark(Long userId, BookmarkCreateRequest request) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
-            throw new UserNotFoundException("User not found with id: " + userId);
+            log.warn("User not found: userId={}", userId);
+            throw new UserNotFoundException("User not found");
         }
 
         Integer maxDisplayOrder = bookmarkRepository.findMaxDisplayOrderByUserId(userId);
