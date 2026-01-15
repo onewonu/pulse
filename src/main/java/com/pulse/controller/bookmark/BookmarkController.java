@@ -66,4 +66,12 @@ public class BookmarkController {
         List<BookmarkResponse> responses = bookmarkService.getBookmarks(userId);
         return ResponseEntity.ok(responses);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BookmarkResponse> getBookmark(@PathVariable Long id) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = (Long) authentication.getPrincipal();
+        BookmarkResponse response = bookmarkService.getBookmark(userId, id);
+        return ResponseEntity.ok(response);
+    }
 }
