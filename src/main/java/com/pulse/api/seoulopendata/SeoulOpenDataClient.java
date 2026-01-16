@@ -27,7 +27,7 @@ public class SeoulOpenDataClient {
         this.properties = properties;
     }
 
-    public SubwayApiResponse fetchSubwayRidershipData(String yearMonth, int startIndex, int endIndex) {
+    public SubwayApiResponse fetchSubwayPassengerData(String yearMonth, int startIndex, int endIndex) {
         String url = String.format(
                 SEOUL_OPEN_API_FORMAT,
                 properties.getBaseUrl(),

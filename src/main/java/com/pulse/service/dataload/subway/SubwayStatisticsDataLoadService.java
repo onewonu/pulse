@@ -2,16 +2,16 @@ package com.pulse.service.dataload.subway;
 
 import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
-import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
+import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
 import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
-import com.pulse.entity.subway.SubwayRidershipHourly;
+import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.exception.dataload.MasterDataNotFoundException;
 import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
-import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
+import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
@@ -41,7 +41,7 @@ public class SubwayStatisticsDataLoadService {
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
-    private final SubwayRidershipHourlyRepository subwayRidershipRepository;
+    private final SubwayPassengerHourlyRepository subwayRidershipRepository;
     private final SeoulApiProperties properties;
 
     public SubwayStatisticsDataLoadService(
@@ -50,7 +50,7 @@ public class SubwayStatisticsDataLoadService {
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SubwayRidershipHourlyRepository subwayRidershipRepository,
+            SubwayPassengerHourlyRepository subwayRidershipRepository,
             SeoulApiProperties properties
     ) {
         this.entityManager = entityManager;
@@ -83,9 +83,9 @@ public class SubwayStatisticsDataLoadService {
 
         MasterDataCaches caches = loadMasterDataCaches(operationId);
 
-        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
+        List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
 
-        Map<String, SubwayRidershipHourly> hourlyDataMap = processRidershipData(apiDataList, caches, operationId);
+        Map<String, SubwayPassengerHourly> hourlyDataMap = processRidershipData(apiDataList, caches, operationId);
 
         int totalCount = saveRidershipData(hourlyDataMap, apiDataList.size(), operationId);
         return DataLoadResult.success("Subway statistics data", totalCount);
@@ -119,10 +119,10 @@ public class SubwayStatisticsDataLoadService {
         return new MasterDataCaches(lineCache, stationCache);
     }
 
-    private List<SubwayRidershipData> fetchAllDataFromApi(String yearMonth, String operationId) {
+    private List<SubwayPassengerData> fetchAllDataFromApi(String yearMonth, String operationId) {
         log.info("[{}] Starting to fetch subway statistics data from API: {}", operationId, yearMonth);
 
-        List<SubwayRidershipData> allData = new ArrayList<>();
+        List<SubwayPassengerData> allData = new ArrayList<>();
         int startIndex = 1;
         int pageNumber = 0;
         boolean hasMoreData = true;
@@ -130,9 +130,9 @@ public class SubwayStatisticsDataLoadService {
         while (hasMoreData) {
             pageNumber++;
             int endIndex = startIndex + properties.getPageSize() - 1;
-            SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
+            SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
 
-            List<SubwayRidershipData> pageData = (response != null) ? response.getData() : null;
+            List<SubwayPassengerData> pageData = (response != null) ? response.getData() : null;
 
             if (pageData != null && !pageData.isEmpty()) {
                 allData.addAll(pageData);
@@ -161,19 +161,19 @@ public class SubwayStatisticsDataLoadService {
         return allData;
     }
 
-    private Map<String, SubwayRidershipHourly> processRidershipData(
-            List<SubwayRidershipData> apiDataList,
+    private Map<String, SubwayPassengerHourly> processRidershipData(
+            List<SubwayPassengerData> apiDataList,
             MasterDataCaches caches,
             String operationId
     ) {
         log.info("[{}] Starting to process {} API records", operationId, apiDataList.size());
 
-        Map<String, SubwayRidershipHourly> hourlyDataMap = new HashMap<>();
+        Map<String, SubwayPassengerHourly> hourlyDataMap = new HashMap<>();
 
-        for (SubwayRidershipData data : apiDataList) {
-            List<SubwayRidershipHourly> hourlyDataList = convertToHourlyRidership(data, caches);
+        for (SubwayPassengerData data : apiDataList) {
+            List<SubwayPassengerHourly> hourlyDataList = convertToHourlyRidership(data, caches);
 
-            for (SubwayRidershipHourly hourly : hourlyDataList) {
+            for (SubwayPassengerHourly hourly : hourlyDataList) {
                 String key = generateUniqueKey(hourly);
                 hourlyDataMap.put(key, hourly);
             }
@@ -189,8 +189,8 @@ public class SubwayStatisticsDataLoadService {
         return hourlyDataMap;
     }
 
-    private List<SubwayRidershipHourly> convertToHourlyRidership(
-            SubwayRidershipData data,
+    private List<SubwayPassengerHourly> convertToHourlyRidership(
+            SubwayPassengerData data,
             MasterDataCaches caches
     ) {
         String normalizedLineName = LineNameNormalizer.normalize(data.getSbwyRoutLnNm());
@@ -205,10 +205,10 @@ public class SubwayStatisticsDataLoadService {
             throw new MasterDataNotFoundException("station", data.getSttn());
         }
 
-        return mapper.toSubwayRidershipHourlyList(data, line, station);
+        return mapper.toSubwayPassengerHourlyList(data, line, station);
     }
 
-    private String generateUniqueKey(SubwayRidershipHourly hourly) {
+    private String generateUniqueKey(SubwayPassengerHourly hourly) {
         return String.format("%s-%s-%s-%d",
                 hourly.getStatDate(),
                 hourly.getSubwayLine().getLineName(),
@@ -216,8 +216,8 @@ public class SubwayStatisticsDataLoadService {
                 hourly.getHourSlot());
     }
 
-    private int saveRidershipData(Map<String, SubwayRidershipHourly> hourlyDataMap, int apiRecordCount, String operationId) {
-        List<SubwayRidershipHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
+    private int saveRidershipData(Map<String, SubwayPassengerHourly> hourlyDataMap, int apiRecordCount, String operationId) {
+        List<SubwayPassengerHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
         subwayRidershipRepository.saveAll(uniqueHourlyData);
         entityManager.flush();
 

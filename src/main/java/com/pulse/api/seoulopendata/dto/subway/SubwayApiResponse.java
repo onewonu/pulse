@@ -18,7 +18,7 @@ public class SubwayApiResponse {
         this.cardSubwayTime = cardSubwayTime;
     }
 
-    public List<SubwayRidershipData> getData() {
+    public List<SubwayPassengerData> getData() {
         return cardSubwayTime != null ? cardSubwayTime.getRow() : null;
     }
 
@@ -27,7 +27,7 @@ public class SubwayApiResponse {
     }
 
     public boolean hasData() {
-        List<SubwayRidershipData> data = getData();
+        List<SubwayPassengerData> data = getData();
         return data != null && !data.isEmpty();
     }
 
@@ -40,7 +40,7 @@ public class SubwayApiResponse {
         private ApiResult result;
 
         @JsonProperty("row")
-        private List<SubwayRidershipData> row;
+        private List<SubwayPassengerData> row;
 
         public Integer getListTotalCount() {
             return listTotalCount;
@@ -50,7 +50,7 @@ public class SubwayApiResponse {
             return result;
         }
 
-        public List<SubwayRidershipData> getRow() {
+        public List<SubwayPassengerData> getRow() {
             return row;
         }
 
@@ -62,7 +62,7 @@ public class SubwayApiResponse {
             this.result = result;
         }
 
-        public void setRow(List<SubwayRidershipData> row) {
+        public void setRow(List<SubwayPassengerData> row) {
             this.row = row;
         }
     }

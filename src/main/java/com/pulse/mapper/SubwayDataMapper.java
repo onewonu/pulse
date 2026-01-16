@@ -1,8 +1,8 @@
 package com.pulse.mapper;
 
-import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
+import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
 import com.pulse.entity.subway.SubwayLine;
-import com.pulse.entity.subway.SubwayRidershipHourly;
+import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
@@ -17,33 +17,33 @@ import java.util.List;
 @Component
 public class SubwayDataMapper {
 
-    public SubwayLine toSubwayLine(SubwayRidershipData data) {
+    public SubwayLine toSubwayLine(SubwayPassengerData data) {
         String rawLineName = data.getSbwyRoutLnNm();
         String normalizedLineName = LineNameNormalizer.normalize(rawLineName);
 
         return SubwayLine.of(normalizedLineName);
     }
 
-    public SubwayStation toSubwayStation(SubwayRidershipData data) {
+    public SubwayStation toSubwayStation(SubwayPassengerData data) {
         String rawStationName = data.getSttn();
         String normalizedStationName = StationNameNormalizer.normalize(rawStationName);
 
         return SubwayStation.of(normalizedStationName);
     }
 
-    public List<SubwayRidershipHourly> toSubwayRidershipHourlyList(
-            SubwayRidershipData data,
+    public List<SubwayPassengerHourly> toSubwayPassengerHourlyList(
+            SubwayPassengerData data,
             SubwayLine line,
             SubwayStation station
     ) {
-        List<SubwayRidershipHourly> result = new ArrayList<>();
+        List<SubwayPassengerHourly> result = new ArrayList<>();
         LocalDate statDate = YearMonth.parse(data.getUseMm(), DateTimeFormatter.ofPattern("yyyyMM")).atDay(1);
 
         Integer[] boardingCounts = extractBoardingCounts(data);
         Integer[] alightingCounts = extractAlightingCounts(data);
 
         for (byte hour = 0; hour < 24; hour++) {
-            result.add(SubwayRidershipHourly.of(
+            result.add(SubwayPassengerHourly.of(
                     statDate,
                     line,
                     station,
@@ -56,7 +56,7 @@ public class SubwayDataMapper {
         return result;
     }
 
-    private Integer[] extractBoardingCounts(SubwayRidershipData data) {
+    private Integer[] extractBoardingCounts(SubwayPassengerData data) {
         return new Integer[]{
                 toInteger(data.getHr0GetOnNope()),
                 toInteger(data.getHr1GetOnNope()),
@@ -85,7 +85,7 @@ public class SubwayDataMapper {
         };
     }
 
-    private Integer[] extractAlightingCounts(SubwayRidershipData data) {
+    private Integer[] extractAlightingCounts(SubwayPassengerData data) {
         return new Integer[]{
                 toInteger(data.getHr0GetOffNope()),
                 toInteger(data.getHr1GetOffNope()),

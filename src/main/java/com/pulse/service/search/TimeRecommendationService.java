@@ -5,11 +5,11 @@ import com.pulse.api.odsay.dto.OdsaySubwayScheduleResponse;
 import com.pulse.dto.CongestionLevel;
 import com.pulse.dto.TimeRecommendationRequest;
 import com.pulse.dto.TimeRecommendationResult;
-import com.pulse.entity.subway.SubwayRidershipHourly;
+import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.exception.search.IncompleteCongestionDataException;
 import com.pulse.exception.search.NoSchedulesAvailableException;
 import com.pulse.exception.search.OdsayApiException;
-import com.pulse.repository.subway.SubwayRidershipHourlyRepository;
+import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.DayCodeConverter;
 import com.pulse.util.StationNameNormalizer;
@@ -33,12 +33,12 @@ public class TimeRecommendationService {
     private static final Logger log = LoggerFactory.getLogger(TimeRecommendationService.class);
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
-    private final SubwayRidershipHourlyRepository subwayRidershipHourlyRepository;
+    private final SubwayPassengerHourlyRepository subwayRidershipHourlyRepository;
     private final OdsayClient odsayClient;
 
     public TimeRecommendationService(
             SubwayTrainScheduleRepository subwayTrainScheduleRepository,
-            SubwayRidershipHourlyRepository subwayRidershipHourlyRepository,
+            SubwayPassengerHourlyRepository subwayRidershipHourlyRepository,
             OdsayClient odsayClient
     ) {
         this.subwayTrainScheduleRepository = subwayTrainScheduleRepository;
@@ -306,7 +306,7 @@ public class TimeRecommendationService {
             stationNames.add(station.stationName);
         }
 
-        Map<String, SubwayRidershipHourly> ridershipMap = new HashMap<>();
+        Map<String, SubwayPassengerHourly> ridershipMap = new HashMap<>();
         double totalScore = 0.0;
         int validStationCount = 0;
 
@@ -314,10 +314,10 @@ public class TimeRecommendationService {
             byte hour = entry.getKey();
             List<String> stationNames = entry.getValue();
 
-            List<SubwayRidershipHourly> riderships = subwayRidershipHourlyRepository
+            List<SubwayPassengerHourly> riderships = subwayRidershipHourlyRepository
                     .findByStationNamesAndHourSlot(stationNames, hour);
 
-            for (SubwayRidershipHourly ridership : riderships) {
+            for (SubwayPassengerHourly ridership : riderships) {
                 String stationName = ridership.getSubwayStation().getStationName();
                 ridershipMap.put(stationName, ridership);
 
@@ -352,7 +352,7 @@ public class TimeRecommendationService {
 
         List<TimeRecommendationResult.StationCongestion> stationCongestions = new ArrayList<>();
         for (StationWithTime station : route.stationsWithTime) {
-            SubwayRidershipHourly ridership = route.congestionData.ridershipMap.get(station.stationName);
+            SubwayPassengerHourly ridership = route.congestionData.ridershipMap.get(station.stationName);
 
             stationCongestions.add(new TimeRecommendationResult.StationCongestion(
                     station.stationName,
@@ -394,7 +394,7 @@ public class TimeRecommendationService {
 
     private record CongestionData(
             Map<String, StationWithTime> stationMap,
-            Map<String, SubwayRidershipHourly> ridershipMap,
+            Map<String, SubwayPassengerHourly> ridershipMap,
             double totalScore,
             int validStationCount,
             int totalStationCount,

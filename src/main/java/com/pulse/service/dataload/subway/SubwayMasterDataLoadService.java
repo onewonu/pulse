@@ -2,7 +2,7 @@ package com.pulse.service.dataload.subway;
 
 import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
-import com.pulse.api.seoulopendata.dto.subway.SubwayRidershipData;
+import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
 import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
@@ -61,7 +61,7 @@ public class SubwayMasterDataLoadService {
 
         deleteAllExistingMasterData(operationId);
 
-        List<SubwayRidershipData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
+        List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
 
         MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList, operationId);
 
@@ -93,10 +93,10 @@ public class SubwayMasterDataLoadService {
         log.info("[{}] Existing subway master data has been deleted", operationId);
     }
 
-    private List<SubwayRidershipData> fetchAllDataFromApi(String yearMonth, String operationId) {
+    private List<SubwayPassengerData> fetchAllDataFromApi(String yearMonth, String operationId) {
         log.info("[{}] Starting to fetch subway master data from API: {}", operationId, yearMonth);
 
-        List<SubwayRidershipData> allData = new ArrayList<>();
+        List<SubwayPassengerData> allData = new ArrayList<>();
         int startIndex = 1;
         int pageNumber = 0;
         boolean hasMoreData = true;
@@ -104,9 +104,9 @@ public class SubwayMasterDataLoadService {
         while (hasMoreData) {
             pageNumber++;
             int endIndex = startIndex + properties.getPageSize() - 1;
-            SubwayApiResponse response = apiClient.fetchSubwayRidershipData(yearMonth, startIndex, endIndex);
+            SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
 
-            List<SubwayRidershipData> pageData = (response != null) ? response.getData() : null;
+            List<SubwayPassengerData> pageData = (response != null) ? response.getData() : null;
 
             if (pageData != null && !pageData.isEmpty()) {
                 allData.addAll(pageData);
@@ -134,7 +134,7 @@ public class SubwayMasterDataLoadService {
         return allData;
     }
 
-    private MasterDataCollections extractAndDeduplicateMasterData(List<SubwayRidershipData> apiDataList, String operationId) {
+    private MasterDataCollections extractAndDeduplicateMasterData(List<SubwayPassengerData> apiDataList, String operationId) {
         log.info("[{}] Starting to extract and deduplicate master data from {} API records",
                 operationId, apiDataList.size());
 
@@ -142,7 +142,7 @@ public class SubwayMasterDataLoadService {
         Map<String, SubwayStation> stationMap = new HashMap<>();
         Set<SubwayLineStationId> lineStationSet = new HashSet<>();
 
-        for (SubwayRidershipData data : apiDataList) {
+        for (SubwayPassengerData data : apiDataList) {
             SubwayLine line = mapper.toSubwayLine(data);
             lineMap.put(line.getLineName(), line);
 
