@@ -86,14 +86,20 @@ public class BookmarkService {
             bookmarkIds.add(item.getBookmarkId());
         }
 
-        List<Bookmark> bookmarks = bookmarkRepository.findByIdsAndUserId(bookmarkIds, userId);
+        List<Bookmark> allBookmarks = bookmarkRepository.findAllById(bookmarkIds);
 
-        if (bookmarks.size() != bookmarkIds.size()) {
-            throw new BookmarkNotFoundException("Some bookmarks not found or access denied");
+        if (allBookmarks.size() != bookmarkIds.size()) {
+            throw new BookmarkNotFoundException("Some bookmarks not found");
+        }
+
+        for (Bookmark bookmark : allBookmarks) {
+            if (!bookmark.isOwnedBy(userId)) {
+                throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
+            }
         }
 
         for (BookmarkReorderRequest.ReorderItem item : request.getItems()) {
-            for (Bookmark bookmark : bookmarks) {
+            for (Bookmark bookmark : allBookmarks) {
                 if (bookmark.getId().equals(item.getBookmarkId())) {
                     bookmark.updateDisplayOrder(item.getNewDisplayOrder());
                     break;
