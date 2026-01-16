@@ -33,16 +33,16 @@ public class TimeRecommendationService {
     private static final Logger log = LoggerFactory.getLogger(TimeRecommendationService.class);
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
-    private final SubwayPassengerHourlyRepository subwayRidershipHourlyRepository;
+    private final SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
     private final OdsayClient odsayClient;
 
     public TimeRecommendationService(
             SubwayTrainScheduleRepository subwayTrainScheduleRepository,
-            SubwayPassengerHourlyRepository subwayRidershipHourlyRepository,
+            SubwayPassengerHourlyRepository subwayPassengerHourlyRepository,
             OdsayClient odsayClient
     ) {
         this.subwayTrainScheduleRepository = subwayTrainScheduleRepository;
-        this.subwayRidershipHourlyRepository = subwayRidershipHourlyRepository;
+        this.subwayPassengerHourlyRepository = subwayPassengerHourlyRepository;
         this.odsayClient = odsayClient;
     }
 
@@ -306,7 +306,7 @@ public class TimeRecommendationService {
             stationNames.add(station.stationName);
         }
 
-        Map<String, SubwayPassengerHourly> ridershipMap = new HashMap<>();
+        Map<String, SubwayPassengerHourly> passengerMap = new HashMap<>();
         double totalScore = 0.0;
         int validStationCount = 0;
 
@@ -314,14 +314,14 @@ public class TimeRecommendationService {
             byte hour = entry.getKey();
             List<String> stationNames = entry.getValue();
 
-            List<SubwayPassengerHourly> riderships = subwayRidershipHourlyRepository
+            List<SubwayPassengerHourly> passengers = subwayPassengerHourlyRepository
                     .findByStationNamesAndHourSlot(stationNames, hour);
 
-            for (SubwayPassengerHourly ridership : riderships) {
-                String stationName = ridership.getSubwayStation().getStationName();
-                ridershipMap.put(stationName, ridership);
+            for (SubwayPassengerHourly passenger : passengers) {
+                String stationName = passenger.getSubwayStation().getStationName();
+                passengerMap.put(stationName, passenger);
 
-                int congestionScore = ridership.getBoardingCount() + ridership.getAlightingCount();
+                int congestionScore = passenger.getBoardingCount() + passenger.getAlightingCount();
                 totalScore += congestionScore;
                 validStationCount++;
             }
@@ -334,7 +334,7 @@ public class TimeRecommendationService {
 
         return new CongestionData(
                 uniqueStations,
-                ridershipMap,
+                passengerMap,
                 averageScore,
                 validStationCount,
                 totalStationCount,
@@ -352,15 +352,15 @@ public class TimeRecommendationService {
 
         List<TimeRecommendationResult.StationCongestion> stationCongestions = new ArrayList<>();
         for (StationWithTime station : route.stationsWithTime) {
-            SubwayPassengerHourly ridership = route.congestionData.ridershipMap.get(station.stationName);
+            SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationName);
 
             stationCongestions.add(new TimeRecommendationResult.StationCongestion(
                     station.stationName,
                     station.arrivalTime,
                     station.departureTime,
-                    ridership != null ? ridership.getBoardingCount() : null,
-                    ridership != null ? ridership.getAlightingCount() : null,
-                    ridership != null ? (ridership.getBoardingCount() + ridership.getAlightingCount()) : null
+                    passenger != null ? passenger.getBoardingCount() : null,
+                    passenger != null ? passenger.getAlightingCount() : null,
+                    passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null
             ));
         }
 
@@ -394,7 +394,7 @@ public class TimeRecommendationService {
 
     private record CongestionData(
             Map<String, StationWithTime> stationMap,
-            Map<String, SubwayPassengerHourly> ridershipMap,
+            Map<String, SubwayPassengerHourly> passengerMap,
             double totalScore,
             int validStationCount,
             int totalStationCount,
