@@ -306,7 +306,6 @@ public class TimeRecommendationService {
             stationNames.add(station.stationName);
         }
 
-        // 3. 시간대별 일괄 조회 및 혼잡도 계산
         Map<String, SubwayRidershipHourly> ridershipMap = new HashMap<>();
         double totalScore = 0.0;
         int validStationCount = 0;
@@ -331,10 +330,12 @@ public class TimeRecommendationService {
         int totalStationCount = uniqueStations.size();
         double completeness = totalStationCount > 0 ? (validStationCount * 100.0 / totalStationCount) : 0.0;
 
+        double averageScore = validStationCount > 0 ? totalScore / validStationCount : 0.0;
+
         return new CongestionData(
                 uniqueStations,
                 ridershipMap,
-                totalScore,
+                averageScore,
                 validStationCount,
                 totalStationCount,
                 completeness
