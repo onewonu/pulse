@@ -63,13 +63,6 @@ public class OdsaySubwayScheduleResponseValidator {
             throw new OdsayApiException(ErrorCode.API_RESPONSE_INVALID, message);
         }
 
-        List<OdsaySubwayScheduleResponse.PathData> paths = result.getPath();
-        if (paths == null || paths.isEmpty()) {
-            log.info("{} API returned empty response (no paths found)", className);
-        } else {
-            log.info("{} API returned {} path(s)", className, paths.size());
-        }
-
         return response;
     }
 }
