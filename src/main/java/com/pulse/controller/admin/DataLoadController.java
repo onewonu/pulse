@@ -37,13 +37,8 @@ public class DataLoadController {
     }
 
     @PostMapping("/subway/master")
-    public ResponseEntity<DataLoadResult> loadSubwayMasterData(
-            @RequestParam
-            @NotBlank(message = "yearMonth cannot be blank")
-            @Pattern(regexp = "^\\d{6}$", message = "yearMonth must be 6 digits in yyyyMM format")
-            String yearMonth
-    ) {
-        DataLoadResult result = subwayMasterDataLoadService.loadSubwayMasterData(yearMonth);
+    public ResponseEntity<DataLoadResult> loadSubwayMasterData() {
+        DataLoadResult result = subwayMasterDataLoadService.loadMasterDataFromJson();
         return ResponseEntity.ok(result);
     }
 
@@ -67,7 +62,7 @@ public class DataLoadController {
     ) {
         Map<String, DataLoadResult> results = new HashMap<>();
 
-        results.put("subwayMaster", subwayMasterDataLoadService.loadSubwayMasterData(yearMonth));
+        results.put("subwayMaster", subwayMasterDataLoadService.loadMasterDataFromJson());
         results.put("subwayStatistics", subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth));
 
         return ResponseEntity.ok(results);

@@ -1,25 +1,27 @@
 package com.pulse.service.dataload.subway;
 
-import com.pulse.api.seoulopendata.SeoulOpenDataClient;
-import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
-import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
-import com.pulse.config.SeoulApiProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.masterdata.LinesData;
+import com.pulse.dto.masterdata.StationMasterData;
+import com.pulse.dto.masterdata.StationExportData;
+import com.pulse.dto.masterdata.StationSearchResult;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayStation;
-import com.pulse.mapper.SubwayDataMapper;
+import com.pulse.exception.dataload.MasterDataLoadException;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
-import java.util.UUID;
 
-@Deprecated
 @Service
 @Transactional
 public class SubwayMasterDataLoadService {
@@ -27,58 +29,58 @@ public class SubwayMasterDataLoadService {
     private static final Logger log = LoggerFactory.getLogger(SubwayMasterDataLoadService.class);
 
     private final EntityManager entityManager;
-    private final SeoulOpenDataClient apiClient;
-    private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
-    private final SeoulApiProperties properties;
+    private final ObjectMapper objectMapper;
+
+    private static final String LINES_JSON_PATH = "data/lines.json";
+    private static final String STATIONS_JSON_PATH = "data/stations.json";
 
     public SubwayMasterDataLoadService(
             EntityManager entityManager,
-            SeoulOpenDataClient apiClient,
-            SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SeoulApiProperties properties
+            ObjectMapper objectMapper
     ) {
         this.entityManager = entityManager;
-        this.apiClient = apiClient;
-        this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
-        this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
-    public DataLoadResult loadSubwayMasterData(String yearMonth) {
+    public DataLoadResult loadMasterDataFromJson() {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
 
-        log.info("[{}] Start loading subway master data: {}", operationId, yearMonth);
+        log.info("[{}] Start loading subway master data from JSON files", operationId);
 
         deleteAllExistingMasterData(operationId);
 
-        List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
+        List<SubwayLine> lines = loadLinesFromJson(operationId);
+        subwayLineRepository.saveAll(lines);
+        entityManager.flush();
 
-        MasterDataCollections collections = extractAndDeduplicateMasterData(apiDataList, operationId);
+        Set<String> validLineNames = new HashSet<>();
+        for (SubwayLine line : lines) {
+            validLineNames.add(line.getLineName());
+        }
 
-        saveLinesAndStations(collections, operationId);
+        log.info("[{}] Loaded and saved {} subway lines", operationId, lines.size());
 
-        // saveLineStationAssociations(collections, operationId);
+        List<SubwayStation> stations = loadStationsFromJson(validLineNames, operationId);
+        subwayStationRepository.saveAll(stations);
+        entityManager.flush();
 
-        int totalCount = apiDataList.size();
+        log.info("[{}] Loaded and saved {} subway stations", operationId, stations.size());
 
-        log.info(
-                "[{}] Subway master data loading completed: {} API records -> {} lines, {} stations",
-                operationId,
-                totalCount,
-                collections.lines().size(),
-                collections.stations().size()
-        );
+        int totalCount = lines.size() + stations.size();
+
+        log.info("[{}] Subway master data loading completed: {} lines, {} stations (total: {})",
+                operationId, lines.size(), stations.size(), totalCount);
 
         return DataLoadResult.success("Subway master data", totalCount);
     }
 
     private void deleteAllExistingMasterData(String operationId) {
-        // subwayLineStationRepository.deleteAll();
         subwayStationRepository.deleteAll();
         subwayLineRepository.deleteAll();
         entityManager.flush();
@@ -87,94 +89,98 @@ public class SubwayMasterDataLoadService {
         log.info("[{}] Existing subway master data has been deleted", operationId);
     }
 
-    private List<SubwayPassengerData> fetchAllDataFromApi(String yearMonth, String operationId) {
-        log.info("[{}] Starting to fetch subway master data from API: {}", operationId, yearMonth);
+    private List<SubwayLine> loadLinesFromJson(String operationId) {
+        log.info("[{}] Loading lines from classpath: {}", operationId, LINES_JSON_PATH);
 
-        List<SubwayPassengerData> allData = new ArrayList<>();
-        int startIndex = 1;
-        int pageNumber = 0;
-        boolean hasMoreData = true;
+        try {
+            ClassPathResource resource = new ClassPathResource(LINES_JSON_PATH);
+            InputStream inputStream = resource.getInputStream();
+            LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
-        while (hasMoreData) {
-            pageNumber++;
-            int endIndex = startIndex + properties.getPageSize() - 1;
-            SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
+            List<SubwayLine> lines = new ArrayList<>();
 
-            List<SubwayPassengerData> pageData = (response != null) ? response.getData() : null;
-
-            if (pageData != null && !pageData.isEmpty()) {
-                allData.addAll(pageData);
-
-                log.info(
-                        "[{}] Fetched page {} ({} records in this page, {} total)",
-                        operationId,
-                        pageNumber,
-                        pageData.size(),
-                        allData.size()
-                );
-
-                startIndex = endIndex + 1;
-            } else {
-                hasMoreData = false;
+            for (LinesData.LineInfo lineInfo : linesData.getLines()) {
+                SubwayLine line = SubwayLine.of(lineInfo.getLineName());
+                lines.add(line);
             }
+
+            log.info("[{}] Loaded {} lines from JSON", operationId, lines.size());
+            return lines;
+
+        } catch (IOException e) {
+            throw new MasterDataLoadException("Failed to load lines.json", e);
+        }
+    }
+
+    private List<SubwayStation> loadStationsFromJson(Set<String> validLineNames, String operationId) {
+        log.info("[{}] Loading stations from classpath: {}", operationId, STATIONS_JSON_PATH);
+
+        try {
+            ClassPathResource resource = new ClassPathResource(STATIONS_JSON_PATH);
+            InputStream inputStream = resource.getInputStream();
+            StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
+
+            List<SubwayStation> stations = new ArrayList<>();
+            int filteredOutCount = 0;
+
+            for (StationSearchResult searchResult : exportData.getStationSearchResults()) {
+                for (StationMasterData stationData : searchResult.getResults()) {
+                    Optional<SubwayStation> stationOptional = processStationData(stationData, validLineNames, operationId);
+
+                    if (stationOptional.isPresent()) {
+                        stations.add(stationOptional.get());
+                    } else {
+                        filteredOutCount++;
+                    }
+                }
+            }
+
+            log.info("[{}] Loaded {} stations from JSON (filtered out {} stations not in valid lines)",
+                    operationId, stations.size(), filteredOutCount);
+
+            return stations;
+
+        } catch (IOException e) {
+            throw new MasterDataLoadException("Failed to load stations.json", e);
+        }
+    }
+
+    private Optional<SubwayStation> processStationData(
+            StationMasterData stationData,
+            Set<String> validLineNames,
+            String operationId
+    ) {
+        String lineName = stationData.getLaneName();
+
+        if (!validLineNames.contains(lineName)) {
+            return Optional.empty();
         }
 
-        log.info("[{}] Completed fetching subway master data: {} API records from {} pages",
-                operationId,
-                allData.size(),
-                pageNumber
-        );
-
-        return allData;
-    }
-
-    private MasterDataCollections extractAndDeduplicateMasterData(List<SubwayPassengerData> apiDataList, String operationId) {
-        log.info("[{}] Starting to extract and deduplicate master data from {} API records",
-                operationId, apiDataList.size());
-
-        Map<String, SubwayLine> lineMap = new HashMap<>();
-        Map<String, SubwayStation> stationMap = new HashMap<>();
-
-        for (SubwayPassengerData data : apiDataList) {
-            SubwayLine line = mapper.toSubwayLine(data);
-            lineMap.put(line.getLineName(), line);
-
-            SubwayStation station = mapper.toSubwayStation(data);
-            // stationMap.put(station.getStationName(), station);
+        SubwayLine line = subwayLineRepository.findById(lineName).orElse(null);
+        if (line == null) {
+            log.warn("[{}] Line not found for station: {} (line: {})",
+                    operationId, stationData.getStationName(), lineName);
+            return Optional.empty();
         }
 
-        List<SubwayLine> uniqueLines = new ArrayList<>(lineMap.values());
-        List<SubwayStation> uniqueStations = new ArrayList<>(stationMap.values());
+        Double latitude = stationData.getLatitude();
+        Double longitude = stationData.getLongitude();
 
-        log.info(
-                "[{}] Extracted and deduplicated: {} unique lines, {} unique stations",
-                operationId,
-                uniqueLines.size(),
-                uniqueStations.size()
+        if (latitude == null || longitude == null) {
+            log.warn("[{}] Invalid coordinates for station: {} (lat: {}, lng: {})",
+                    operationId, stationData.getStationName(),
+                    stationData.getY(), stationData.getX());
+            return Optional.empty();
+        }
+
+        SubwayStation station = SubwayStation.of(
+                stationData.getStationID(),
+                stationData.getStationName(),
+                line,
+                latitude,
+                longitude
         );
 
-        return new MasterDataCollections(lineMap, stationMap, uniqueLines, uniqueStations);
+        return Optional.of(station);
     }
-
-    private void saveLinesAndStations(MasterDataCollections collections, String operationId) {
-        subwayLineRepository.saveAll(collections.lines());
-        subwayStationRepository.saveAll(collections.stations());
-        entityManager.flush();
-
-        log.info(
-                "[{}] Saved and flushed {} unique lines and {} unique stations",
-                operationId,
-                collections.lines().size(),
-                collections.stations().size()
-        );
-    }
-
-    // private void saveLineStationAssociations(MasterDataCollections collections, String operationId) { ... }
-
-    private record MasterDataCollections(
-            Map<String, SubwayLine> lineMap,
-            Map<String, SubwayStation> stationMap,
-            List<SubwayLine> lines,
-            List<SubwayStation> stations
-    ) {}
 }
