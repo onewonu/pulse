@@ -5,7 +5,6 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     API_COMMUNICATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "External API communication failed"),
     API_RESPONSE_INVALID(HttpStatus.BAD_GATEWAY, "Invalid API response"),
-    MASTER_DATA_NOT_FOUND(HttpStatus.NOT_FOUND, "Required master data not found"),
     MASTER_DATA_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to load master data from resource"),
 
     NO_SCHEDULES_AVAILABLE(HttpStatus.NOT_FOUND, "No train schedules in time range"),
