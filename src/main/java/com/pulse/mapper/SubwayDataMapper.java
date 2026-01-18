@@ -24,11 +24,12 @@ public class SubwayDataMapper {
         return SubwayLine.of(normalizedLineName);
     }
 
+    @Deprecated
     public SubwayStation toSubwayStation(SubwayPassengerData data) {
         String rawStationName = data.getSttn();
         String normalizedStationName = StationNameNormalizer.normalize(rawStationName);
 
-        return SubwayStation.of(normalizedStationName);
+        return null;
     }
 
     public List<SubwayPassengerHourly> toSubwayPassengerHourlyList(
@@ -45,7 +46,6 @@ public class SubwayDataMapper {
         for (byte hour = 0; hour < 24; hour++) {
             result.add(SubwayPassengerHourly.of(
                     statDate,
-                    line,
                     station,
                     hour,
                     boardingCounts[hour] != null ? boardingCounts[hour] : 0,

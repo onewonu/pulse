@@ -6,12 +6,9 @@ import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
 import com.pulse.config.SeoulApiProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.entity.subway.SubwayLine;
-import com.pulse.entity.subway.SubwayLineStation;
-import com.pulse.entity.subway.SubwayLineStationId;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
-import com.pulse.repository.subway.SubwayLineStationRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
@@ -22,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.UUID;
 
+@Deprecated
 @Service
 @Transactional
 public class SubwayMasterDataLoadService {
@@ -33,7 +31,6 @@ public class SubwayMasterDataLoadService {
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
-    private final SubwayLineStationRepository subwayLineStationRepository;
     private final SeoulApiProperties properties;
 
     public SubwayMasterDataLoadService(
@@ -42,7 +39,6 @@ public class SubwayMasterDataLoadService {
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SubwayLineStationRepository subwayLineStationRepository,
             SeoulApiProperties properties
     ) {
         this.entityManager = entityManager;
@@ -50,7 +46,6 @@ public class SubwayMasterDataLoadService {
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
-        this.subwayLineStationRepository = subwayLineStationRepository;
         this.properties = properties;
     }
 
@@ -67,26 +62,25 @@ public class SubwayMasterDataLoadService {
 
         saveLinesAndStations(collections, operationId);
 
-        saveLineStationAssociations(collections, operationId);
+        // saveLineStationAssociations(collections, operationId);
 
         int totalCount = apiDataList.size();
 
         log.info(
-                "[{}] Subway master data loading completed: {} API records -> {} lines, {} stations, {} line-stations",
+                "[{}] Subway master data loading completed: {} API records -> {} lines, {} stations",
                 operationId,
                 totalCount,
                 collections.lines().size(),
-                collections.stations().size(),
-                collections.lineStationIds().size()
+                collections.stations().size()
         );
 
         return DataLoadResult.success("Subway master data", totalCount);
     }
 
     private void deleteAllExistingMasterData(String operationId) {
-        subwayLineStationRepository.deleteAll();
-        subwayLineRepository.deleteAll();
+        // subwayLineStationRepository.deleteAll();
         subwayStationRepository.deleteAll();
+        subwayLineRepository.deleteAll();
         entityManager.flush();
         entityManager.clear();
 
@@ -140,30 +134,26 @@ public class SubwayMasterDataLoadService {
 
         Map<String, SubwayLine> lineMap = new HashMap<>();
         Map<String, SubwayStation> stationMap = new HashMap<>();
-        Set<SubwayLineStationId> lineStationSet = new HashSet<>();
 
         for (SubwayPassengerData data : apiDataList) {
             SubwayLine line = mapper.toSubwayLine(data);
             lineMap.put(line.getLineName(), line);
 
             SubwayStation station = mapper.toSubwayStation(data);
-            stationMap.put(station.getStationName(), station);
-
-            lineStationSet.add(SubwayLineStationId.of(line.getLineName(), station.getStationName()));
+            // stationMap.put(station.getStationName(), station);
         }
 
         List<SubwayLine> uniqueLines = new ArrayList<>(lineMap.values());
         List<SubwayStation> uniqueStations = new ArrayList<>(stationMap.values());
 
         log.info(
-                "[{}] Extracted and deduplicated: {} unique lines, {} unique stations, {} line-station associations",
+                "[{}] Extracted and deduplicated: {} unique lines, {} unique stations",
                 operationId,
                 uniqueLines.size(),
-                uniqueStations.size(),
-                lineStationSet.size()
+                uniqueStations.size()
         );
 
-        return new MasterDataCollections(lineMap, stationMap, uniqueLines, uniqueStations, lineStationSet);
+        return new MasterDataCollections(lineMap, stationMap, uniqueLines, uniqueStations);
     }
 
     private void saveLinesAndStations(MasterDataCollections collections, String operationId) {
@@ -179,26 +169,12 @@ public class SubwayMasterDataLoadService {
         );
     }
 
-    private void saveLineStationAssociations(MasterDataCollections collections, String operationId) {
-        List<SubwayLineStation> lineStations = new ArrayList<>();
-
-        for (SubwayLineStationId id : collections.lineStationIds()) {
-            SubwayLine line = collections.lineMap().get(id.getLineName());
-            SubwayStation station = collections.stationMap().get(id.getStationName());
-            lineStations.add(SubwayLineStation.of(line, station));
-        }
-
-        subwayLineStationRepository.saveAll(lineStations);
-        entityManager.flush();
-
-        log.info("[{}] Saved and flushed {} line-station associations", operationId, lineStations.size());
-    }
+    // private void saveLineStationAssociations(MasterDataCollections collections, String operationId) { ... }
 
     private record MasterDataCollections(
             Map<String, SubwayLine> lineMap,
             Map<String, SubwayStation> stationMap,
             List<SubwayLine> lines,
-            List<SubwayStation> stations,
-            Set<SubwayLineStationId> lineStationIds
+            List<SubwayStation> stations
     ) {}
 }

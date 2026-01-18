@@ -4,12 +4,11 @@ import com.pulse.api.seoulmetro.SeoulMetroClient;
 import com.pulse.api.seoulmetro.dto.SeoulMetroTrainScheduleResponse;
 import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
 import com.pulse.dto.DataLoadResult;
-import com.pulse.entity.subway.SubwayLineStation;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
 import com.pulse.exception.dataload.ApiCommunicationException;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
-import com.pulse.repository.subway.SubwayLineStationRepository;
+import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.StationNameNormalizer;
 import com.pulse.mapper.TrainScheduleMapper;
@@ -34,20 +33,20 @@ public class TrainScheduleDataLoadService {
 
     private final EntityManager entityManager;
     private final SeoulMetroClient apiClient;
-    private final SubwayLineStationRepository lineStationRepository;
+    private final SubwayStationRepository stationRepository;
     private final SubwayTrainScheduleRepository scheduleRepository;
     private final TrainScheduleMapper mapper;
 
     public TrainScheduleDataLoadService(
             EntityManager entityManager,
             SeoulMetroClient apiClient,
-            SubwayLineStationRepository lineStationRepository,
+            SubwayStationRepository stationRepository,
             SubwayTrainScheduleRepository scheduleRepository,
             TrainScheduleMapper mapper
     ) {
         this.entityManager = entityManager;
         this.apiClient = apiClient;
-        this.lineStationRepository = lineStationRepository;
+        this.stationRepository = stationRepository;
         this.scheduleRepository = scheduleRepository;
         this.mapper = mapper;
     }
@@ -128,12 +127,12 @@ public class TrainScheduleDataLoadService {
     }
 
     private List<StationDirection> generateStationDirections(String targetStationName, String targetLineName, String operationId) {
-        List<SubwayLineStation> lineStations = lineStationRepository.findAll();
+        List<SubwayStation> stations = stationRepository.findAll();
         List<StationDirection> stationDirections = new ArrayList<>();
 
-        for (SubwayLineStation ls : lineStations) {
-            String lineName = ls.getSubwayLine().getLineName();
-            String stationName = ls.getSubwayStation().getStationName();
+        for (SubwayStation station : stations) {
+            String lineName = station.getSubwayLine().getLineName();
+            String stationName = station.getStationName();
 
             if (
                     (targetStationName == null || stationName.startsWith(targetStationName)) &&
@@ -148,10 +147,10 @@ public class TrainScheduleDataLoadService {
         }
 
         log.info(
-                "[{}] Generated {} station-direction combinations from {} line-stations",
+                "[{}] Generated {} station-direction combinations from {} stations",
                 operationId,
                 stationDirections.size(),
-                lineStations.size()
+                stations.size()
         );
 
         return stationDirections;

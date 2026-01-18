@@ -1,7 +1,6 @@
 package com.pulse.mapper;
 
 import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
-import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
 import com.pulse.repository.subway.SubwayLineRepository;
@@ -22,14 +21,14 @@ public class TrainScheduleMapper {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    private final SubwayLineRepository lineRepository;
+    // private final SubwayLineRepository lineRepository;
     private final SubwayStationRepository stationRepository;
 
     public TrainScheduleMapper(
             SubwayLineRepository lineRepository,
             SubwayStationRepository stationRepository
     ) {
-        this.lineRepository = lineRepository;
+        // this.lineRepository = lineRepository;
         this.stationRepository = stationRepository;
     }
 
@@ -38,11 +37,10 @@ public class TrainScheduleMapper {
             String lineName,
             Map<String, SubwayStation> stationCache
     ) {
-        SubwayStation departureStation = findStationByName(item.getStnNm(), stationCache);
-        SubwayStation arrivalStation = findStationByName(item.getArvlStnNm(), stationCache);
-        SubwayLine line = lineRepository.findById(lineName).orElse(null);
+        SubwayStation departureStation = findStationByName(item.getStnNm(), lineName, stationCache);
+        SubwayStation arrivalStation = findStationByName(item.getArvlStnNm(), lineName, stationCache);
 
-        if (departureStation == null || arrivalStation == null || line == null) {
+        if (departureStation == null || arrivalStation == null) {
             return null;
         }
 
@@ -61,7 +59,6 @@ public class TrainScheduleMapper {
                 item.getTrainno(),
                 departureStation,
                 arrivalStation,
-                line,
                 departureTime,
                 arrivalTime,
                 item.getUpbdnbSe(),
@@ -72,14 +69,19 @@ public class TrainScheduleMapper {
         );
     }
 
-    public SubwayStation findStationByName(String stationName, Map<String, SubwayStation> stationCache) {
-        return stationCache.computeIfAbsent(stationName, name -> {
-            Optional<SubwayStation> exact = stationRepository.findById(name);
+    public SubwayStation findStationByName(
+            String stationName,
+            String lineName,
+            Map<String, SubwayStation> stationCache
+    ) {
+        String key = stationName + "|" + lineName;
+        return stationCache.computeIfAbsent(key, k -> {
+            Optional<SubwayStation> exact = stationRepository.findByStationNameAndLineLineName(stationName, lineName);
             if (exact.isPresent()) {
                 return exact.get();
             }
 
-            List<SubwayStation> matches = stationRepository.findByStationNameStartingWith(name);
+            List<SubwayStation> matches = stationRepository.findByStationNameStartingWith(stationName);
             return matches.isEmpty() ? null : matches.getFirst();
         });
     }
