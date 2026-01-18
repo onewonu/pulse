@@ -40,3 +40,7 @@ out/
 .env
 docker-compose.yml
 application-local.yml
+
+### Master Data Files ###
+data/
+src/main/resources/data/*.json
