@@ -9,12 +9,13 @@ import java.time.LocalDateTime;
 @Table(name = "subway_passenger_hourly",
         indexes = {
                 @Index(name = "idx_stat_date", columnList = "stat_date"),
-                @Index(name = "idx_line_station", columnList = "line_name, station_name")
+                @Index(name = "idx_station", columnList = "station_id"),
+                @Index(name = "idx_station_hour", columnList = "station_id, hour_slot")
         },
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_subway_stat",
-                        columnNames = {"stat_date", "line_name", "station_name", "hour_slot"}
+                        columnNames = {"stat_date", "station_id", "hour_slot"}
                 )
         })
 public class SubwayPassengerHourly {
@@ -33,11 +34,7 @@ public class SubwayPassengerHourly {
     private LocalDate statDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "line_name", nullable = false)
-    private SubwayLine subwayLine;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "station_name", nullable = false)
+    @JoinColumn(name = "station_id", nullable = false)
     private SubwayStation subwayStation;
 
     @Column(name = "hour_slot", nullable = false)
@@ -56,14 +53,12 @@ public class SubwayPassengerHourly {
 
     private SubwayPassengerHourly(
             LocalDate statDate,
-            SubwayLine subwayLine,
             SubwayStation subwayStation,
             Byte hourSlot,
             Integer boardingCount,
             Integer alightingCount
     ) {
         this.statDate = statDate;
-        this.subwayLine = subwayLine;
         this.subwayStation = subwayStation;
         this.hourSlot = hourSlot;
         this.boardingCount = boardingCount;
@@ -72,13 +67,12 @@ public class SubwayPassengerHourly {
 
     public static SubwayPassengerHourly of(
             LocalDate statDate,
-            SubwayLine subwayLine,
             SubwayStation subwayStation,
             Byte hourSlot,
             Integer boardingCount,
             Integer alightingCount
     ) {
-        return new SubwayPassengerHourly(statDate, subwayLine, subwayStation, hourSlot, boardingCount, alightingCount);
+        return new SubwayPassengerHourly(statDate, subwayStation, hourSlot, boardingCount, alightingCount);
     }
 
     @PrePersist
@@ -94,12 +88,12 @@ public class SubwayPassengerHourly {
         return statDate;
     }
 
-    public SubwayLine getSubwayLine() {
-        return subwayLine;
-    }
-
     public SubwayStation getSubwayStation() {
         return subwayStation;
+    }
+
+    public SubwayLine getSubwayLine() {
+        return subwayStation != null ? subwayStation.getSubwayLine() : null;
     }
 
     public Byte getHourSlot() {

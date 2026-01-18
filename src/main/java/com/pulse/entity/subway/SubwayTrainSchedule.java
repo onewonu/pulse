@@ -9,14 +9,14 @@ import java.time.LocalTime;
 @Table(name = "subway_train_schedule",
         indexes = {
                 @Index(name = "idx_departure_arrival_day",
-                        columnList = "departure_station_name, arrival_station_name, day_type, departure_time"),
+                        columnList = "departure_station_id, arrival_station_id, day_type, departure_time"),
                 @Index(name = "idx_valid_period",
                         columnList = "valid_from, valid_to")
         },
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_train_schedule",
-                        columnNames = {"train_no", "departure_station_name", "departure_time", "day_type"}
+                        columnNames = {"train_no", "departure_station_id", "departure_time", "day_type"}
                 )
         })
 public class SubwayTrainSchedule {
@@ -35,16 +35,12 @@ public class SubwayTrainSchedule {
     private String trainNo;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "departure_station_name", nullable = false)
+    @JoinColumn(name = "departure_station_id", nullable = false)
     private SubwayStation departureStation;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "arrival_station_name", nullable = false)
+    @JoinColumn(name = "arrival_station_id", nullable = false)
     private SubwayStation arrivalStation;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "line_name", nullable = false)
-    private SubwayLine line;
 
     @Column(name = "departure_time", nullable = false)
     private LocalTime departureTime;
@@ -76,7 +72,6 @@ public class SubwayTrainSchedule {
             String trainNo,
             SubwayStation departureStation,
             SubwayStation arrivalStation,
-            SubwayLine line,
             LocalTime departureTime,
             LocalTime arrivalTime,
             String updownType,
@@ -88,7 +83,6 @@ public class SubwayTrainSchedule {
         this.trainNo = trainNo;
         this.departureStation = departureStation;
         this.arrivalStation = arrivalStation;
-        this.line = line;
         this.departureTime = departureTime;
         this.arrivalTime = arrivalTime;
         this.updownType = updownType;
@@ -102,7 +96,6 @@ public class SubwayTrainSchedule {
             String trainNo,
             SubwayStation departureStation,
             SubwayStation arrivalStation,
-            SubwayLine line,
             LocalTime departureTime,
             LocalTime arrivalTime,
             String updownType,
@@ -115,7 +108,6 @@ public class SubwayTrainSchedule {
                 trainNo,
                 departureStation,
                 arrivalStation,
-                line,
                 departureTime,
                 arrivalTime,
                 updownType,
@@ -148,7 +140,7 @@ public class SubwayTrainSchedule {
     }
 
     public SubwayLine getLine() {
-        return line;
+        return departureStation != null ? departureStation.getSubwayLine() : null;
     }
 
     public LocalTime getDepartureTime() {
