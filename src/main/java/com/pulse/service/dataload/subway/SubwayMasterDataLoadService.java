@@ -1,6 +1,7 @@
 package com.pulse.service.dataload.subway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pulse.config.MasterDataProperties;
 import com.pulse.dto.DataLoadResult;
 import com.pulse.dto.masterdata.LinesData;
 import com.pulse.dto.masterdata.StationMasterData;
@@ -15,7 +16,8 @@ import com.pulse.util.StationNameNormalizer;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,26 +35,32 @@ public class SubwayMasterDataLoadService {
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
     private final ObjectMapper objectMapper;
-
-    private static final String LINES_JSON_PATH = "data/lines.json";
-    private static final String STATIONS_JSON_PATH = "data/stations.json";
+    private final ResourceLoader resourceLoader;
+    private final MasterDataProperties masterDataProperties;
 
     public SubwayMasterDataLoadService(
             EntityManager entityManager,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ResourceLoader resourceLoader,
+            MasterDataProperties masterDataProperties
     ) {
         this.entityManager = entityManager;
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
         this.objectMapper = objectMapper;
+        this.resourceLoader = resourceLoader;
+        this.masterDataProperties = masterDataProperties;
     }
 
     public DataLoadResult loadMasterDataFromJson() {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
 
-        log.info("[{}] Start loading subway master data from JSON files", operationId);
+        log.info("[{}] Start loading subway master data: lines={}, stations={}",
+                operationId,
+                masterDataProperties.getLinesPath(),
+                masterDataProperties.getStationsPath());
 
         deleteAllExistingMasterData(operationId);
 
@@ -80,7 +88,7 @@ public class SubwayMasterDataLoadService {
 
     private List<SubwayLine> loadLinesFromJson(String operationId) {
         try {
-            ClassPathResource resource = new ClassPathResource(LINES_JSON_PATH);
+            Resource resource = resourceLoader.getResource(masterDataProperties.getLinesPath());
             InputStream inputStream = resource.getInputStream();
             LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
@@ -102,7 +110,7 @@ public class SubwayMasterDataLoadService {
 
     private List<SubwayStation> loadStationsFromJson(String operationId) {
         try {
-            ClassPathResource resource = new ClassPathResource(STATIONS_JSON_PATH);
+            Resource resource = resourceLoader.getResource(masterDataProperties.getStationsPath());
             InputStream inputStream = resource.getInputStream();
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
