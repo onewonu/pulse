@@ -22,10 +22,10 @@ public interface SubwayPassengerHourlyRepository extends JpaRepository<SubwayPas
     int deleteByYearMonth(@Param("yearMonth") String yearMonth);
 
     @Query("SELECT s FROM SubwayPassengerHourly s WHERE " +
-           "s.subwayStation.stationName IN :stationNames AND " +
+           "s.subwayStation.stationId IN :stationIds AND " +
            "s.hourSlot = :hourSlot")
-    List<SubwayPassengerHourly> findByStationNamesAndHourSlot(
-            @Param("stationNames") List<String> stationNames,
+    List<SubwayPassengerHourly> findByStationIdsAndHourSlot(
+            @Param("stationIds") List<String> stationIds,
             @Param("hourSlot") Byte hourSlot
     );
 }
