@@ -10,6 +10,7 @@ import com.pulse.exception.dataload.ApiCommunicationException;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
+import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
 import com.pulse.mapper.TrainScheduleMapper;
 import jakarta.persistence.EntityManager;
@@ -68,28 +69,19 @@ public class TrainScheduleDataLoadService {
 
     public DataLoadResult loadTrainSchedules(String dayType, String stationName, String lineName) {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
-        log.info(
-                "[{}] Start loading train schedules for dayType: {}, station: {}, line: {}",
-                operationId,
-                dayType,
-                stationName != null ? stationName : "ALL",
-                lineName != null ? lineName : "ALL"
-        );
+
+        String normalizedLineName = lineName != null ? LineNameNormalizer.normalize(lineName) : null;
 
         deleteExistingSchedules(dayType, operationId);
 
         Map<String, SubwayStation> stationCache = new ConcurrentHashMap<>();
 
-        List<StationDirection> stationDirections = generateStationDirections(stationName, lineName, operationId);
+        List<StationDirection> stationDirections = generateStationDirections(stationName, normalizedLineName, operationId);
 
         if (stationDirections.isEmpty()) {
 
-            log.warn(
-                    "[{}] No station-direction combinations found for station: {}, line: {}",
-                    operationId,
-                    stationName,
-                    lineName
-            );
+            log.warn("[{}] No station-direction combinations found for station: {}, line: {}",
+                    operationId, stationName, lineName);
 
             return DataLoadResult.failure(
                     "Train schedules",
@@ -97,11 +89,8 @@ public class TrainScheduleDataLoadService {
             );
         }
 
-        log.info(
-                "[{}] Found {} station-direction combinations, starting parallel API fetching",
-                operationId,
-                stationDirections.size()
-        );
+        log.info("[{}] Found {} station-direction combinations, starting parallel API fetching",
+                operationId, stationDirections.size());
 
         List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(stationDirections, dayType, stationCache, operationId);
 
@@ -139,19 +128,16 @@ public class TrainScheduleDataLoadService {
                             (targetLineName == null || lineName.equals(targetLineName))
             ) {
                 String normalizedStationName = StationNameNormalizer.normalize(stationName);
+                String denormalizedLineName = LineNameNormalizer.denormalize(lineName);
 
                 for (String updownType : UPDOWN_TYPES) {
-                    stationDirections.add(new StationDirection(lineName, normalizedStationName, updownType));
+                    stationDirections.add(new StationDirection(denormalizedLineName, normalizedStationName, updownType));
                 }
             }
         }
 
-        log.info(
-                "[{}] Generated {} station-direction combinations from {} stations",
-                operationId,
-                stationDirections.size(),
-                stations.size()
-        );
+        log.info("[{}] Generated {} station-direction combinations from {} stations",
+                operationId, stationDirections.size(), stations.size());
 
         return stationDirections;
     }
@@ -231,12 +217,8 @@ public class TrainScheduleDataLoadService {
             uniqueMap.putIfAbsent(key, schedule);
         }
 
-        log.info(
-                "[{}] Deduplicated schedules: {} fetched -> {} unique",
-                operationId,
-                schedules.size(),
-                uniqueMap.size()
-        );
+        log.info("[{}] Deduplicated schedules: {} fetched -> {} unique",
+                operationId, schedules.size(), uniqueMap.size());
 
         return uniqueMap;
     }

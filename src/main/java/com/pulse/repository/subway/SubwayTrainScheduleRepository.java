@@ -18,12 +18,12 @@ public interface SubwayTrainScheduleRepository extends JpaRepository<SubwayTrain
     void deleteByDayType(@Param("dayType") String dayType);
 
     @Query("SELECT DISTINCT s.departureTime FROM SubwayTrainSchedule s WHERE " +
-           "s.departureStation.stationName = :departureStationName AND " +
+           "s.departureStation.stationId = :departureStationId AND " +
            "s.dayType = :dayType AND " +
            "s.departureTime BETWEEN :startTime AND :endTime " +
            "ORDER BY s.departureTime")
-    List<LocalTime> findDistinctDepartureTimesByStationAndDayAndTimeRange(
-            @Param("departureStationName") String departureStationName,
+    List<LocalTime> findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
+            @Param("departureStationId") String departureStationId,
             @Param("dayType") String dayType,
             @Param("startTime") LocalTime startTime,
             @Param("endTime") LocalTime endTime
