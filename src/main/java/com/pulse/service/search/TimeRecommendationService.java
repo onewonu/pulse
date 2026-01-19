@@ -51,21 +51,9 @@ public class TimeRecommendationService {
 
         DayInfo dayInfo = convertToDayInfo(request);
 
-        String departureStationName = fetchDepartureStationName(request, dayInfo);
-
-        List<LocalTime> departureTimes = getAvailableDepartureTimes(request, departureStationName, dayInfo);
+        List<LocalTime> departureTimes = getAvailableDepartureTimes(request, dayInfo);
 
         if (departureTimes.isEmpty()) {
-            log.warn(
-                    "[{}] No train schedules found: sid={}, eid={}, date={}, time={}-{}",
-                    requestId,
-                    request.getDepartureStationId(),
-                    request.getArrivalStationId(),
-                    request.getSearchDate(),
-                    request.getStartTime(),
-                    request.getEndTime()
-            );
-
             throw new NoSchedulesAvailableException(
                     String.format(
                             "No train schedules found from %s to %s between %s and %s on %s",
@@ -81,20 +69,10 @@ public class TimeRecommendationService {
         List<RouteWithCongestion> routes = processAllDepartureTimes(request, dayInfo, departureTimes, requestId);
 
         if (routes.isEmpty()) {
-
-            log.warn(
-                    "[{}] Routes have incomplete congestion data: sid={}, eid={}, date={}, found {} departure times",
-                    requestId,
-                    request.getDepartureStationId(),
-                    request.getArrivalStationId(),
-                    request.getSearchDate(),
-                    departureTimes.size()
-            );
-
             throw new IncompleteCongestionDataException(
                     String.format(
                             "Congestion data incomplete for all routes from %s to %s on %s. " +
-                            "Found %d departure times but none had sufficient congestion data (>=50%% coverage required)",
+                            "Found %d departure times but none had sufficient congestion data",
                             request.getDepartureStationId(),
                             request.getArrivalStationId(),
                             request.getSearchDate(),
@@ -112,30 +90,13 @@ public class TimeRecommendationService {
         return new DayInfo(dayCode, dayType);
     }
 
-    private List<LocalTime> getAvailableDepartureTimes(TimeRecommendationRequest request, String departureStationName, DayInfo dayInfo) {
-        return subwayTrainScheduleRepository.findDistinctDepartureTimesByStationAndDayAndTimeRange(
-                departureStationName,
+    private List<LocalTime> getAvailableDepartureTimes(TimeRecommendationRequest request, DayInfo dayInfo) {
+        return subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
+                request.getDepartureStationId().toString(),
                 dayInfo.dayType(),
                 request.getStartTime(),
                 request.getEndTime()
         );
-    }
-
-    private String fetchDepartureStationName(TimeRecommendationRequest request, DayInfo dayInfo) {
-        OdsaySubwayScheduleResponse response = odsayClient.searchSubwaySchedule(
-                request.getDepartureStationId(),
-                request.getArrivalStationId(),
-                dayInfo.dayCode(),
-                request.getStartTime().format(DateTimeFormatter.ofPattern("HHmm"))
-        );
-
-        OdsaySubwayScheduleResponse.PathData path = extractFastestPath(response);
-        if (path == null || path.getInfo() == null) {
-            throw new IllegalStateException("No path found for station name extraction");
-        }
-
-        String stationName = path.getInfo().getFirstStartStationName();
-        return StationNameNormalizer.normalize(stationName);
     }
 
     private List<RouteWithCongestion> processAllDepartureTimes(
@@ -271,12 +232,13 @@ public class TimeRecommendationService {
 
                 if (passStopList != null && passStopList.getStations() != null) {
                     for (OdsaySubwayScheduleResponse.StationInfoData station : passStopList.getStations()) {
+                        String stationId = station.getStationID() != null ? station.getStationID().toString() : null;
                         String normalizedName = StationNameNormalizer.normalize(station.getStationName());
 
                         LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
                         LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
 
-                        result.add(new StationWithTime(normalizedName, arrivalTime, departureTime));
+                        result.add(new StationWithTime(stationId, normalizedName, arrivalTime, departureTime));
                     }
                 }
             }
@@ -288,22 +250,24 @@ public class TimeRecommendationService {
     private CongestionData calculateCongestion(List<StationWithTime> stations) {
         Map<String, StationWithTime> uniqueStations = new HashMap<>();
         for (StationWithTime station : stations) {
-            uniqueStations.putIfAbsent(station.stationName, station);
+            if (station.stationId != null) {
+                uniqueStations.putIfAbsent(station.stationId, station);
+            }
         }
 
         Map<Byte, List<String>> stationsByHour = new HashMap<>();
         for (StationWithTime station : uniqueStations.values()) {
             LocalTime stationTime = station.arrivalTime != null ? station.arrivalTime : station.departureTime;
 
-            if (stationTime == null) continue;
+            if (stationTime == null || station.stationId == null) continue;
 
             byte hour = (byte) stationTime.getHour();
-            List<String> stationNames = stationsByHour.get(hour);
-            if (stationNames == null) {
-                stationNames = new ArrayList<>();
-                stationsByHour.put(hour, stationNames);
+            List<String> stationIds = stationsByHour.get(hour);
+            if (stationIds == null) {
+                stationIds = new ArrayList<>();
+                stationsByHour.put(hour, stationIds);
             }
-            stationNames.add(station.stationName);
+            stationIds.add(station.stationId);
         }
 
         Map<String, SubwayPassengerHourly> passengerMap = new HashMap<>();
@@ -312,14 +276,14 @@ public class TimeRecommendationService {
 
         for (Map.Entry<Byte, List<String>> entry : stationsByHour.entrySet()) {
             byte hour = entry.getKey();
-            List<String> stationNames = entry.getValue();
+            List<String> stationIds = entry.getValue();
 
             List<SubwayPassengerHourly> passengers = subwayPassengerHourlyRepository
-                    .findByStationNamesAndHourSlot(stationNames, hour);
+                    .findByStationIdsAndHourSlot(stationIds, hour);
 
             for (SubwayPassengerHourly passenger : passengers) {
-                String stationName = passenger.getSubwayStation().getStationName();
-                passengerMap.put(stationName, passenger);
+                String stationId = passenger.getSubwayStation().getStationId();
+                passengerMap.put(stationId, passenger);
 
                 int congestionScore = passenger.getBoardingCount() + passenger.getAlightingCount();
                 totalScore += congestionScore;
@@ -352,7 +316,7 @@ public class TimeRecommendationService {
 
         List<TimeRecommendationResult.StationCongestion> stationCongestions = new ArrayList<>();
         for (StationWithTime station : route.stationsWithTime) {
-            SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationName);
+            SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationId);
 
             stationCongestions.add(new TimeRecommendationResult.StationCongestion(
                     station.stationName,
@@ -381,6 +345,7 @@ public class TimeRecommendationService {
     ) {}
 
     private record StationWithTime(
+            String stationId,
             String stationName,
             LocalTime arrivalTime,
             LocalTime departureTime
