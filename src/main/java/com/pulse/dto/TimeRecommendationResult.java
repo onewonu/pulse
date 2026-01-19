@@ -6,8 +6,8 @@ import java.util.List;
 
 public class TimeRecommendationResult {
 
-    private Integer departureSID;
-    private Integer arrivalEID;
+    private Integer departureStationId;
+    private Integer arrivalStationId;
     private String departureStationName;
     private String arrivalStationName;
     private LocalDate travelDate;
@@ -16,8 +16,8 @@ public class TimeRecommendationResult {
     private String message;
 
     public TimeRecommendationResult(
-            Integer departureSID,
-            Integer arrivalEID,
+            Integer departureStationId,
+            Integer arrivalStationId,
             String departureStationName,
             String arrivalStationName,
             LocalDate travelDate,
@@ -25,8 +25,8 @@ public class TimeRecommendationResult {
             List<TimeRecommendation> recommendations,
             String message
     ) {
-        this.departureSID = departureSID;
-        this.arrivalEID = arrivalEID;
+        this.departureStationId = departureStationId;
+        this.arrivalStationId = arrivalStationId;
         this.departureStationName = departureStationName;
         this.arrivalStationName = arrivalStationName;
         this.travelDate = travelDate;
@@ -35,12 +35,12 @@ public class TimeRecommendationResult {
         this.message = message;
     }
 
-    public Integer getDepartureSID() {
-        return departureSID;
+    public Integer getDepartureStationId() {
+        return departureStationId;
     }
 
-    public Integer getArrivalEID() {
-        return arrivalEID;
+    public Integer getArrivalStationId() {
+        return arrivalStationId;
     }
 
     public String getDepartureStationName() {
@@ -67,12 +67,12 @@ public class TimeRecommendationResult {
         return message;
     }
 
-    public void setDepartureSID(Integer departureSID) {
-        this.departureSID = departureSID;
+    public void setDepartureStationId(Integer departureStationId) {
+        this.departureStationId = departureStationId;
     }
 
-    public void setArrivalEID(Integer arrivalEID) {
-        this.arrivalEID = arrivalEID;
+    public void setArrivalStationId(Integer arrivalStationId) {
+        this.arrivalStationId = arrivalStationId;
     }
 
     public void setDepartureStationName(String departureStationName) {
