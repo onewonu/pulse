@@ -60,25 +60,13 @@ public class SubwayMasterDataLoadService {
         subwayLineRepository.saveAll(lines);
         entityManager.flush();
 
-        Set<String> validLineNames = new HashSet<>();
-        for (SubwayLine line : lines) {
-            validLineNames.add(line.getLineName());
-        }
-
-        log.info("[{}] Loaded and saved {} subway lines", operationId, lines.size());
-
-        List<SubwayStation> stations = loadStationsFromJson(validLineNames, operationId);
+        List<SubwayStation> stations = loadStationsFromJson(operationId);
         subwayStationRepository.saveAll(stations);
-        entityManager.flush();
-
-        log.info("[{}] Loaded and saved {} subway stations", operationId, stations.size());
-
-        int totalCount = lines.size() + stations.size();
 
         log.info("[{}] Subway master data loading completed: {} lines, {} stations (total: {})",
-                operationId, lines.size(), stations.size(), totalCount);
+                operationId, lines.size(), stations.size(), lines.size() + stations.size());
 
-        return DataLoadResult.success("Subway master data", totalCount);
+        return DataLoadResult.success("Subway master data", lines.size() + stations.size());
     }
 
     private void deleteAllExistingMasterData(String operationId) {
@@ -91,8 +79,6 @@ public class SubwayMasterDataLoadService {
     }
 
     private List<SubwayLine> loadLinesFromJson(String operationId) {
-        log.info("[{}] Loading lines from classpath: {}", operationId, LINES_JSON_PATH);
-
         try {
             ClassPathResource resource = new ClassPathResource(LINES_JSON_PATH);
             InputStream inputStream = resource.getInputStream();
@@ -106,6 +92,7 @@ public class SubwayMasterDataLoadService {
             }
 
             log.info("[{}] Loaded {} lines from JSON", operationId, lines.size());
+
             return lines;
 
         } catch (IOException e) {
@@ -113,31 +100,24 @@ public class SubwayMasterDataLoadService {
         }
     }
 
-    private List<SubwayStation> loadStationsFromJson(Set<String> validLineNames, String operationId) {
-        log.info("[{}] Loading stations from classpath: {}", operationId, STATIONS_JSON_PATH);
-
+    private List<SubwayStation> loadStationsFromJson(String operationId) {
         try {
             ClassPathResource resource = new ClassPathResource(STATIONS_JSON_PATH);
             InputStream inputStream = resource.getInputStream();
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
             List<SubwayStation> stations = new ArrayList<>();
-            int filteredOutCount = 0;
 
             for (StationSearchResult searchResult : exportData.getStationSearchResults()) {
                 for (StationMasterData stationData : searchResult.getResults()) {
-                    Optional<SubwayStation> stationOptional = processStationData(stationData, validLineNames, operationId);
-
+                    Optional<SubwayStation> stationOptional = processStationData(stationData, operationId);
                     if (stationOptional.isPresent()) {
                         stations.add(stationOptional.get());
-                    } else {
-                        filteredOutCount++;
                     }
                 }
             }
 
-            log.info("[{}] Loaded {} stations from JSON (filtered out {} stations not in valid lines)",
-                    operationId, stations.size(), filteredOutCount);
+            log.info("[{}] Loaded {} stations from JSON", operationId, stations.size());
 
             return stations;
 
@@ -148,19 +128,16 @@ public class SubwayMasterDataLoadService {
 
     private Optional<SubwayStation> processStationData(
             StationMasterData stationData,
-            Set<String> validLineNames,
             String operationId
     ) {
         String lineName = stationData.getLaneName();
 
-        if (!validLineNames.contains(lineName)) {
-            return Optional.empty();
-        }
-
         SubwayLine line = subwayLineRepository.findById(lineName).orElse(null);
         if (line == null) {
+
             log.warn("[{}] Line not found for station: {} (line: {})",
                     operationId, stationData.getStationName(), lineName);
+
             return Optional.empty();
         }
 
@@ -168,9 +145,10 @@ public class SubwayMasterDataLoadService {
         Double longitude = stationData.getLongitude();
 
         if (latitude == null || longitude == null) {
+
             log.warn("[{}] Invalid coordinates for station: {} (lat: {}, lng: {})",
-                    operationId, stationData.getStationName(),
-                    stationData.getY(), stationData.getX());
+                    operationId, stationData.getStationName(), stationData.getY(), stationData.getX());
+
             return Optional.empty();
         }
 
