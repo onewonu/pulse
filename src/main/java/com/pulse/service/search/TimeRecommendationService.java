@@ -155,9 +155,6 @@ public class TimeRecommendationService {
             return null;
         } catch (OdsayApiException | DataAccessException e) {
             return null;
-        } catch (RuntimeException e) {
-            log.error("[{}] Unexpected error while processing departure time: {}", requestId, departureTime, e);
-            throw e;
         }
     }
 
