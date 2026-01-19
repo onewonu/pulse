@@ -11,6 +11,7 @@ import com.pulse.entity.subway.SubwayStation;
 import com.pulse.exception.dataload.MasterDataLoadException;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
+import com.pulse.util.StationNameNormalizer;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,9 +174,11 @@ public class SubwayMasterDataLoadService {
             return Optional.empty();
         }
 
+        String normalizedStationName = StationNameNormalizer.normalize(stationData.getStationName());
+
         SubwayStation station = SubwayStation.of(
                 stationData.getStationID(),
-                stationData.getStationName(),
+                normalizedStationName,
                 line,
                 latitude,
                 longitude
