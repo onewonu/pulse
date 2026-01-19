@@ -319,6 +319,7 @@ public class TimeRecommendationService {
             SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationId);
 
             stationCongestions.add(new TimeRecommendationResult.StationCongestion(
+                    station.stationId,
                     station.stationName,
                     station.arrivalTime,
                     station.departureTime,
