@@ -1,11 +1,8 @@
 package com.pulse.mapper;
 
 import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
-import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
-import com.pulse.util.LineNameNormalizer;
-import com.pulse.util.StationNameNormalizer;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -17,24 +14,8 @@ import java.util.List;
 @Component
 public class SubwayDataMapper {
 
-    public SubwayLine toSubwayLine(SubwayPassengerData data) {
-        String rawLineName = data.getSbwyRoutLnNm();
-        String normalizedLineName = LineNameNormalizer.normalize(rawLineName);
-
-        return SubwayLine.of(normalizedLineName);
-    }
-
-    @Deprecated
-    public SubwayStation toSubwayStation(SubwayPassengerData data) {
-        String rawStationName = data.getSttn();
-        String normalizedStationName = StationNameNormalizer.normalize(rawStationName);
-
-        return null;
-    }
-
     public List<SubwayPassengerHourly> toSubwayPassengerHourlyList(
             SubwayPassengerData data,
-            SubwayLine line,
             SubwayStation station
     ) {
         List<SubwayPassengerHourly> result = new ArrayList<>();

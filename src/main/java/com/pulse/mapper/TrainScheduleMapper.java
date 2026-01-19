@@ -3,7 +3,6 @@ package com.pulse.mapper;
 import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
-import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.TimeParser;
 import org.springframework.stereotype.Component;
@@ -21,14 +20,9 @@ public class TrainScheduleMapper {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    // private final SubwayLineRepository lineRepository;
     private final SubwayStationRepository stationRepository;
 
-    public TrainScheduleMapper(
-            SubwayLineRepository lineRepository,
-            SubwayStationRepository stationRepository
-    ) {
-        // this.lineRepository = lineRepository;
+    public TrainScheduleMapper(SubwayStationRepository stationRepository) {
         this.stationRepository = stationRepository;
     }
 
