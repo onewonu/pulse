@@ -14,7 +14,6 @@ import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
-import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,7 +27,6 @@ public class SubwayStatisticsDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
 
-    private final EntityManager entityManager;
     private final SeoulOpenDataClient apiClient;
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
@@ -37,7 +35,6 @@ public class SubwayStatisticsDataLoadService {
     private final SeoulApiProperties properties;
 
     public SubwayStatisticsDataLoadService(
-            EntityManager entityManager,
             SeoulOpenDataClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
@@ -45,7 +42,6 @@ public class SubwayStatisticsDataLoadService {
             SubwayPassengerHourlyRepository subwayPassengerRepository,
             SeoulApiProperties properties
     ) {
-        this.entityManager = entityManager;
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
@@ -55,30 +51,18 @@ public class SubwayStatisticsDataLoadService {
     }
 
     public DataLoadResult deleteStatisticsByYearMonth(String yearMonth) {
-        String operationId = UUID.randomUUID().toString().substring(0, 8);
-
-        log.info("[{}] Start deleting subway statistics data: {}", operationId, yearMonth);
-
         int deletedCount = subwayPassengerRepository.deleteByYearMonth(yearMonth);
-
-        log.info("[{}] Deleted {} records for {}", operationId, deletedCount, yearMonth);
-
         return DataLoadResult.success("Subway statistics deleted", deletedCount);
     }
 
     public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
-
-        log.info("[{}] Start loading subway statistics data: {}", operationId, yearMonth);
-
         MasterDataCaches caches = loadMasterDataCaches(operationId);
-
         List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
-
         Map<String, SubwayPassengerHourly> hourlyDataMap = processPassengerData(apiDataList, caches, operationId);
+        int totalCount = savePassengerData(hourlyDataMap);
 
-        int totalCount = savePassengerData(hourlyDataMap, apiDataList.size(), operationId);
-        return DataLoadResult.success("Subway statistics data", totalCount);
+        return DataLoadResult.success("Subway statistics data (" + yearMonth + ")", totalCount);
     }
 
     private MasterDataCaches loadMasterDataCaches(String operationId) {
@@ -100,8 +84,6 @@ public class SubwayStatisticsDataLoadService {
     }
 
     private List<SubwayPassengerData> fetchAllDataFromApi(String yearMonth, String operationId) {
-        log.info("[{}] Starting to fetch subway statistics data from API: {}", operationId, yearMonth);
-
         List<SubwayPassengerData> allData = new ArrayList<>();
         int startIndex = 1;
         int pageNumber = 0;
@@ -126,12 +108,8 @@ public class SubwayStatisticsDataLoadService {
             }
         }
 
-        log.info(
-                "[{}] Completed fetching subway statistics data: {} API records from {} pages",
-                operationId,
-                allData.size(),
-                pageNumber
-        );
+        log.info("[{}] Completed fetching subway statistics data: {} API records from {} pages",
+                operationId, allData.size(), pageNumber);
 
         return allData;
     }
@@ -141,8 +119,6 @@ public class SubwayStatisticsDataLoadService {
             MasterDataCaches caches,
             String operationId
     ) {
-        log.info("[{}] Starting to process {} API records", operationId, apiDataList.size());
-
         Map<String, SubwayPassengerHourly> hourlyDataMap = new HashMap<>();
         int skippedCount = 0;
 
@@ -198,17 +174,11 @@ public class SubwayStatisticsDataLoadService {
                 hourly.getHourSlot());
     }
 
-    private int savePassengerData(Map<String, SubwayPassengerHourly> hourlyDataMap, int apiRecordCount, String operationId) {
+    private int savePassengerData(Map<String, SubwayPassengerHourly> hourlyDataMap) {
         List<SubwayPassengerHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
         subwayPassengerRepository.saveAll(uniqueHourlyData);
-        entityManager.flush();
 
-        int totalCount = uniqueHourlyData.size();
-
-        log.info("[{}] Subway statistics data loading completed: {} API records -> {} unique hourly records",
-                operationId, apiRecordCount, totalCount);
-
-        return totalCount;
+        return uniqueHourlyData.size();
     }
 
     private record MasterDataCaches(
