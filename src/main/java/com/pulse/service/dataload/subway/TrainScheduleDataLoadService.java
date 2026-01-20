@@ -53,58 +53,29 @@ public class TrainScheduleDataLoadService {
     }
 
     public DataLoadResult deleteAllTrainSchedules() {
-        String operationId = UUID.randomUUID().toString().substring(0, 8);
-
-        log.info("[{}] Starting to delete all train schedules", operationId);
-
         long count = scheduleRepository.count();
         scheduleRepository.deleteAll();
-        entityManager.flush();
-        entityManager.clear();
-
-        log.info("[{}] Deleted and flushed all train schedules: {} records", operationId, count);
-
         return DataLoadResult.success("All train schedules deleted", (int) count);
     }
 
-    public DataLoadResult loadTrainSchedules(String dayType, String stationName, String lineName) {
+    public DataLoadResult loadTrainSchedules(String dayType) {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
-
-        String normalizedLineName = lineName != null ? LineNameNormalizer.normalize(lineName) : null;
 
         deleteExistingSchedules(dayType, operationId);
 
-        Map<String, SubwayStation> stationCache = new ConcurrentHashMap<>();
+        List<StationDirection> stationDirections = generateStationDirections(operationId);
 
-        List<StationDirection> stationDirections = generateStationDirections(stationName, normalizedLineName, operationId);
-
-        if (stationDirections.isEmpty()) {
-
-            log.warn("[{}] No station-direction combinations found for station: {}, line: {}",
-                    operationId, stationName, lineName);
-
-            return DataLoadResult.failure(
-                    "Train schedules",
-                    "Station not found: " + stationName + " on line " + lineName
-            );
-        }
-
-        log.info("[{}] Found {} station-direction combinations, starting parallel API fetching",
-                operationId, stationDirections.size());
-
-        List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(stationDirections, dayType, stationCache, operationId);
+        List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(
+                stationDirections,
+                dayType,
+                new ConcurrentHashMap<>(),
+                operationId
+        );
 
         Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules, operationId);
-
         int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap, operationId);
 
-        String description = dayType;
-        if (stationName != null) description += ", " + stationName;
-        if (lineName != null) description += ", " + lineName;
-
-        log.info("[{}] Train schedule loading completed: {} unique schedules saved", operationId, totalCount);
-
-        return DataLoadResult.success("Train schedules (" + description + ")", totalCount);
+        return DataLoadResult.success("Train schedules (" + dayType + ")", totalCount);
     }
 
     private void deleteExistingSchedules(String dayType, String operationId) {
@@ -115,7 +86,7 @@ public class TrainScheduleDataLoadService {
         log.info("[{}] Deleted existing schedules for dayType: {}", operationId, dayType);
     }
 
-    private List<StationDirection> generateStationDirections(String targetStationName, String targetLineName, String operationId) {
+    private List<StationDirection> generateStationDirections(String operationId) {
         List<SubwayStation> stations = stationRepository.findAll();
         List<StationDirection> stationDirections = new ArrayList<>();
 
@@ -123,17 +94,12 @@ public class TrainScheduleDataLoadService {
             String lineName = station.getSubwayLine().getLineName();
             String stationName = station.getStationName();
 
-            if (
-                    (targetStationName == null || stationName.startsWith(targetStationName)) &&
-                            (targetLineName == null || lineName.equals(targetLineName))
-            ) {
-                String normalizedStationName = StationNameNormalizer.normalize(stationName);
-                String denormalizedLineName = LineNameNormalizer.denormalize(lineName);
+            String denormalizedLineName = LineNameNormalizer.denormalize(lineName);
+            String normalizedStationName = StationNameNormalizer.normalize(stationName);
 
-                String[] validDirections = LineDirectionResolver.getValidDirections(denormalizedLineName);
-                for (String direction : validDirections) {
-                    stationDirections.add(new StationDirection(denormalizedLineName, normalizedStationName, direction));
-                }
+            String[] validDirections = LineDirectionResolver.getValidDirections(denormalizedLineName);
+            for (String direction : validDirections) {
+                stationDirections.add(new StationDirection(denormalizedLineName, normalizedStationName, direction));
             }
         }
 
@@ -173,13 +139,12 @@ public class TrainScheduleDataLoadService {
             return convertToScheduleEntities(items, direction, stationCache).stream();
         } catch (ApiCommunicationException | ApiResponseInvalidException e) {
 
-            log.warn(
-                    "[{}][Thread-{}] Failed to fetch schedule for line={}, station={}, direction={}: {}",
+            log.warn("[{}] Failed to fetch schedule for line={}, station={}, direction={}: {}",
                     operationId,
-                    Thread.currentThread().threadId(),
-                    direction.lineName(), direction.stationName(), direction.updownType(),
-                    e.getMessage()
-            );
+                    direction.lineName(),
+                    direction.stationName(),
+                    direction.updownType(),
+                    e.getMessage());
 
             return Stream.empty();
         }
@@ -234,9 +199,8 @@ public class TrainScheduleDataLoadService {
 
     private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap, String operationId) {
         scheduleRepository.saveAll(uniqueSchedulesMap.values());
-        entityManager.flush();
 
-        log.info("[{}] Saved and flushed {} schedules to database", operationId, uniqueSchedulesMap.size());
+        log.info("[{}] Saved {} schedules to database", operationId, uniqueSchedulesMap.size());
 
         return uniqueSchedulesMap.size();
     }

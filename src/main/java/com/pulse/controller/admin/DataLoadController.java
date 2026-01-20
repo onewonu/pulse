@@ -79,24 +79,13 @@ public class DataLoadController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping("/train-schedule/weekday")
-    public ResponseEntity<DataLoadResult> loadWeekdayTrainSchedule(
-            @RequestParam(required = false)
-            String stationName,
-            @RequestParam(required = false)
-            String lineName
-    ) {
-        DataLoadResult result = trainScheduleDataLoadService.loadTrainSchedules("평일", stationName, lineName);
-        return ResponseEntity.ok(result);
-    }
-
     @PostMapping("/train-schedule/all")
     public ResponseEntity<Map<String, DataLoadResult>> loadAllTrainSchedules() {
         Map<String, DataLoadResult> results = new HashMap<>();
         String[] dayTypes = {"평일", "주말"};
 
         for (String dayType : dayTypes) {
-            results.put(dayType, trainScheduleDataLoadService.loadTrainSchedules(dayType, null, null));
+            results.put(dayType, trainScheduleDataLoadService.loadTrainSchedules(dayType));
         }
 
         return ResponseEntity.ok(results);
