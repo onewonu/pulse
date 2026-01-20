@@ -10,6 +10,7 @@ import com.pulse.exception.dataload.ApiCommunicationException;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
+import com.pulse.util.LineDirectionResolver;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
 import com.pulse.mapper.TrainScheduleMapper;
@@ -30,7 +31,6 @@ public class TrainScheduleDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(TrainScheduleDataLoadService.class);
     private static final String REGULAR_SCHEDULE = "N";
-    private static final String[] UPDOWN_TYPES = {"상행", "하행", "내선", "외선"};
 
     private final EntityManager entityManager;
     private final SeoulMetroClient apiClient;
@@ -130,8 +130,9 @@ public class TrainScheduleDataLoadService {
                 String normalizedStationName = StationNameNormalizer.normalize(stationName);
                 String denormalizedLineName = LineNameNormalizer.denormalize(lineName);
 
-                for (String updownType : UPDOWN_TYPES) {
-                    stationDirections.add(new StationDirection(denormalizedLineName, normalizedStationName, updownType));
+                String[] validDirections = LineDirectionResolver.getValidDirections(denormalizedLineName);
+                for (String direction : validDirections) {
+                    stationDirections.add(new StationDirection(denormalizedLineName, normalizedStationName, direction));
                 }
             }
         }
