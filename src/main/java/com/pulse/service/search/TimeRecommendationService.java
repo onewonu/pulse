@@ -182,7 +182,7 @@ public class TimeRecommendationService {
                 departureStationName,
                 arrivalStationName,
                 request.getSearchDate(),
-                dayInfo.dayCode(),
+                dayInfo.dayType(),
                 recommendations,
                 null
         );

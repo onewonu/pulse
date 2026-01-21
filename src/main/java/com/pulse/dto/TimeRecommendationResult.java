@@ -11,7 +11,7 @@ public class TimeRecommendationResult {
     private String departureStationName;
     private String arrivalStationName;
     private LocalDate travelDate;
-    private int dayCode;
+    private String dayType;
     private List<TimeRecommendation> recommendations;
     private String message;
 
@@ -21,7 +21,7 @@ public class TimeRecommendationResult {
             String departureStationName,
             String arrivalStationName,
             LocalDate travelDate,
-            int dayCode,
+            String dayType,
             List<TimeRecommendation> recommendations,
             String message
     ) {
@@ -30,7 +30,7 @@ public class TimeRecommendationResult {
         this.departureStationName = departureStationName;
         this.arrivalStationName = arrivalStationName;
         this.travelDate = travelDate;
-        this.dayCode = dayCode;
+        this.dayType = dayType;
         this.recommendations = recommendations;
         this.message = message;
     }
@@ -55,8 +55,8 @@ public class TimeRecommendationResult {
         return travelDate;
     }
 
-    public int getDayCode() {
-        return dayCode;
+    public String getDayType() {
+        return dayType;
     }
 
     public List<TimeRecommendation> getRecommendations() {
@@ -87,8 +87,8 @@ public class TimeRecommendationResult {
         this.travelDate = travelDate;
     }
 
-    public void setDayCode(int dayCode) {
-        this.dayCode = dayCode;
+    public void setDayType(String dayType) {
+        this.dayType = dayType;
     }
 
     public void setRecommendations(List<TimeRecommendation> recommendations) {
@@ -108,9 +108,6 @@ public class TimeRecommendationResult {
         private double congestionScore;
         private CongestionLevel congestionLevel;
         private List<StationCongestion> stationCongestions;
-
-        public TimeRecommendation() {
-        }
 
         public TimeRecommendation(
                 LocalTime departureTime,
@@ -196,9 +193,6 @@ public class TimeRecommendationResult {
         private Integer boardingCount;
         private Integer alightingCount;
         private Integer totalPassengers;
-
-        public StationCongestion() {
-        }
 
         public StationCongestion(
                 String stationId,
