@@ -226,6 +226,7 @@ public class TimeRecommendationService {
         for (OdsaySubwayScheduleResponse.SubPathData subPath : path.getSubPath()) {
             if (subPath.getMovingType() == SUBWAY) {
                 OdsaySubwayScheduleResponse.PassStopListData passStopList = subPath.getPassStopList();
+                String lineName = subPath.getLaneName();
 
                 if (passStopList != null && passStopList.getStations() != null) {
                     for (OdsaySubwayScheduleResponse.StationInfoData station : passStopList.getStations()) {
@@ -235,7 +236,7 @@ public class TimeRecommendationService {
                         LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
                         LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
 
-                        result.add(new StationWithTime(stationId, normalizedName, arrivalTime, departureTime));
+                        result.add(new StationWithTime(stationId, normalizedName, arrivalTime, departureTime, lineName));
                     }
                 }
             }
@@ -318,6 +319,7 @@ public class TimeRecommendationService {
             stationCongestions.add(new TimeRecommendationResult.StationCongestion(
                     station.stationId,
                     station.stationName,
+                    station.lineName,
                     station.arrivalTime,
                     station.departureTime,
                     passenger != null ? passenger.getBoardingCount() : null,
@@ -346,7 +348,8 @@ public class TimeRecommendationService {
             String stationId,
             String stationName,
             LocalTime arrivalTime,
-            LocalTime departureTime
+            LocalTime departureTime,
+            String lineName
     ) {}
 
     private record RouteWithCongestion(

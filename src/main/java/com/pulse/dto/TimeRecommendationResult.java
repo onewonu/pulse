@@ -188,6 +188,7 @@ public class TimeRecommendationResult {
 
         private String stationId;
         private String stationName;
+        private String lineName;
         private LocalTime arrivalTime;
         private LocalTime departureTime;
         private Integer boardingCount;
@@ -197,6 +198,7 @@ public class TimeRecommendationResult {
         public StationCongestion(
                 String stationId,
                 String stationName,
+                String lineName,
                 LocalTime arrivalTime,
                 LocalTime departureTime,
                 Integer boardingCount,
@@ -205,6 +207,7 @@ public class TimeRecommendationResult {
         ) {
             this.stationId = stationId;
             this.stationName = stationName;
+            this.lineName = lineName;
             this.arrivalTime = arrivalTime;
             this.departureTime = departureTime;
             this.boardingCount = boardingCount;
@@ -218,6 +221,10 @@ public class TimeRecommendationResult {
 
         public String getStationName() {
             return stationName;
+        }
+
+        public String getLineName() {
+            return lineName;
         }
 
         public LocalTime getArrivalTime() {
@@ -246,6 +253,10 @@ public class TimeRecommendationResult {
 
         public void setStationName(String stationName) {
             this.stationName = stationName;
+        }
+
+        public void setLineName(String lineName) {
+            this.lineName = lineName;
         }
 
         public void setArrivalTime(LocalTime arrivalTime) {
