@@ -44,3 +44,8 @@ application-local.yml
 ### Master Data Files ###
 data/
 src/main/resources/data/*.json
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
