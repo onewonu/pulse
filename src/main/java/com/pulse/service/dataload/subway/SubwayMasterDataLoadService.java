@@ -95,7 +95,7 @@ public class SubwayMasterDataLoadService {
             List<SubwayLine> lines = new ArrayList<>();
 
             for (LinesData.LineInfo lineInfo : linesData.getLines()) {
-                SubwayLine line = SubwayLine.of(lineInfo.getLineName());
+                SubwayLine line = SubwayLine.of(lineInfo.getLineName(), lineInfo.getColor());
                 lines.add(line);
             }
 

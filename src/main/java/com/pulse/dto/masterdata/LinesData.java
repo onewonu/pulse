@@ -43,12 +43,23 @@ public class LinesData {
         @JsonProperty("lineName")
         private String lineName;
 
+        @JsonProperty("color")
+        private String color;
+
         public String getLineName() {
             return lineName;
         }
 
+        public String getColor() {
+            return color;
+        }
+
         public void setLineName(String lineName) {
             this.lineName = lineName;
+        }
+
+        public void setColor(String color) {
+            this.color = color;
         }
     }
 }
