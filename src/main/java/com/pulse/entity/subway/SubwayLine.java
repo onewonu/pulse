@@ -16,6 +16,9 @@ public class SubwayLine {
     @Column(name = "line_name", length = 50)
     private String lineName;
 
+    @Column(name = "color", length = 7)
+    private String color;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -26,16 +29,21 @@ public class SubwayLine {
 
     protected SubwayLine() {}
 
-    private SubwayLine(String lineName) {
+    private SubwayLine(String lineName, String color) {
         this.lineName = lineName;
+        this.color = color;
     }
 
-    public static SubwayLine of(String lineName) {
-        return new SubwayLine(lineName);
+    public static SubwayLine of(String lineName, String color) {
+        return new SubwayLine(lineName, color);
     }
 
     public String getLineName() {
         return lineName;
+    }
+
+    public String getColor() {
+        return color;
     }
 
     public LocalDateTime getCreatedAt() {

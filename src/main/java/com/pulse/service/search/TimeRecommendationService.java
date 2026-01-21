@@ -5,13 +5,16 @@ import com.pulse.api.odsay.dto.OdsaySubwayScheduleResponse;
 import com.pulse.dto.CongestionLevel;
 import com.pulse.dto.TimeRecommendationRequest;
 import com.pulse.dto.TimeRecommendationResult;
+import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.exception.search.IncompleteCongestionDataException;
 import com.pulse.exception.search.NoSchedulesAvailableException;
 import com.pulse.exception.search.OdsayApiException;
+import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.DayCodeConverter;
+import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
 import com.pulse.util.TimeParser;
 import org.slf4j.Logger;
@@ -34,15 +37,18 @@ public class TimeRecommendationService {
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
     private final SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
+    private final SubwayLineRepository subwayLineRepository;
     private final OdsayClient odsayClient;
 
     public TimeRecommendationService(
             SubwayTrainScheduleRepository subwayTrainScheduleRepository,
             SubwayPassengerHourlyRepository subwayPassengerHourlyRepository,
+            SubwayLineRepository subwayLineRepository,
             OdsayClient odsayClient
     ) {
         this.subwayTrainScheduleRepository = subwayTrainScheduleRepository;
         this.subwayPassengerHourlyRepository = subwayPassengerHourlyRepository;
+        this.subwayLineRepository = subwayLineRepository;
         this.odsayClient = odsayClient;
     }
 
@@ -226,6 +232,16 @@ public class TimeRecommendationService {
         for (OdsaySubwayScheduleResponse.SubPathData subPath : path.getSubPath()) {
             if (subPath.getMovingType() == SUBWAY) {
                 OdsaySubwayScheduleResponse.PassStopListData passStopList = subPath.getPassStopList();
+                String lineName = subPath.getLaneName();
+
+                String lineColor = null;
+                if (lineName != null) {
+                    String normalizedLineName = LineNameNormalizer.normalize(lineName);
+                    SubwayLine line = subwayLineRepository.findById(normalizedLineName).orElse(null);
+                    if (line != null) {
+                        lineColor = line.getColor();
+                    }
+                }
 
                 if (passStopList != null && passStopList.getStations() != null) {
                     for (OdsaySubwayScheduleResponse.StationInfoData station : passStopList.getStations()) {
@@ -235,7 +251,7 @@ public class TimeRecommendationService {
                         LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
                         LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
 
-                        result.add(new StationWithTime(stationId, normalizedName, arrivalTime, departureTime));
+                        result.add(new StationWithTime(stationId, normalizedName, arrivalTime, departureTime, lineName, lineColor));
                     }
                 }
             }
@@ -318,6 +334,8 @@ public class TimeRecommendationService {
             stationCongestions.add(new TimeRecommendationResult.StationCongestion(
                     station.stationId,
                     station.stationName,
+                    station.lineName,
+                    station.lineColor,
                     station.arrivalTime,
                     station.departureTime,
                     passenger != null ? passenger.getBoardingCount() : null,
@@ -346,7 +364,9 @@ public class TimeRecommendationService {
             String stationId,
             String stationName,
             LocalTime arrivalTime,
-            LocalTime departureTime
+            LocalTime departureTime,
+            String lineName,
+            String lineColor
     ) {}
 
     private record RouteWithCongestion(

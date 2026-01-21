@@ -4,6 +4,9 @@ import com.pulse.api.odsay.OdsayClient;
 import com.pulse.api.odsay.dto.OdsayStationSearchResponse;
 import com.pulse.api.odsay.dto.StationData;
 import com.pulse.dto.StationSearchResult;
+import com.pulse.entity.subway.SubwayLine;
+import com.pulse.repository.subway.SubwayLineRepository;
+import com.pulse.util.LineNameNormalizer;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,9 +17,11 @@ import java.util.List;
 public class StationSearchService {
 
     private final OdsayClient odsayClient;
+    private final SubwayLineRepository subwayLineRepository;
 
-    public StationSearchService(OdsayClient odsayClient) {
+    public StationSearchService(OdsayClient odsayClient, SubwayLineRepository subwayLineRepository) {
         this.odsayClient = odsayClient;
+        this.subwayLineRepository = subwayLineRepository;
     }
 
     public StationSearchResult searchStation(String stationName) {
@@ -40,12 +45,24 @@ public class StationSearchService {
     }
 
     private StationSearchResult.StationItem mapToStationItem(StationData data) {
+        String laneName = data.getLaneName();
+
+        String lineColor = null;
+        if (laneName != null) {
+            String normalizedLineName = LineNameNormalizer.normalize(laneName);
+            SubwayLine line = subwayLineRepository.findById(normalizedLineName).orElse(null);
+            if (line != null) {
+                lineColor = line.getColor();
+            }
+        }
+
         return new StationSearchResult.StationItem(
                 data.getStationName(),
                 data.getStationID(),
                 data.getX(),
                 data.getY(),
-                data.getLaneName()
+                laneName,
+                lineColor
         );
     }
 }

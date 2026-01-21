@@ -27,19 +27,22 @@ public class StationSearchResult {
         private final Double x;
         private final Double y;
         private final String laneName;
+        private final String lineColor;
 
         public StationItem(
                 String stationName,
                 String stationID,
                 Double x,
                 Double y,
-                String laneName
+                String laneName,
+                String lineColor
         ) {
             this.stationName = stationName;
             this.stationID = stationID;
             this.x = x;
             this.y = y;
             this.laneName = laneName;
+            this.lineColor = lineColor;
         }
 
         public String getStationName() {
@@ -60,6 +63,10 @@ public class StationSearchResult {
 
         public String getLaneName() {
             return laneName;
+        }
+
+        public String getLineColor() {
+            return lineColor;
         }
     }
 }
