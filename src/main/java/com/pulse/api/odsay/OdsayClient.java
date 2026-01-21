@@ -24,6 +24,7 @@ public class OdsayClient {
     private static final String FORMAT = "json";
     private static final int KOREAN = 0;
     private static final String SUBWAY = "2";
+    private static final int SEOUL_METROPOLITAN_AREA = 1000;
 
     private static final int BASED_ON_DEPARTURE_TIME = 1;
 
@@ -67,6 +68,7 @@ public class OdsayClient {
         return properties.getBaseUrl() + "/searchStation" +
                 "?apiKey=" + encodedApiKey +
                 "&stationName=" + encodedStationName +
+                "&CID=" + SEOUL_METROPOLITAN_AREA +
                 "&lang=" + KOREAN +
                 "&output=" + FORMAT +
                 "&displayCnt=" + properties.getDisplayCount() +
