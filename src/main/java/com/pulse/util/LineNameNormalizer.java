@@ -39,7 +39,7 @@ public final class LineNameNormalizer {
             Map.entry("7호선", LINE_7),
             Map.entry("8호선", LINE_8),
             Map.entry("9호선", LINE_9),
-            Map.entry("경원선", LINE_1),
+            Map.entry("경원선", LINE_GYEONGUI_JUNGANG),
             Map.entry("경부선", LINE_1),
             Map.entry("경인선", LINE_1),
             Map.entry("장항선", LINE_1),
