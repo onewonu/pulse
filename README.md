@@ -13,6 +13,8 @@
 - **소셜 인증**: 카카오 및 구글 OAuth 2.0을 통한 안전한 로그인
 - **열차 시간표**: 서울교통공사 공식 열차 시간표 데이터 통합
 
+<br/>
+
 ## 목차
 
 - [기술 스택](#기술-스택)
@@ -26,6 +28,14 @@
 - [배포 프로세스](#배포-프로세스)
 - [API 엔드포인트](#api-엔드포인트)
 - [프로젝트 구조](#프로젝트-구조)
+
+<br/>
+
+## ERD
+
+<img width="2613" height="2142" alt="prod" src="https://github.com/user-attachments/assets/a8632673-ab24-4d37-afa9-bf216ca881ed" />
+
+<br/><br/>
 
 ## 기술 스택
 
@@ -52,6 +62,8 @@
 [![AWS CodeDeploy](https://img.shields.io/badge/AWS-CodeDeploy-FF9900.svg)](https://aws.amazon.com/codedeploy/)
 [![AWS Secrets Manager](https://img.shields.io/badge/AWS-Secrets_Manager-FF9900.svg)](https://aws.amazon.com/secrets-manager/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub-Actions-2088FF.svg)](https://github.com/features/actions)
+
+<br/><br/>
 
 ## 아키텍처
 
@@ -283,6 +295,8 @@ StationNameNormalizer (역명 표준화)
    └─ 새 RefreshToken DB 저장
 4. 새 토큰 반환
 ```
+
+<br/><br/>
 
 ## 데이터 적재 프로세스
 
