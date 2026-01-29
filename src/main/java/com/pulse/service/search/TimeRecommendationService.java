@@ -17,23 +17,18 @@ import com.pulse.util.DayCodeConverter;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
 import com.pulse.util.TimeParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.UUID;
 
 @Service
 public class TimeRecommendationService {
 
     private static final int SHORTEST_TIME = 1;
     private static final int SUBWAY = 1;
-
-    private static final Logger log = LoggerFactory.getLogger(TimeRecommendationService.class);
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
     private final SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
@@ -130,8 +125,6 @@ public class TimeRecommendationService {
             String requestId
     ) {
         try {
-            Thread.sleep(200);
-
             OdsaySubwayScheduleResponse response = odsayClient.searchSubwaySchedule(
                     request.getDepartureStationId(),
                     request.getArrivalStationId(),
@@ -153,12 +146,6 @@ public class TimeRecommendationService {
 
             return new RouteWithCongestion(path, stationsWithTime, congestionData);
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-
-            log.warn("[{}] Interrupted while processing departure time: {}", requestId, departureTime);
-
-            return null;
         } catch (OdsayApiException | DataAccessException e) {
             return null;
         }
