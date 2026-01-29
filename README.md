@@ -527,8 +527,7 @@ StationNameNormalizer (역명 표준화)
 │ TimeRecommendationService.recommendTimes()                       
 │                                                                   
 │ For time in [startTime, endTime] (30분 간격):                    
-│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)    
-│   ├─ Thread.sleep(200ms) ← Rate Limit 방지                      
+│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)                          
 │   └─ 경로 정보 수집:                                              
 │       ├─ departureTime: 출발 시간                                
 │       ├─ arrivalTime: 도착 시간                                  
