@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class TimeRecommendationService {
@@ -48,38 +50,18 @@ public class TimeRecommendationService {
     }
 
     public TimeRecommendationResult recommendTimes(TimeRecommendationRequest request) {
-        String requestId = UUID.randomUUID().toString().substring(0, 8);
-
         DayInfo dayInfo = convertToDayInfo(request);
 
         List<LocalTime> departureTimes = getAvailableDepartureTimes(request, dayInfo);
 
         if (departureTimes.isEmpty()) {
-            throw new NoSchedulesAvailableException(
-                    String.format(
-                            "No train schedules found from %s to %s between %s and %s on %s",
-                            request.getDepartureStationId(),
-                            request.getArrivalStationId(),
-                            request.getStartTime(),
-                            request.getEndTime(),
-                            request.getSearchDate()
-                    )
-            );
+            throw new NoSchedulesAvailableException("No train schedules found");
         }
 
-        List<RouteWithCongestion> routes = processAllDepartureTimes(request, dayInfo, departureTimes, requestId);
+        List<RouteWithCongestion> routes = processAllDepartureTimes(request, dayInfo, departureTimes);
 
         if (routes.isEmpty()) {
-            throw new IncompleteCongestionDataException(
-                    String.format(
-                            "Congestion data incomplete for all routes from %s to %s on %s. " +
-                            "Found %d departure times but none had sufficient congestion data",
-                            request.getDepartureStationId(),
-                            request.getArrivalStationId(),
-                            request.getSearchDate(),
-                            departureTimes.size()
-                    )
-            );
+            throw new IncompleteCongestionDataException("Congestion data incomplete for all routes");
         }
 
         return buildResponse(request, dayInfo, routes);
@@ -103,26 +85,18 @@ public class TimeRecommendationService {
     private List<RouteWithCongestion> processAllDepartureTimes(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
-            List<LocalTime> departureTimes,
-            String requestId
+            List<LocalTime> departureTimes
     ) {
-        List<RouteWithCongestion> routes = new ArrayList<>();
-
-        for (LocalTime departureTime : departureTimes) {
-            RouteWithCongestion route = processSingleDepartureTime(request, dayInfo, departureTime, requestId);
-            if (route != null) {
-                routes.add(route);
-            }
-        }
-
-        return routes;
+        return departureTimes.stream()
+                .map(departureTime -> processSingleDepartureTime(request, dayInfo, departureTime))
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private RouteWithCongestion processSingleDepartureTime(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
-            LocalTime departureTime,
-            String requestId
+            LocalTime departureTime
     ) {
         try {
             OdsaySubwayScheduleResponse response = odsayClient.searchSubwaySchedule(
@@ -145,7 +119,6 @@ public class TimeRecommendationService {
             }
 
             return new RouteWithCongestion(path, stationsWithTime, congestionData);
-
         } catch (OdsayApiException | DataAccessException e) {
             return null;
         }
@@ -159,12 +132,10 @@ public class TimeRecommendationService {
         List<RouteWithCongestion> sortedRoutes = new ArrayList<>(routes);
         sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.totalScore));
 
-        List<TimeRecommendationResult.TimeRecommendation> recommendations = new ArrayList<>();
-        int limit = Math.min(3, sortedRoutes.size());
-
-        for (int i = 0; i < limit; i++) {
-            recommendations.add(mapToRecommendation(sortedRoutes.get(i)));
-        }
+        List<TimeRecommendationResult.TimeRecommendation> recommendations = sortedRoutes.stream()
+                .limit(3)
+                .map(this::mapToRecommendation)
+                .toList();
 
         String departureStationName = extractStationName(routes, true);
         String arrivalStationName = extractStationName(routes, false);
@@ -210,86 +181,79 @@ public class TimeRecommendationService {
     }
 
     private List<StationWithTime> extractStationsWithTime(OdsaySubwayScheduleResponse.PathData path) {
-        List<StationWithTime> result = new ArrayList<>();
-
         if (path.getSubPath() == null) {
-            return result;
+            return Collections.emptyList();
         }
 
-        for (OdsaySubwayScheduleResponse.SubPathData subPath : path.getSubPath()) {
-            if (subPath.getMovingType() == SUBWAY) {
-                OdsaySubwayScheduleResponse.PassStopListData passStopList = subPath.getPassStopList();
-                String lineName = subPath.getLaneName();
+        return path.getSubPath().stream()
+                .filter(subPath -> subPath.getMovingType() == SUBWAY)
+                .flatMap(subPath -> {
+                    OdsaySubwayScheduleResponse.PassStopListData passStopList = subPath.getPassStopList();
+                    String lineName = subPath.getLaneName();
 
-                String lineColor = null;
-                if (lineName != null) {
-                    String normalizedLineName = LineNameNormalizer.normalize(lineName);
-                    SubwayLine line = subwayLineRepository.findById(normalizedLineName).orElse(null);
-                    if (line != null) {
-                        lineColor = line.getColor();
+                    String lineColor = Optional.ofNullable(lineName)
+                            .map(LineNameNormalizer::normalize)
+                            .flatMap(subwayLineRepository::findById)
+                            .map(SubwayLine::getColor)
+                            .orElse(null);
+
+                    if (passStopList == null || passStopList.getStations() == null) {
+                        return Stream.empty();
                     }
-                }
 
-                if (passStopList != null && passStopList.getStations() != null) {
-                    for (OdsaySubwayScheduleResponse.StationInfoData station : passStopList.getStations()) {
-                        String stationId = station.getStationID() != null ? station.getStationID().toString() : null;
-                        String normalizedName = StationNameNormalizer.normalize(station.getStationName());
+                    return passStopList.getStations().stream()
+                            .map(station -> {
+                                String stationId = station.getStationID() != null ? station.getStationID().toString() : null;
+                                String normalizedName = StationNameNormalizer.normalize(station.getStationName());
+                                LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
+                                LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
 
-                        LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
-                        LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
-
-                        result.add(new StationWithTime(stationId, normalizedName, arrivalTime, departureTime, lineName, lineColor));
-                    }
-                }
-            }
-        }
-
-        return result;
+                                return new StationWithTime(stationId, normalizedName, arrivalTime, departureTime, lineName, lineColor);
+                            });
+                })
+                .toList();
     }
 
     private CongestionData calculateCongestion(List<StationWithTime> stations) {
-        Map<String, StationWithTime> uniqueStations = new HashMap<>();
-        for (StationWithTime station : stations) {
-            if (station.stationId != null) {
-                uniqueStations.putIfAbsent(station.stationId, station);
-            }
-        }
+        Map<String, StationWithTime> uniqueStations = stations.stream()
+                .filter(station -> station.stationId != null)
+                .collect(Collectors.toMap(
+                        station -> station.stationId,
+                        station -> station,
+                        (existing, replacement) -> existing
+                ));
 
-        Map<Byte, List<String>> stationsByHour = new HashMap<>();
-        for (StationWithTime station : uniqueStations.values()) {
-            LocalTime stationTime = station.arrivalTime != null ? station.arrivalTime : station.departureTime;
+        Map<Byte, List<String>> stationsByHour = uniqueStations.values().stream()
+                .map(station -> {
+                    LocalTime stationTime = station.arrivalTime != null ? station.arrivalTime : station.departureTime;
+                    if (stationTime == null || station.stationId == null) {
+                        return null;
+                    }
+                    return Map.entry((byte) stationTime.getHour(), station.stationId);
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
 
-            if (stationTime == null || station.stationId == null) continue;
+        List<SubwayPassengerHourly> allPassengers = stationsByHour.entrySet().stream()
+                .flatMap(entry -> subwayPassengerHourlyRepository
+                        .findByStationIdsAndHourSlot(entry.getValue(), entry.getKey())
+                        .stream())
+                .toList();
 
-            byte hour = (byte) stationTime.getHour();
-            List<String> stationIds = stationsByHour.get(hour);
-            if (stationIds == null) {
-                stationIds = new ArrayList<>();
-                stationsByHour.put(hour, stationIds);
-            }
-            stationIds.add(station.stationId);
-        }
+        Map<String, SubwayPassengerHourly> passengerMap = allPassengers.stream()
+                .collect(Collectors.toMap(
+                        passenger -> passenger.getSubwayStation().getStationId(),
+                        passenger -> passenger,
+                        (existing, replacement) -> existing
+                ));
 
-        Map<String, SubwayPassengerHourly> passengerMap = new HashMap<>();
-        double totalScore = 0.0;
-        int validStationCount = 0;
-
-        for (Map.Entry<Byte, List<String>> entry : stationsByHour.entrySet()) {
-            byte hour = entry.getKey();
-            List<String> stationIds = entry.getValue();
-
-            List<SubwayPassengerHourly> passengers = subwayPassengerHourlyRepository
-                    .findByStationIdsAndHourSlot(stationIds, hour);
-
-            for (SubwayPassengerHourly passenger : passengers) {
-                String stationId = passenger.getSubwayStation().getStationId();
-                passengerMap.put(stationId, passenger);
-
-                int congestionScore = passenger.getBoardingCount() + passenger.getAlightingCount();
-                totalScore += congestionScore;
-                validStationCount++;
-            }
-        }
+        int validStationCount = allPassengers.size();
+        double totalScore = allPassengers.stream()
+                .mapToDouble(passenger -> passenger.getBoardingCount() + passenger.getAlightingCount())
+                .sum();
 
         int totalStationCount = uniqueStations.size();
         double completeness = totalStationCount > 0 ? (validStationCount * 100.0 / totalStationCount) : 0.0;
@@ -314,22 +278,22 @@ public class TimeRecommendationService {
 
         CongestionLevel congestionLevel = CongestionLevel.fromScore(route.congestionData.totalScore);
 
-        List<TimeRecommendationResult.StationCongestion> stationCongestions = new ArrayList<>();
-        for (StationWithTime station : route.stationsWithTime) {
-            SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationId);
-
-            stationCongestions.add(new TimeRecommendationResult.StationCongestion(
-                    station.stationId,
-                    station.stationName,
-                    station.lineName,
-                    station.lineColor,
-                    station.arrivalTime,
-                    station.departureTime,
-                    passenger != null ? passenger.getBoardingCount() : null,
-                    passenger != null ? passenger.getAlightingCount() : null,
-                    passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null
-            ));
-        }
+        List<TimeRecommendationResult.StationCongestion> stationCongestions = route.stationsWithTime.stream()
+                .map(station -> {
+                    SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationId);
+                    return new TimeRecommendationResult.StationCongestion(
+                            station.stationId,
+                            station.stationName,
+                            station.lineName,
+                            station.lineColor,
+                            station.arrivalTime,
+                            station.departureTime,
+                            passenger != null ? passenger.getBoardingCount() : null,
+                            passenger != null ? passenger.getAlightingCount() : null,
+                            passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null
+                    );
+                })
+                .toList();
 
         return new TimeRecommendationResult.TimeRecommendation(
                 departureTime,
