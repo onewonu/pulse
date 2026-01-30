@@ -114,10 +114,6 @@ public class TimeRecommendationService {
             List<StationWithTime> stationsWithTime = extractStationsWithTime(path);
             CongestionData congestionData = calculateCongestion(stationsWithTime);
 
-            if (congestionData.completenessPercentage < 50.0) {
-                return null;
-            }
-
             return new RouteWithCongestion(path, stationsWithTime, congestionData);
         } catch (OdsayApiException | DataAccessException e) {
             return null;
@@ -130,7 +126,7 @@ public class TimeRecommendationService {
             List<RouteWithCongestion> routes
     ) {
         List<RouteWithCongestion> sortedRoutes = new ArrayList<>(routes);
-        sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.totalScore));
+        sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.averageScore));
 
         List<TimeRecommendationResult.TimeRecommendation> recommendations = sortedRoutes.stream()
                 .limit(3)
@@ -171,13 +167,10 @@ public class TimeRecommendationService {
             return null;
         }
 
-        for (OdsaySubwayScheduleResponse.PathData path : paths) {
-            if (path.getPathType() != null && path.getPathType() == SHORTEST_TIME) {
-                return path;
-            }
-        }
-
-        return paths.getFirst();
+        return paths.stream()
+                .filter(path -> path.getPathType() != null && path.getPathType() == SHORTEST_TIME)
+                .findFirst()
+                .orElse(paths.getFirst());
     }
 
     private List<StationWithTime> extractStationsWithTime(OdsaySubwayScheduleResponse.PathData path) {
@@ -243,30 +236,20 @@ public class TimeRecommendationService {
                         .stream())
                 .toList();
 
-        Map<String, SubwayPassengerHourly> passengerMap = allPassengers.stream()
-                .collect(Collectors.toMap(
-                        passenger -> passenger.getSubwayStation().getStationId(),
-                        passenger -> passenger,
-                        (existing, replacement) -> existing
-                ));
+        Map<String, SubwayPassengerHourly> passengerMap = new HashMap<>();
+        double totalScore = 0.0;
+
+        for (SubwayPassengerHourly passenger : allPassengers) {
+            passengerMap.put(passenger.getSubwayStation().getStationId(), passenger);
+            totalScore += passenger.getBoardingCount() + passenger.getAlightingCount();
+        }
 
         int validStationCount = allPassengers.size();
-        double totalScore = allPassengers.stream()
-                .mapToDouble(passenger -> passenger.getBoardingCount() + passenger.getAlightingCount())
-                .sum();
-
-        int totalStationCount = uniqueStations.size();
-        double completeness = totalStationCount > 0 ? (validStationCount * 100.0 / totalStationCount) : 0.0;
-
         double averageScore = validStationCount > 0 ? totalScore / validStationCount : 0.0;
 
         return new CongestionData(
-                uniqueStations,
                 passengerMap,
-                averageScore,
-                validStationCount,
-                totalStationCount,
-                completeness
+                averageScore
         );
     }
 
@@ -276,7 +259,7 @@ public class TimeRecommendationService {
         LocalTime departureTime = TimeParser.parseHHmmss(info.getDepartureTime());
         LocalTime arrivalTime = TimeParser.parseHHmmss(info.getArrivalTime());
 
-        CongestionLevel congestionLevel = CongestionLevel.fromScore(route.congestionData.totalScore);
+        CongestionLevel congestionLevel = CongestionLevel.fromScore(route.congestionData.averageScore);
 
         List<TimeRecommendationResult.StationCongestion> stationCongestions = route.stationsWithTime.stream()
                 .map(station -> {
@@ -300,7 +283,7 @@ public class TimeRecommendationService {
                 arrivalTime,
                 info.getTotalTime(),
                 info.getTransferCount(),
-                route.congestionData.totalScore,
+                route.congestionData.averageScore,
                 congestionLevel,
                 stationCongestions
         );
@@ -327,11 +310,7 @@ public class TimeRecommendationService {
     ) {}
 
     private record CongestionData(
-            Map<String, StationWithTime> stationMap,
             Map<String, SubwayPassengerHourly> passengerMap,
-            double totalScore,
-            int validStationCount,
-            int totalStationCount,
-            double completenessPercentage
+            double averageScore
     ) {}
 }

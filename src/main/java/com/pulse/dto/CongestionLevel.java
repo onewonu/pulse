@@ -6,9 +6,9 @@ public enum CongestionLevel {
     HIGH;
 
     public static CongestionLevel fromScore(double score) {
-        if (score < 10000) {
+         if (score < 2000) {
             return LOW;
-        } else if (score < 30000) {
+        } else if (score < 5000) {
             return MEDIUM;
         } else {
             return HIGH;
