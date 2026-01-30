@@ -549,63 +549,71 @@ StationNameNormalizer (역명 표준화)
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5단계: 혼잡도 점수 계산 및 완성도 검증
+│ 5단계: 혼잡도 점수 계산 및 레벨 분류
 ├─────────────────────────────────────────────────────────────────┤
 │ For each route:
-│   1. 혼잡도 점수 계산
-│      congestionScore = Σ (boardingCount + alightingCount)
+│   1. 총 혼잡도 계산
+│      totalScore = Σ (boardingCount + alightingCount)
 │
 │      경유하는 모든 역의:
 │      - 승차 인원 (boardingCount)
 │      - 하차 인원 (alightingCount)
-│      을 합산하여 경로의 총 혼잡도 산출
+│      을 합산
 │
-│   2. 혼잡도 데이터 완성도 검증
-│      completeness = (validStationCount / totalStationCount) × 100
+│      ※ 승객 데이터가 없는 역은 계산에서 제외
+│
+│   2. 역당 평균 혼잡도 계산
+│      averageScore = totalScore / validStationCount
 │      ├─ validStationCount: 승객 데이터가 있는 역 수
-│      ├─ totalStationCount: 경로의 총 경유 역 수
-│      └─ 필터링: completeness < 50% 인 경로 제외
+│      ├─ 누락 역은 계산에서 제외
+│      └─ 실제 데이터 기반 평균으로 정확도 향상
 │
-│   3. 혼잡도 레벨 분류
-│      ├─ LOW: score < 10,000 (쾌적)
-│      ├─ MEDIUM: 10,000 ≤ score < 30,000 (보통)
-│      └─ HIGH: score ≥ 30,000 (혼잡)
+│   3. 혼잡도 레벨 분류 (averageScore 기준)
+│      ├─ LOW: averageScore < 2,000 (한산함)
+│      │   → 역당 평균 2,000명 미만
+│      ├─ MEDIUM: 2,000 ≤ averageScore < 5,000 (보통)
+│      │   → 역당 평균 2,000~5,000명
+│      └─ HIGH: averageScore ≥ 5,000 (혼잡)
+│          → 역당 평균 5,000명 이상
 │
-│ ⚠️  모든 경로의 완성도가 50% 미만인 경우:
-│     → IncompleteCongestionDataException 발생
-│     → 해당 날짜/시간대의 승객 통계 데이터 부족을 의미
+│ 📊 특징:
+│     - 경로 길이에 영향받지 않는 공정한 혼잡도 비교
+│     - 역당 평균으로 실제 체감 혼잡도 반영
+│     - 데이터 있는 역 기반 계산으로 정확도 향상
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6단계: 경로 정렬 및 반환                                           
+│ 6단계: 경로 정렬 및 반환
 ├─────────────────────────────────────────────────────────────────┤
-│ ├─ 혼잡도 점수 오름차순 정렬 (낮은 혼잡도 우선)                      
-│ ├─ 상위 10개 경로 선택                                             
-│ └─ TimeRecommendationResult 생성:                                
-│     ├─ departureStationName: 출발역명                            
-│     ├─ arrivalStationName: 도착역명                              
-│     ├─ travelDate: 검색 날짜                                      
-│     ├─ dayType: "weekday" 또는 "weekend"                         
-│     └─ recommendations: [                                        
-│           {                                                      
-│             departureTime: 출발 시간                              
-│             arrivalTime: 도착 시간                                
-│             totalTime: 소요 시간                                  
-│             transferCount: 환승 횟수                              
-│             congestionScore: 혼잡도 점수                          
-│             congestionLevel: LOW/MEDIUM/HIGH                     
-│             stationCongestions: [                                
-│               {                                                  
-│                 stationName: 역명                                
-│                 lineName: 노선명                                 
-│                 arrivalTime: 도착 시간                            
-│                 boardingCount: 승차 인원                          
-│                 alightingCount: 하차 인원                         
-│                 totalPassengers: 총 승객                         
-│               }, ...                                             
-│             ]                                                    
-│           }, ...                                                 
-│         ]                                                        
+│ ├─ averageScore 오름차순 정렬 (낮은 혼잡도 우선)
+│ ├─ 상위 3개 경로 선택
+│ └─ TimeRecommendationResult 생성:
+│     ├─ departureStationName: 출발역명
+│     ├─ arrivalStationName: 도착역명
+│     ├─ travelDate: 검색 날짜
+│     ├─ dayType: "평일" 또는 "주말"
+│     └─ recommendations: [
+│           {
+│             departureTime: 출발 시간
+│             arrivalTime: 도착 시간
+│             totalTime: 소요 시간 (분)
+│             transferCount: 환승 횟수
+│             congestionScore: 역당 평균 혼잡도 (averageScore)
+│             congestionLevel: LOW/MEDIUM/HIGH
+│             stationCongestions: [
+│               {
+│                 stationName: 역명
+│                 lineName: 노선명
+│                 lineColor: 노선 색상
+│                 arrivalTime: 도착 시간
+│                 departureTime: 출발 시간
+│                 boardingCount: 승차 인원 (null 가능)
+│                 alightingCount: 하차 인원 (null 가능)
+│                 totalPassengers: 총 승객 (null 가능)
+│               }, ...
+│             ]
+│           }, ...
+│         ]
 └─────────────────────────────────────────────────────────────────┘
 ```
 
