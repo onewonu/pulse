@@ -125,7 +125,21 @@ public class TimeRecommendationService {
             DayInfo dayInfo,
             List<RouteWithCongestion> routes
     ) {
-        List<RouteWithCongestion> sortedRoutes = new ArrayList<>(routes);
+        Map<String, List<RouteWithCongestion>> routesByPath = routes.stream()
+                .collect(Collectors.groupingBy(this::getRoutePathKey));
+
+        List<RouteWithCongestion> mostCommonPathRoutes = routesByPath.values().stream()
+                .max(Comparator
+                        .comparingInt(List<RouteWithCongestion>::size)
+                        .thenComparing(Comparator.comparingDouble(
+                                (List<RouteWithCongestion> routeList) -> routeList.stream()
+                                        .mapToDouble(r -> r.congestionData.averageScore)
+                                        .average()
+                                        .orElse(Double.MAX_VALUE)
+                        ).reversed()))
+                .orElse(Collections.emptyList());
+
+        List<RouteWithCongestion> sortedRoutes = new ArrayList<>(mostCommonPathRoutes);
         sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.averageScore));
 
         List<TimeRecommendationResult.TimeRecommendation> recommendations = sortedRoutes.stream()
@@ -133,8 +147,8 @@ public class TimeRecommendationService {
                 .map(this::mapToRecommendation)
                 .toList();
 
-        String departureStationName = extractStationName(routes, true);
-        String arrivalStationName = extractStationName(routes, false);
+        String departureStationName = extractStationName(mostCommonPathRoutes, true);
+        String arrivalStationName = extractStationName(mostCommonPathRoutes, false);
 
         return new TimeRecommendationResult(
                 request.getDepartureStationId(),
@@ -146,6 +160,16 @@ public class TimeRecommendationService {
                 recommendations,
                 null
         );
+    }
+
+    private String getRoutePathKey(RouteWithCongestion route) {
+        if (route.stationsWithTime == null) {
+            return "";
+        }
+        return route.stationsWithTime.stream()
+                .map(station -> station.stationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining("-"));
     }
 
     private String extractStationName(List<RouteWithCongestion> routes, boolean isDeparture) {
