@@ -526,8 +526,10 @@ StationNameNormalizer (역명 표준화)
 ├─────────────────────────────────────────────────────────────────┤
 │ TimeRecommendationService.recommendTimes()                       
 │                                                                   
-│ For time in [startTime, endTime] (30분 간격):                    
-│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)                          
+│ For each time in [startTime, endTime]:
+│   ├─ DB에서 실제 열차 출발 시간 조회 (SubwayTrainSchedule)
+│   │   예: 08:00, 08:03, 08:06, 08:09, ... (배차 간격에 따라)
+│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)
 │   └─ 경로 정보 수집:                                              
 │       ├─ departureTime: 출발 시간                                
 │       ├─ arrivalTime: 도착 시간                                  
@@ -583,11 +585,33 @@ StationNameNormalizer (역명 표준화)
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6단계: 경로 정렬 및 반환
+│ 6단계: 경로 패턴 선택 및 정렬
 ├─────────────────────────────────────────────────────────────────┤
-│ ├─ averageScore 오름차순 정렬 (낮은 혼잡도 우선)
-│ ├─ 상위 3개 경로 선택
-│ └─ TimeRecommendationResult 생성:
+│ 1. 경로 그룹화
+│    ├─ 역 ID 시퀀스로 경로 패턴 구분
+│    │   예: "1001-1002-1003" (강남-역삼-선릉)
+│    └─ Map<경로키, List<시간대별 경로>> 생성
+│
+│ 2. 최다 빈도 경로 선택
+│    ├─ 각 경로 패턴의 빈도(List size) 비교
+│    ├─ 가장 많은 시간대에 나타나는 경로 패턴 선택
+│    └─ 동점일 경우:
+│        └─ 해당 경로의 평균 혼잡도가 낮은 경로 우선
+│           (각 경로의 모든 시간대 averageScore 평균 계산)
+│
+│ 📊 경로 선택 예시:
+│     경로A (강남-역삼-선릉): 10개 시간대, 평균 혼잡도 1200
+│     경로B (강남-신논현-논현): 8개 시간대, 평균 혼잡도 800
+│     경로C (강남-역삼-선릉): 10개 시간대, 평균 혼잡도 800 ← 선택
+│
+│     → 경로A와 C가 동일 빈도(10개) → 평균 혼잡도 낮은 경로C 선택
+│
+│ 3. 선택된 경로 내 시간대 정렬
+│    ├─ 동일 경로의 시간대별 데이터만 비교
+│    ├─ averageScore 오름차순 정렬 (낮은 혼잡도 우선)
+│    └─ 상위 3개 시간대 선택
+│
+│ 4. TimeRecommendationResult 생성:
 │     ├─ departureStationName: 출발역명
 │     ├─ arrivalStationName: 도착역명
 │     ├─ travelDate: 검색 날짜
@@ -696,80 +720,35 @@ Pulse는 **GitHub Actions + AWS CodeDeploy**를 통한 자동화된 배포 파�
 │                         AWS EC2 Instance                          
 │                         (애플리케이션 서버)                             
 │                                                                    
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 1: ApplicationStop                         
-│  │ Script: scripts/stop_application.sh                       
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ PID_FILE="/home/ec2-user/pulse/application.pid"    
-│  │ │ if [ -f "$PID_FILE" ]; then                        
-│  │ │   PID=$(cat "$PID_FILE")                           
-│  │ │   if ps -p $PID > /dev/null; then                  
-│  │ │     kill -15 $PID  # SIGTERM (graceful)            
-│  │ │     sleep 10                                       
-│  │ │     if ps -p $PID > /dev/null; then                
-│  │ │       kill -9 $PID  # SIGKILL (force)              
-│  │ │     fi                                             
-│  │ │   fi                                               
-│  │ │ fi                                                 
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 1: ApplicationStop
+│  │ - 실행 중인 애플리케이션 프로세스 중지
+│  │ - Graceful shutdown 후 필요시 강제 종료
 │  └──────────────────────────────────────────────────────────┘   
 │                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 2: BeforeInstall                           
-│  │ Script: scripts/before_install.sh                         
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ APP_DIR="/home/ec2-user/pulse"                     
-│  │ │ rm -rf $APP_DIR/*.jar  # 기존 JAR 삭제             
-│  │ │ mkdir -p $APP_DIR/logs                             
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 2: BeforeInstall
+│  │ - 기존 JAR 파일 삭제
+│  │ - 로그 디렉토리 생성
 │  └──────────────────────────────────────────────────────────┘   
 │                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 3: AfterInstall                            
-│  │ Script: scripts/after_install.sh                          
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ chown -R ec2-user:ec2-user /home/ec2-user/pulse   
-│  │ │ chmod 755 /home/ec2-user/pulse/*.jar              
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 3: AfterInstall
+│  │ - 파일 소유권 및 권한 설정
 │  └──────────────────────────────────────────────────────────┘   
 │                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 4: ApplicationStart                        
-│  │ Script: scripts/start_application.sh                      
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ APP_DIR="/home/ec2-user/pulse"                     
-│  │ │ JAR_FILE="$APP_DIR/pulse-0.0.1-SNAPSHOT.jar"      
-│  │ │ LOG_FILE="$APP_DIR/logs/application.log"          
-│  │ │ JAVA_OPTS="-Xms256m -Xmx768m \                    
-│  │ │            -Dspring.profiles.active=prod"         
-│  │ │                                                   
-│  │ │ nohup java $JAVA_OPTS -jar "$JAR_FILE" \          
-│  │ │       > "$LOG_FILE" 2>&1 &                        
-│  │ │ echo $! > "$APP_DIR/application.pid"              
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 4: ApplicationStart
+│  │ - Spring Boot 애플리케이션 시작 (prod 프로파일)
+│  │ - JVM 옵션: Xms256m, Xmx768m
+│  │ - 백그라운드 실행 및 PID 저장
 │  └──────────────────────────────────────────────────────────┘ 
 │                         ↓                                      
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 5: ValidateService                         
-│  │ Script: scripts/validate_service.sh                       
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ for i in {1..30}; do                                
-│  │ │   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}"
-│  │ │                http://localhost:8080/actuator/health)
-│  │ │   if [ "$HTTP_CODE" -eq 200 ]; then                
-│  │ │     echo "Health check passed"                     
-│  │ │     exit 0                                         
-│  │ │   fi                                               
-│  │ │   sleep 2                                          
-│  │ │ done                                               
-│  │ │ echo "Health check failed"                         
-│  │ │ exit 1                                             
-│  │ └────────────────────────────────────────────────────┘  
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 5: ValidateService
+│  │ - 헬스체크 엔드포인트 호출 (최대 30회, 2초 간격)
+│  │ - HTTP 200 응답 확인으로 정상 배포 검증
+│  │ - 실패 시 자동 롤백
 │  └──────────────────────────────────────────────────────────┘ 
 └──────────────────────────────────────────────────────────────────┘
                          ↓
