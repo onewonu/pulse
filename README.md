@@ -526,8 +526,10 @@ StationNameNormalizer (역명 표준화)
 ├─────────────────────────────────────────────────────────────────┤
 │ TimeRecommendationService.recommendTimes()                       
 │                                                                   
-│ For time in [startTime, endTime] (30분 간격):                    
-│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)                          
+│ For each time in [startTime, endTime]:
+│   ├─ DB에서 실제 열차 출발 시간 조회 (SubwayTrainSchedule)
+│   │   예: 08:00, 08:03, 08:06, 08:09, ... (배차 간격에 따라)
+│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)
 │   └─ 경로 정보 수집:                                              
 │       ├─ departureTime: 출발 시간                                
 │       ├─ arrivalTime: 도착 시간                                  
@@ -549,63 +551,93 @@ StationNameNormalizer (역명 표준화)
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5단계: 혼잡도 점수 계산 및 완성도 검증
+│ 5단계: 혼잡도 점수 계산 및 레벨 분류
 ├─────────────────────────────────────────────────────────────────┤
 │ For each route:
-│   1. 혼잡도 점수 계산
-│      congestionScore = Σ (boardingCount + alightingCount)
+│   1. 총 혼잡도 계산
+│      totalScore = Σ (boardingCount + alightingCount)
 │
 │      경유하는 모든 역의:
 │      - 승차 인원 (boardingCount)
 │      - 하차 인원 (alightingCount)
-│      을 합산하여 경로의 총 혼잡도 산출
+│      을 합산
 │
-│   2. 혼잡도 데이터 완성도 검증
-│      completeness = (validStationCount / totalStationCount) × 100
+│      ※ 승객 데이터가 없는 역은 계산에서 제외
+│
+│   2. 역당 평균 혼잡도 계산
+│      averageScore = totalScore / validStationCount
 │      ├─ validStationCount: 승객 데이터가 있는 역 수
-│      ├─ totalStationCount: 경로의 총 경유 역 수
-│      └─ 필터링: completeness < 50% 인 경로 제외
+│      ├─ 누락 역은 계산에서 제외
+│      └─ 실제 데이터 기반 평균으로 정확도 향상
 │
-│   3. 혼잡도 레벨 분류
-│      ├─ LOW: score < 10,000 (쾌적)
-│      ├─ MEDIUM: 10,000 ≤ score < 30,000 (보통)
-│      └─ HIGH: score ≥ 30,000 (혼잡)
+│   3. 혼잡도 레벨 분류 (averageScore 기준)
+│      ├─ LOW: averageScore < 2,000 (한산함)
+│      │   → 역당 평균 2,000명 미만
+│      ├─ MEDIUM: 2,000 ≤ averageScore < 5,000 (보통)
+│      │   → 역당 평균 2,000~5,000명
+│      └─ HIGH: averageScore ≥ 5,000 (혼잡)
+│          → 역당 평균 5,000명 이상
 │
-│ ⚠️  모든 경로의 완성도가 50% 미만인 경우:
-│     → IncompleteCongestionDataException 발생
-│     → 해당 날짜/시간대의 승객 통계 데이터 부족을 의미
+│ 📊 특징:
+│     - 경로 길이에 영향받지 않는 공정한 혼잡도 비교
+│     - 역당 평균으로 실제 체감 혼잡도 반영
+│     - 데이터 있는 역 기반 계산으로 정확도 향상
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6단계: 경로 정렬 및 반환                                           
+│ 6단계: 경로 패턴 선택 및 정렬
 ├─────────────────────────────────────────────────────────────────┤
-│ ├─ 혼잡도 점수 오름차순 정렬 (낮은 혼잡도 우선)                      
-│ ├─ 상위 10개 경로 선택                                             
-│ └─ TimeRecommendationResult 생성:                                
-│     ├─ departureStationName: 출발역명                            
-│     ├─ arrivalStationName: 도착역명                              
-│     ├─ travelDate: 검색 날짜                                      
-│     ├─ dayType: "weekday" 또는 "weekend"                         
-│     └─ recommendations: [                                        
-│           {                                                      
-│             departureTime: 출발 시간                              
-│             arrivalTime: 도착 시간                                
-│             totalTime: 소요 시간                                  
-│             transferCount: 환승 횟수                              
-│             congestionScore: 혼잡도 점수                          
-│             congestionLevel: LOW/MEDIUM/HIGH                     
-│             stationCongestions: [                                
-│               {                                                  
-│                 stationName: 역명                                
-│                 lineName: 노선명                                 
-│                 arrivalTime: 도착 시간                            
-│                 boardingCount: 승차 인원                          
-│                 alightingCount: 하차 인원                         
-│                 totalPassengers: 총 승객                         
-│               }, ...                                             
-│             ]                                                    
-│           }, ...                                                 
-│         ]                                                        
+│ 1. 경로 그룹화
+│    ├─ 역 ID 시퀀스로 경로 패턴 구분
+│    │   예: "1001-1002-1003" (강남-역삼-선릉)
+│    └─ Map<경로키, List<시간대별 경로>> 생성
+│
+│ 2. 최다 빈도 경로 선택
+│    ├─ 각 경로 패턴의 빈도(List size) 비교
+│    ├─ 가장 많은 시간대에 나타나는 경로 패턴 선택
+│    └─ 동점일 경우:
+│        └─ 해당 경로의 평균 혼잡도가 낮은 경로 우선
+│           (각 경로의 모든 시간대 averageScore 평균 계산)
+│
+│ 📊 경로 선택 예시:
+│     경로A (강남-역삼-선릉): 10개 시간대, 평균 혼잡도 1200
+│     경로B (강남-신논현-논현): 8개 시간대, 평균 혼잡도 800
+│     경로C (강남-역삼-선릉): 10개 시간대, 평균 혼잡도 800 ← 선택
+│
+│     → 경로A와 C가 동일 빈도(10개) → 평균 혼잡도 낮은 경로C 선택
+│
+│ 3. 선택된 경로 내 시간대 정렬
+│    ├─ 동일 경로의 시간대별 데이터만 비교
+│    ├─ averageScore 오름차순 정렬 (낮은 혼잡도 우선)
+│    └─ 상위 3개 시간대 선택
+│
+│ 4. TimeRecommendationResult 생성:
+│     ├─ departureStationName: 출발역명
+│     ├─ arrivalStationName: 도착역명
+│     ├─ travelDate: 검색 날짜
+│     ├─ dayType: "평일" 또는 "주말"
+│     └─ recommendations: [
+│           {
+│             departureTime: 출발 시간
+│             arrivalTime: 도착 시간
+│             totalTime: 소요 시간 (분)
+│             transferCount: 환승 횟수
+│             congestionScore: 역당 평균 혼잡도 (averageScore)
+│             congestionLevel: LOW/MEDIUM/HIGH
+│             stationCongestions: [
+│               {
+│                 stationName: 역명
+│                 lineName: 노선명
+│                 lineColor: 노선 색상
+│                 arrivalTime: 도착 시간
+│                 departureTime: 출발 시간
+│                 boardingCount: 승차 인원 (null 가능)
+│                 alightingCount: 하차 인원 (null 가능)
+│                 totalPassengers: 총 승객 (null 가능)
+│               }, ...
+│             ]
+│           }, ...
+│         ]
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -688,80 +720,35 @@ Pulse는 **GitHub Actions + AWS CodeDeploy**를 통한 자동화된 배포 파�
 │                         AWS EC2 Instance                          
 │                         (애플리케이션 서버)                             
 │                                                                    
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 1: ApplicationStop                         
-│  │ Script: scripts/stop_application.sh                       
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ PID_FILE="/home/ec2-user/pulse/application.pid"    
-│  │ │ if [ -f "$PID_FILE" ]; then                        
-│  │ │   PID=$(cat "$PID_FILE")                           
-│  │ │   if ps -p $PID > /dev/null; then                  
-│  │ │     kill -15 $PID  # SIGTERM (graceful)            
-│  │ │     sleep 10                                       
-│  │ │     if ps -p $PID > /dev/null; then                
-│  │ │       kill -9 $PID  # SIGKILL (force)              
-│  │ │     fi                                             
-│  │ │   fi                                               
-│  │ │ fi                                                 
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 1: ApplicationStop
+│  │ - 실행 중인 애플리케이션 프로세스 중지
+│  │ - Graceful shutdown 후 필요시 강제 종료
 │  └──────────────────────────────────────────────────────────┘   
 │                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 2: BeforeInstall                           
-│  │ Script: scripts/before_install.sh                         
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ APP_DIR="/home/ec2-user/pulse"                     
-│  │ │ rm -rf $APP_DIR/*.jar  # 기존 JAR 삭제             
-│  │ │ mkdir -p $APP_DIR/logs                             
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 2: BeforeInstall
+│  │ - 기존 JAR 파일 삭제
+│  │ - 로그 디렉토리 생성
 │  └──────────────────────────────────────────────────────────┘   
 │                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 3: AfterInstall                            
-│  │ Script: scripts/after_install.sh                          
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ chown -R ec2-user:ec2-user /home/ec2-user/pulse   
-│  │ │ chmod 755 /home/ec2-user/pulse/*.jar              
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 3: AfterInstall
+│  │ - 파일 소유권 및 권한 설정
 │  └──────────────────────────────────────────────────────────┘   
 │                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 4: ApplicationStart                        
-│  │ Script: scripts/start_application.sh                      
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ APP_DIR="/home/ec2-user/pulse"                     
-│  │ │ JAR_FILE="$APP_DIR/pulse-0.0.1-SNAPSHOT.jar"      
-│  │ │ LOG_FILE="$APP_DIR/logs/application.log"          
-│  │ │ JAVA_OPTS="-Xms256m -Xmx768m \                    
-│  │ │            -Dspring.profiles.active=prod"         
-│  │ │                                                   
-│  │ │ nohup java $JAVA_OPTS -jar "$JAR_FILE" \          
-│  │ │       > "$LOG_FILE" 2>&1 &                        
-│  │ │ echo $! > "$APP_DIR/application.pid"              
-│  │ └────────────────────────────────────────────────────┘   
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 4: ApplicationStart
+│  │ - Spring Boot 애플리케이션 시작 (prod 프로파일)
+│  │ - JVM 옵션: Xms256m, Xmx768m
+│  │ - 백그라운드 실행 및 PID 저장
 │  └──────────────────────────────────────────────────────────┘ 
 │                         ↓                                      
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ Lifecycle Hook 5: ValidateService                         
-│  │ Script: scripts/validate_service.sh                       
-│  │ ┌────────────────────────────────────────────────────┐   
-│  │ │ #!/bin/bash                                         
-│  │ │ for i in {1..30}; do                                
-│  │ │   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}"
-│  │ │                http://localhost:8080/actuator/health)
-│  │ │   if [ "$HTTP_CODE" -eq 200 ]; then                
-│  │ │     echo "Health check passed"                     
-│  │ │     exit 0                                         
-│  │ │   fi                                               
-│  │ │   sleep 2                                          
-│  │ │ done                                               
-│  │ │ echo "Health check failed"                         
-│  │ │ exit 1                                             
-│  │ └────────────────────────────────────────────────────┘  
+│  ┌──────────────────────────────────────────────────────────┐
+│  │ Lifecycle Hook 5: ValidateService
+│  │ - 헬스체크 엔드포인트 호출 (최대 30회, 2초 간격)
+│  │ - HTTP 200 응답 확인으로 정상 배포 검증
+│  │ - 실패 시 자동 롤백
 │  └──────────────────────────────────────────────────────────┘ 
 └──────────────────────────────────────────────────────────────────┘
                          ↓

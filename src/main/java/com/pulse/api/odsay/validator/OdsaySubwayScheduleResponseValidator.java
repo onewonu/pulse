@@ -21,7 +21,6 @@ public class OdsaySubwayScheduleResponseValidator {
 
         if (response == null || response.getResult() == null) {
             String errorMessage = String.format("%s API response or result is null", className);
-            log.error(errorMessage);
             throw new OdsayApiException(ErrorCode.API_RESPONSE_INVALID, errorMessage);
         }
 
