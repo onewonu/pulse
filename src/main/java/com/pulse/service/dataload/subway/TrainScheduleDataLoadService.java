@@ -24,6 +24,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import java.util.UUID;
+import java.util.Arrays;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -88,20 +90,22 @@ public class TrainScheduleDataLoadService {
 
     private List<StationDirection> generateStationDirections(String operationId) {
         List<SubwayStation> stations = stationRepository.findAll();
-        List<StationDirection> stationDirections = new ArrayList<>();
+        List<StationDirection> stationDirections = stations.stream()
+                .flatMap(station -> {
+                    String lineName = station.getSubwayLine().getLineName();
+                    String stationName = station.getStationName();
+                    String denormalizedLineName = LineNameNormalizer.denormalize(lineName);
+                    String normalizedStationName = StationNameNormalizer.normalize(stationName);
+                    String[] validDirections = LineDirectionResolver.getValidDirections(denormalizedLineName);
 
-        for (SubwayStation station : stations) {
-            String lineName = station.getSubwayLine().getLineName();
-            String stationName = station.getStationName();
-
-            String denormalizedLineName = LineNameNormalizer.denormalize(lineName);
-            String normalizedStationName = StationNameNormalizer.normalize(stationName);
-
-            String[] validDirections = LineDirectionResolver.getValidDirections(denormalizedLineName);
-            for (String direction : validDirections) {
-                stationDirections.add(new StationDirection(denormalizedLineName, normalizedStationName, direction));
-            }
-        }
+                    return Arrays.stream(validDirections)
+                            .map(direction -> new StationDirection(
+                                    denormalizedLineName,
+                                    normalizedStationName,
+                                    direction
+                            ));
+                })
+                .toList();
 
         log.info("[{}] Generated {} station-direction combinations from {} stations",
                 operationId, stationDirections.size(), stations.size());
@@ -163,16 +167,10 @@ public class TrainScheduleDataLoadService {
             StationDirection direction,
             Map<String, SubwayStation> stationCache
     ) {
-        List<SubwayTrainSchedule> schedules = new ArrayList<>();
-
-        for (TrainScheduleItem item : items) {
-            SubwayTrainSchedule schedule = mapper.toSubwayTrainSchedule(item, direction.lineName(), stationCache);
-            if (schedule != null) {
-                schedules.add(schedule);
-            }
-        }
-
-        return schedules;
+        return items.stream()
+                .map(item -> mapper.toSubwayTrainSchedule(item, direction.lineName(), stationCache))
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules, String operationId) {
