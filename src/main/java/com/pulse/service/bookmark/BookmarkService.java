@@ -16,8 +16,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class BookmarkService {
@@ -81,10 +83,9 @@ public class BookmarkService {
 
     @Transactional
     public void reorderBookmarks(Long userId, BookmarkReorderRequest request) {
-        List<Long> bookmarkIds = new ArrayList<>();
-        for (BookmarkReorderRequest.ReorderItem item : request.getItems()) {
-            bookmarkIds.add(item.getBookmarkId());
-        }
+        List<Long> bookmarkIds = request.getItems().stream()
+                .map(BookmarkReorderRequest.ReorderItem::getBookmarkId)
+                .toList();
 
         List<Bookmark> allBookmarks = bookmarkRepository.findAllById(bookmarkIds);
 
@@ -92,20 +93,20 @@ public class BookmarkService {
             throw new BookmarkNotFoundException("Some bookmarks not found");
         }
 
-        for (Bookmark bookmark : allBookmarks) {
-            if (!bookmark.isOwnedBy(userId)) {
-                throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
-            }
+        boolean allOwned = allBookmarks.stream().allMatch(bookmark -> bookmark.isOwnedBy(userId));
+        if (!allOwned) {
+            throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
         }
 
-        for (BookmarkReorderRequest.ReorderItem item : request.getItems()) {
-            for (Bookmark bookmark : allBookmarks) {
-                if (bookmark.getId().equals(item.getBookmarkId())) {
-                    bookmark.updateDisplayOrder(item.getNewDisplayOrder());
-                    break;
-                }
+        Map<Long, Bookmark> bookmarkMap = allBookmarks.stream()
+                .collect(Collectors.toMap(Bookmark::getId, Function.identity()));
+
+        request.getItems().forEach(item -> {
+            Bookmark bookmark = bookmarkMap.get(item.getBookmarkId());
+            if (bookmark != null) {
+                bookmark.updateDisplayOrder(item.getNewDisplayOrder());
             }
-        }
+        });
     }
 
     @Transactional
@@ -125,11 +126,9 @@ public class BookmarkService {
     @Transactional(readOnly = true)
     public List<BookmarkResponse> getBookmarks(Long userId) {
         List<Bookmark> bookmarks = bookmarkRepository.findByUserIdOrderByDisplayOrderAsc(userId);
-        List<BookmarkResponse> responses = new ArrayList<>();
-        for (Bookmark bookmark : bookmarks) {
-            responses.add(BookmarkResponse.of(bookmark));
-        }
-        return responses;
+        return bookmarks.stream()
+                .map(BookmarkResponse::of)
+                .toList();
     }
 
     @Transactional(readOnly = true)
