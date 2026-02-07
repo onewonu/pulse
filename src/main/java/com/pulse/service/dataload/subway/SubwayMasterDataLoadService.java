@@ -6,7 +6,6 @@ import com.pulse.dto.DataLoadResult;
 import com.pulse.dto.masterdata.LinesData;
 import com.pulse.dto.masterdata.StationMasterData;
 import com.pulse.dto.masterdata.StationExportData;
-import com.pulse.dto.masterdata.StationSearchResult;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.exception.dataload.MasterDataLoadException;
@@ -92,12 +91,9 @@ public class SubwayMasterDataLoadService {
             InputStream inputStream = resource.getInputStream();
             LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
-            List<SubwayLine> lines = new ArrayList<>();
-
-            for (LinesData.LineInfo lineInfo : linesData.getLines()) {
-                SubwayLine line = SubwayLine.of(lineInfo.getLineName(), lineInfo.getColor());
-                lines.add(line);
-            }
+            List<SubwayLine> lines = linesData.getLines().stream()
+                    .map(lineInfo -> SubwayLine.of(lineInfo.getLineName(), lineInfo.getColor()))
+                    .toList();
 
             log.info("[{}] Loaded {} lines from JSON", operationId, lines.size());
 
@@ -114,16 +110,11 @@ public class SubwayMasterDataLoadService {
             InputStream inputStream = resource.getInputStream();
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
-            List<SubwayStation> stations = new ArrayList<>();
-
-            for (StationSearchResult searchResult : exportData.getStationSearchResults()) {
-                for (StationMasterData stationData : searchResult.getResults()) {
-                    Optional<SubwayStation> stationOptional = processStationData(stationData, operationId);
-                    if (stationOptional.isPresent()) {
-                        stations.add(stationOptional.get());
-                    }
-                }
-            }
+            List<SubwayStation> stations = exportData.getStationSearchResults().stream()
+                    .flatMap(searchResult -> searchResult.getResults().stream())
+                    .map(stationData -> processStationData(stationData, operationId))
+                    .flatMap(Optional::stream)
+                    .toList();
 
             log.info("[{}] Loaded {} stations from JSON", operationId, stations.size());
 
