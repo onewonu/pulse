@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -66,16 +68,14 @@ public class SubwayStatisticsDataLoadService {
     }
 
     private MasterDataCaches loadMasterDataCaches(String operationId) {
-        Map<String, SubwayLine> lineCache = new HashMap<>();
-        for (SubwayLine line : subwayLineRepository.findAll()) {
-            lineCache.put(line.getLineName(), line);
-        }
+        Map<String, SubwayLine> lineCache = subwayLineRepository.findAll().stream()
+                .collect(Collectors.toMap(SubwayLine::getLineName, Function.identity()));
 
-        Map<String, SubwayStation> stationCache = new HashMap<>();
-        for (SubwayStation station : subwayStationRepository.findAll()) {
-            String key = station.getStationName() + "|" + station.getSubwayLine().getLineName();
-            stationCache.put(key, station);
-        }
+        Map<String, SubwayStation> stationCache = subwayStationRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        station -> station.getStationName() + "|" + station.getSubwayLine().getLineName(),
+                        Function.identity()
+                ));
 
         log.info("[{}] Loaded master data into cache: {} lines, {} stations",
                 operationId, lineCache.size(), stationCache.size());
