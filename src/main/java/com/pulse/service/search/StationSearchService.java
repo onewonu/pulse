@@ -9,9 +9,9 @@ import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.util.LineNameNormalizer;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class StationSearchService {
@@ -36,10 +36,9 @@ public class StationSearchService {
             return new StationSearchResult(0, Collections.emptyList());
         }
 
-        List<StationSearchResult.StationItem> stations = new ArrayList<>();
-        for (StationData data : result.getStations()) {
-            stations.add(mapToStationItem(data));
-        }
+        List<StationSearchResult.StationItem> stations = result.getStations().stream()
+                .map(this::mapToStationItem)
+                .toList();
 
         return new StationSearchResult(result.getTotalCount(), stations);
     }
@@ -47,14 +46,11 @@ public class StationSearchService {
     private StationSearchResult.StationItem mapToStationItem(StationData data) {
         String laneName = data.getLaneName();
 
-        String lineColor = null;
-        if (laneName != null) {
-            String normalizedLineName = LineNameNormalizer.normalize(laneName);
-            SubwayLine line = subwayLineRepository.findById(normalizedLineName).orElse(null);
-            if (line != null) {
-                lineColor = line.getColor();
-            }
-        }
+        String lineColor = Optional.ofNullable(laneName)
+                .map(LineNameNormalizer::normalize)
+                .flatMap(subwayLineRepository::findById)
+                .map(SubwayLine::getColor)
+                .orElse(null);
 
         return new StationSearchResult.StationItem(
                 data.getStationName(),
