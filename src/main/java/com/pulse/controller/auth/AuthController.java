@@ -27,17 +27,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody SocialLoginRequest request) {
         LoginResponse response = authService.login(
-                request.getProviderType(),
-                request.getNickname(),
-                request.getAuthorizationCode(),
-                request.getRedirectUri()
+                request.providerType(),
+                request.nickname(),
+                request.authorizationCode(),
+                request.redirectUri()
         );
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<TokenRefreshResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        TokenRefreshResponse response = authService.refreshTokens(request.getRefreshToken());
+        TokenRefreshResponse response = authService.refreshTokens(request.refreshToken());
         return ResponseEntity.ok(response);
     }
 
