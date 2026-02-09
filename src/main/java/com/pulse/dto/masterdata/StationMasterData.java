@@ -2,48 +2,22 @@ package com.pulse.dto.masterdata;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class StationMasterData {
-
+public record StationMasterData(
     @JsonProperty("stationName")
-    private String stationName;
+    String stationName,
 
     @JsonProperty("stationID")
-    private String stationID;
+    String stationID,
 
     @JsonProperty("x")
-    private String x;
+    String x,
 
     @JsonProperty("y")
-    private String y;
+    String y,
 
     @JsonProperty("laneName")
-    private String laneName;
-
-
-    public String getStationName() {
-        return stationName;
-    }
-
-    public String getStationID() {
-        return stationID;
-    }
-
-    public String getX() {
-        return x;
-    }
-
-    public String getY() {
-        return y;
-    }
-
-    public String getLaneName() {
-        return laneName;
-    }
-
-    public void setStationName(String stationName) {
-        this.stationName = stationName;
-    }
-
+    String laneName
+) {
     public Double getLongitude() {
         try {
             return x != null ? Double.parseDouble(x) : null;
@@ -58,21 +32,5 @@ public class StationMasterData {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    public void setStationID(String stationID) {
-        this.stationID = stationID;
-    }
-
-    public void setX(String x) {
-        this.x = x;
-    }
-
-    public void setY(String y) {
-        this.y = y;
-    }
-
-    public void setLaneName(String laneName) {
-        this.laneName = laneName;
     }
 }

@@ -102,7 +102,7 @@ class SubwayStatisticsDataLoadServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success()).isTrue();
         verify(subwayLineRepository, times(1)).findAll();
         verify(subwayStationRepository, times(1)).findAll();
         verify(seoulOpenDataClient, atLeastOnce()).fetchSubwayPassengerData(eq("202401"), anyInt(), anyInt());
@@ -122,7 +122,7 @@ class SubwayStatisticsDataLoadServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success()).isTrue();
         verify(subwayPassengerHourlyRepository, times(1)).deleteByYearMonth(yearMonth);
     }
 }
