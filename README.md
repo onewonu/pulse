@@ -303,30 +303,25 @@ StationNameNormalizer (역명 표준화)
 **프로세스:**
 ```
 1. JSON 파일 읽기
-   ├─ src/main/resources/data/lines.json
-   └─ src/main/resources/data/stations.json
 
 2. 데이터 검증
-   ├─ 필수 필드 확인 (lineName, stationName, coordinates)
+   ├─ 필수 필드 확인
    └─ 데이터 형식 검증
 
 3. SubwayLine 엔티티 생성/업데이트
    ├─ 노선명으로 중복 확인
    ├─ LineNameNormalizer로 표준화
-   └─ 배치 저장 (batch_size=500)
+   └─ 배치 저장 (batch_size=100)
 
 4. SubwayStation 엔티티 생성/업데이트
    ├─ (stationName, lineName) 복합키로 중복 확인
    ├─ StationNameNormalizer로 표준화
    ├─ 좌표 데이터 매핑
-   └─ 배치 저장
-
-5. 메모리 캐시 구성
-   └─ HashMap<stationName, SubwayStation> (이후 승객 데이터 적재 시 사용)
+   └─ 배치 저장 (batch_size=100)
 ```
 
 **최적화 전략:**
-- Hibernate 배치 삽입 (batch_size=500)
+- Hibernate 배치 삽입 (batch_size=100)
 - 중복 데이터는 Unique 제약조건으로 자동 처리
 - 메모리 내 HashMap 캐싱으로 조회 성능 향상
 
@@ -336,23 +331,28 @@ StationNameNormalizer (역명 표준화)
 
 **프로세스:**
 ```
-1. 서울 열린데이터 광장 API 호출
+1. 메모리 캐시 구성 (N+1 쿼리 방지)
+   ├─ 노선 캐시: Map<lineName, SubwayLine> (24개)
+   ├─ 역 캐시: Map<stationName|lineName, SubwayStation> (869개)
+   └─ DB 조회 단 2번으로 625,680건 처리 시 125만 번 쿼리 방지
+
+2. 서울 열린데이터 광장 API 호출
    ├─ 파라미터: yearMonth (예: 202401)
    ├─ 페이지네이션: 1000개/페이지
    └─ 응답: 일별/역별 24시간 승하차 데이터
 
-2. 응답 검증 (SeoulApiResponseValidator)
+3. 응답 검증 (SeoulApiResponseValidator)
    ├─ 성공 코드 확인 (INFO-000)
    ├─ 데이터 존재 확인
    └─ 필수 필드 검증
 
-3. 데이터 정규화
+4. 데이터 정규화
    ├─ StationNameNormalizer: 역명 표준화
    │   예: "강남역" → "강남", "신논현 역" → "신논현"
    └─ LineNameNormalizer: 노선명 표준화
        예: "2 호선" → "2호선", "신분당선 " → "신분당선"
 
-4. SubwayDataMapper: 1개 레코드 → 24개 레코드 변환
+5. SubwayDataMapper: 1개 레코드 → 24개 레코드 변환
    ┌──────────────────────────────────────┐
    │ API 응답 (1개 레코드)                    
    │ - statDate: 2024-01-15               
@@ -370,20 +370,16 @@ StationNameNormalizer (역명 표준화)
    │ ... (시간대별 24개)                     
    └──────────────────────────────────────┘
 
-5. 역 매핑 및 저장
-   ├─ 메모리 캐시에서 SubwayStation 조회
+6. 역 매핑 및 저장
+   ├─ 메모리 캐시에서 SubwayStation 조회 (O(1), DB 조회 불필요)
    ├─ Unique 제약조건: (station, statDate, hourSlot)
    │   → 중복 시 자동 스킵 또는 업데이트
-   └─ 배치 삽입 (batch_size=500)
+   └─ 배치 삽입 (batch_size=100)
 
-6. 진행 상황 로깅
+7. 진행 상황 로깅
    └─ 페이지별 진행률, 총 적재 건수 출력
 ```
 
-**성능 최적화:**
-- 배치 삽입으로 DB I/O 최소화
-- 메모리 캐시로 역 조회 최적화 (O(1))
-- Unique 제약조건으로 중복 처리 자동화
 
 ### 3. 열차 시간표 적재
 
@@ -427,7 +423,7 @@ StationNameNormalizer (역명 표준화)
 
 6. 배치 저장
    ├─ 기존 데이터 삭제 (전체 교체 방식)
-   └─ 신규 데이터 삽입 (batch_size=500)
+   └─ 신규 데이터 삽입 (batch_size=100)
 ```
 
 **데이터 신선도:**
