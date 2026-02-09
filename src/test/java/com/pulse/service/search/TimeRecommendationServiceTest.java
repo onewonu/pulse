@@ -135,16 +135,16 @@ class TimeRecommendationServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getDepartureStationId()).isEqualTo(1000);
-        assertThat(result.getArrivalStationId()).isEqualTo(2000);
-        assertThat(result.getRecommendations()).hasSize(1);
+        assertThat(result.departureStationId()).isEqualTo(1000);
+        assertThat(result.arrivalStationId()).isEqualTo(2000);
+        assertThat(result.recommendations()).hasSize(1);
 
-        TimeRecommendationResult.TimeRecommendation recommendation = result.getRecommendations().getFirst();
-        assertThat(recommendation.getDepartureTime()).isEqualTo(LocalTime.of(9, 30, 0));
-        assertThat(recommendation.getArrivalTime()).isEqualTo(LocalTime.of(9, 35, 0));
-        assertThat(recommendation.getTotalTime()).isEqualTo(5);
-        assertThat(recommendation.getTransferCount()).isZero();
-        assertThat(recommendation.getStationCongestions()).hasSize(3);
+        TimeRecommendationResult.TimeRecommendation recommendation = result.recommendations().getFirst();
+        assertThat(recommendation.departureTime()).isEqualTo(LocalTime.of(9, 30, 0));
+        assertThat(recommendation.arrivalTime()).isEqualTo(LocalTime.of(9, 35, 0));
+        assertThat(recommendation.totalTime()).isEqualTo(5);
+        assertThat(recommendation.transferCount()).isZero();
+        assertThat(recommendation.stationCongestions()).hasSize(3);
 
         verify(subwayTrainScheduleRepository, times(1))
                 .findDistinctDepartureTimesByStationIdAndDayAndTimeRange("1000", "평일",

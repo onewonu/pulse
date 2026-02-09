@@ -68,17 +68,17 @@ public class TimeRecommendationService {
     }
 
     private DayInfo convertToDayInfo(TimeRecommendationRequest request) {
-        int dayCode = DayCodeConverter.convert(request.getSearchDate());
+        int dayCode = DayCodeConverter.convert(request.searchDate());
         String dayType = DayCodeConverter.toDayType(dayCode);
         return new DayInfo(dayCode, dayType);
     }
 
     private List<LocalTime> getAvailableDepartureTimes(TimeRecommendationRequest request, DayInfo dayInfo) {
         return subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
-                request.getDepartureStationId().toString(),
+                request.departureStationId().toString(),
                 dayInfo.dayType(),
-                request.getStartTime(),
-                request.getEndTime()
+                request.startTime(),
+                request.endTime()
         );
     }
 
@@ -100,8 +100,8 @@ public class TimeRecommendationService {
     ) {
         try {
             OdsaySubwayScheduleResponse response = odsayClient.searchSubwaySchedule(
-                    request.getDepartureStationId(),
-                    request.getArrivalStationId(),
+                    request.departureStationId(),
+                    request.arrivalStationId(),
                     dayInfo.dayCode(),
                     departureTime.format(DateTimeFormatter.ofPattern("HHmm"))
             );
@@ -151,11 +151,11 @@ public class TimeRecommendationService {
         String arrivalStationName = extractStationName(mostCommonPathRoutes, false);
 
         return new TimeRecommendationResult(
-                request.getDepartureStationId(),
-                request.getArrivalStationId(),
+                request.departureStationId(),
+                request.arrivalStationId(),
                 departureStationName,
                 arrivalStationName,
-                request.getSearchDate(),
+                request.searchDate(),
                 dayInfo.dayType(),
                 recommendations,
                 null
