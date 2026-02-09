@@ -65,10 +65,7 @@ class BookmarkServiceTest {
     void createBookmark_Success() {
         // Given
         Long userId = 1L;
-        BookmarkCreateRequest request = new BookmarkCreateRequest();
-        request.setName("집-회사");
-        request.setDepartureStationId(1000);
-        request.setArrivalStationId(2000);
+        BookmarkCreateRequest request = new BookmarkCreateRequest("집-회사", 1000, 2000);
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, user);
@@ -82,9 +79,9 @@ class BookmarkServiceTest {
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.getName()).isEqualTo("집-회사");
-        assertThat(response.getDepartureStationId()).isEqualTo(1000);
-        assertThat(response.getArrivalStationId()).isEqualTo(2000);
+        assertThat(response.name()).isEqualTo("집-회사");
+        assertThat(response.departureStationId()).isEqualTo(1000);
+        assertThat(response.arrivalStationId()).isEqualTo(2000);
 
         verify(userRepository, times(1)).findById(userId);
         verify(bookmarkRepository, times(1)).save(any(Bookmark.class));
@@ -95,10 +92,7 @@ class BookmarkServiceTest {
     void createBookmark_UserNotFound() {
         // Given
         Long userId = 999L;
-        BookmarkCreateRequest request = new BookmarkCreateRequest();
-        request.setName("집-회사");
-        request.setDepartureStationId(1000);
-        request.setArrivalStationId(2000);
+        BookmarkCreateRequest request = new BookmarkCreateRequest("집-회사", 1000, 2000);
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
@@ -128,8 +122,8 @@ class BookmarkServiceTest {
 
         // Then
         assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getName()).isEqualTo("집-회사");
-        assertThat(responses.get(1).getName()).isEqualTo("회사-집");
+        assertThat(responses.get(0).name()).isEqualTo("집-회사");
+        assertThat(responses.get(1).name()).isEqualTo("회사-집");
 
         verify(bookmarkRepository, times(1)).findByUserIdOrderByDisplayOrderAsc(userId);
     }
@@ -140,8 +134,7 @@ class BookmarkServiceTest {
         // Given
         Long userId = 1L;
         Long bookmarkId = 10L;
-        BookmarkUpdateRequest request = new BookmarkUpdateRequest();
-        request.setName("새이름");
+        BookmarkUpdateRequest request = new BookmarkUpdateRequest("새이름", null, null);
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         setUserId(user, userId);
@@ -154,7 +147,7 @@ class BookmarkServiceTest {
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.getName()).isEqualTo("새이름");
+        assertThat(response.name()).isEqualTo("새이름");
 
         verify(bookmarkRepository, times(1)).findById(bookmarkId);
     }
@@ -165,8 +158,7 @@ class BookmarkServiceTest {
         // Given
         Long userId = 1L;
         Long bookmarkId = 10L;
-        BookmarkUpdateRequest request = new BookmarkUpdateRequest();
-        request.setName("새이름");
+        BookmarkUpdateRequest request = new BookmarkUpdateRequest("새이름", null, null);
 
         User otherUser = User.of("other-user", ProviderType.KAKAO, "other123");
         setUserId(otherUser, 999L);
@@ -254,16 +246,10 @@ class BookmarkServiceTest {
         Bookmark bookmark2 = Bookmark.of("회사-집", 2000, 1000, 2, user);
         setBookmarkId(bookmark2, 2L);
 
-        BookmarkReorderRequest request = new BookmarkReorderRequest();
-        BookmarkReorderRequest.ReorderItem item1 = new BookmarkReorderRequest.ReorderItem();
-        item1.setBookmarkId(1L);
-        item1.setNewDisplayOrder(2);
+        BookmarkReorderRequest.ReorderItem item1 = new BookmarkReorderRequest.ReorderItem(1L, 2);
+        BookmarkReorderRequest.ReorderItem item2 = new BookmarkReorderRequest.ReorderItem(2L, 1);
 
-        BookmarkReorderRequest.ReorderItem item2 = new BookmarkReorderRequest.ReorderItem();
-        item2.setBookmarkId(2L);
-        item2.setNewDisplayOrder(1);
-
-        request.setItems(List.of(item1, item2));
+        BookmarkReorderRequest request = new BookmarkReorderRequest(List.of(item1, item2));
 
         when(bookmarkRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(bookmark1, bookmark2));
 
@@ -280,11 +266,8 @@ class BookmarkServiceTest {
         // Given
         Long userId = 1L;
 
-        BookmarkReorderRequest request = new BookmarkReorderRequest();
-        BookmarkReorderRequest.ReorderItem item = new BookmarkReorderRequest.ReorderItem();
-        item.setBookmarkId(999L);
-        item.setNewDisplayOrder(1);
-        request.setItems(List.of(item));
+        BookmarkReorderRequest.ReorderItem item = new BookmarkReorderRequest.ReorderItem(999L, 1);
+        BookmarkReorderRequest request = new BookmarkReorderRequest(List.of(item));
 
         when(bookmarkRepository.findAllById(List.of(999L))).thenReturn(List.of());
 
@@ -305,11 +288,8 @@ class BookmarkServiceTest {
         Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, otherUser);
         setBookmarkId(bookmark, 1L);
 
-        BookmarkReorderRequest request = new BookmarkReorderRequest();
-        BookmarkReorderRequest.ReorderItem item = new BookmarkReorderRequest.ReorderItem();
-        item.setBookmarkId(1L);
-        item.setNewDisplayOrder(2);
-        request.setItems(List.of(item));
+        BookmarkReorderRequest.ReorderItem item = new BookmarkReorderRequest.ReorderItem(1L, 2);
+        BookmarkReorderRequest request = new BookmarkReorderRequest(List.of(item));
 
         when(bookmarkRepository.findAllById(List.of(1L))).thenReturn(List.of(bookmark));
 
@@ -337,9 +317,9 @@ class BookmarkServiceTest {
 
         // Then
         assertThat(response).isNotNull();
-        assertThat(response.getName()).isEqualTo("집-회사");
-        assertThat(response.getDepartureStationId()).isEqualTo(1000);
-        assertThat(response.getArrivalStationId()).isEqualTo(2000);
+        assertThat(response.name()).isEqualTo("집-회사");
+        assertThat(response.departureStationId()).isEqualTo(1000);
+        assertThat(response.arrivalStationId()).isEqualTo(2000);
 
         verify(bookmarkRepository, times(1)).findById(bookmarkId);
     }
