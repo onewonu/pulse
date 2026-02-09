@@ -91,8 +91,8 @@ public class SubwayMasterDataLoadService {
             InputStream inputStream = resource.getInputStream();
             LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
-            List<SubwayLine> lines = linesData.getLines().stream()
-                    .map(lineInfo -> SubwayLine.of(lineInfo.getLineName(), lineInfo.getColor()))
+            List<SubwayLine> lines = linesData.lines().stream()
+                    .map(lineInfo -> SubwayLine.of(lineInfo.lineName(), lineInfo.color()))
                     .toList();
 
             log.info("[{}] Loaded {} lines from JSON", operationId, lines.size());
@@ -110,8 +110,8 @@ public class SubwayMasterDataLoadService {
             InputStream inputStream = resource.getInputStream();
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
-            List<SubwayStation> stations = exportData.getStationSearchResults().stream()
-                    .flatMap(searchResult -> searchResult.getResults().stream())
+            List<SubwayStation> stations = exportData.stationSearchResults().stream()
+                    .flatMap(searchResult -> searchResult.results().stream())
                     .map(stationData -> processStationData(stationData, operationId))
                     .flatMap(Optional::stream)
                     .toList();
@@ -129,13 +129,13 @@ public class SubwayMasterDataLoadService {
             StationMasterData stationData,
             String operationId
     ) {
-        String lineName = stationData.getLaneName();
+        String lineName = stationData.laneName();
 
         SubwayLine line = subwayLineRepository.findById(lineName).orElse(null);
         if (line == null) {
 
             log.warn("[{}] Line not found for station: {} (line: {})",
-                    operationId, stationData.getStationName(), lineName);
+                    operationId, stationData.stationName(), lineName);
 
             return Optional.empty();
         }
@@ -146,15 +146,15 @@ public class SubwayMasterDataLoadService {
         if (latitude == null || longitude == null) {
 
             log.warn("[{}] Invalid coordinates for station: {} (lat: {}, lng: {})",
-                    operationId, stationData.getStationName(), stationData.getY(), stationData.getX());
+                    operationId, stationData.stationName(), stationData.y(), stationData.x());
 
             return Optional.empty();
         }
 
-        String normalizedStationName = StationNameNormalizer.normalize(stationData.getStationName());
+        String normalizedStationName = StationNameNormalizer.normalize(stationData.stationName());
 
         SubwayStation station = SubwayStation.of(
-                stationData.getStationID(),
+                stationData.stationID(),
                 normalizedStationName,
                 line,
                 latitude,

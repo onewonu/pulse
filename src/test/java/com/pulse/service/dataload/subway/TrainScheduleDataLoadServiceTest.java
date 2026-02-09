@@ -52,7 +52,7 @@ class TrainScheduleDataLoadServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success()).isTrue();
         verify(subwayStationRepository, times(1)).findAll();
         verify(subwayTrainScheduleRepository, times(1)).deleteByDayType("평일");
         verify(subwayTrainScheduleRepository, times(1)).saveAll(any());
@@ -69,7 +69,7 @@ class TrainScheduleDataLoadServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success()).isTrue();
         verify(subwayTrainScheduleRepository, times(1)).count();
         verify(subwayTrainScheduleRepository, times(1)).deleteAll();
     }

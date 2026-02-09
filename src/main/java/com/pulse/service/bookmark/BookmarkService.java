@@ -46,9 +46,9 @@ public class BookmarkService {
         Integer newDisplayOrder = maxDisplayOrder + 1;
 
         Bookmark bookmark = Bookmark.of(
-            request.getName(),
-            request.getDepartureStationId(),
-            request.getArrivalStationId(),
+            request.name(),
+            request.departureStationId(),
+            request.arrivalStationId(),
             newDisplayOrder,
             user
         );
@@ -68,14 +68,14 @@ public class BookmarkService {
             throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
         }
 
-        if (request.getName() == null && request.getDepartureStationId() == null && request.getArrivalStationId() == null) {
+        if (request.name() == null && request.departureStationId() == null && request.arrivalStationId() == null) {
             throw new IllegalArgumentException("At least one field must be provided for update");
         }
 
         bookmark.update(
-            request.getName(),
-            request.getDepartureStationId(),
-            request.getArrivalStationId()
+            request.name(),
+            request.departureStationId(),
+            request.arrivalStationId()
         );
 
         return BookmarkResponse.of(bookmark);
@@ -83,8 +83,8 @@ public class BookmarkService {
 
     @Transactional
     public void reorderBookmarks(Long userId, BookmarkReorderRequest request) {
-        List<Long> bookmarkIds = request.getItems().stream()
-                .map(BookmarkReorderRequest.ReorderItem::getBookmarkId)
+        List<Long> bookmarkIds = request.items().stream()
+                .map(BookmarkReorderRequest.ReorderItem::bookmarkId)
                 .toList();
 
         List<Bookmark> allBookmarks = bookmarkRepository.findAllById(bookmarkIds);
@@ -101,10 +101,10 @@ public class BookmarkService {
         Map<Long, Bookmark> bookmarkMap = allBookmarks.stream()
                 .collect(Collectors.toMap(Bookmark::getId, Function.identity()));
 
-        request.getItems().forEach(item -> {
-            Bookmark bookmark = bookmarkMap.get(item.getBookmarkId());
+        request.items().forEach(item -> {
+            Bookmark bookmark = bookmarkMap.get(item.bookmarkId());
             if (bookmark != null) {
-                bookmark.updateDisplayOrder(item.getNewDisplayOrder());
+                bookmark.updateDisplayOrder(item.newDisplayOrder());
             }
         });
     }

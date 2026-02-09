@@ -67,26 +67,14 @@ class SubwayMasterDataLoadServiceTest {
         when(linesResource.getInputStream()).thenReturn(new ByteArrayInputStream("{}".getBytes()));
         when(stationsResource.getInputStream()).thenReturn(new ByteArrayInputStream("{}".getBytes()));
 
-        LinesData.LineInfo lineInfo = new LinesData.LineInfo();
-        lineInfo.setLineName("수도권 1호선");
-        lineInfo.setColor("#003DA5");
-        LinesData linesData = new LinesData();
-        linesData.setLines(List.of(lineInfo));
+        LinesData.LineInfo lineInfo = new LinesData.LineInfo("수도권 1호선", "#003DA5");
+        LinesData linesData = new LinesData(null, null, List.of(lineInfo));
 
-        StationMasterData stationData = new StationMasterData();
-        stationData.setStationName("서울역");
-        stationData.setStationID("426");
-        stationData.setX("126.972559");
-        stationData.setY("37.554648");
-        stationData.setLaneName("수도권 1호선");
+        StationMasterData stationData = new StationMasterData("서울역", "426", "126.972559", "37.554648", "수도권 1호선");
 
-        StationSearchResult searchResult = new StationSearchResult();
-        searchResult.setSearchedStationName("서울역");
-        searchResult.setTotalCount(1);
-        searchResult.setResults(List.of(stationData));
+        StationSearchResult searchResult = new StationSearchResult("서울역", 1, List.of(stationData));
 
-        StationExportData stationExportData = new StationExportData();
-        stationExportData.setStationSearchResults(List.of(searchResult));
+        StationExportData stationExportData = new StationExportData(null, null, null, List.of(searchResult));
 
         when(objectMapper.readValue(any(InputStream.class), eq(LinesData.class))).thenReturn(linesData);
         when(objectMapper.readValue(any(InputStream.class), eq(StationExportData.class))).thenReturn(stationExportData);
@@ -101,7 +89,7 @@ class SubwayMasterDataLoadServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.success()).isTrue();
         verify(subwayStationRepository, times(1)).deleteAll();
         verify(subwayLineRepository, times(1)).deleteAll();
         verify(subwayLineRepository, times(1)).saveAll(argThat(lines -> ((List<?>) lines).size() == 1));

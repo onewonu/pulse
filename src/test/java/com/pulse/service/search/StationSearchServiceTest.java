@@ -63,14 +63,14 @@ class StationSearchServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getTotalCount()).isEqualTo(1);
-        assertThat(result.getStations()).hasSize(1);
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.stations()).hasSize(1);
 
-        StationSearchResult.StationItem item = result.getStations().getFirst();
-        assertThat(item.getStationName()).isEqualTo("강남역");
-        assertThat(item.getStationID()).isEqualTo("1000");
-        assertThat(item.getLaneName()).isEqualTo("2호선");
-        assertThat(item.getLineColor()).isEqualTo("#00A84D");
+        StationSearchResult.StationItem item = result.stations().getFirst();
+        assertThat(item.stationName()).isEqualTo("강남역");
+        assertThat(item.stationID()).isEqualTo("1000");
+        assertThat(item.laneName()).isEqualTo("2호선");
+        assertThat(item.lineColor()).isEqualTo("#00A84D");
 
         verify(odsayClient, times(1)).searchStation(stationName);
         verify(subwayLineRepository, times(1)).findById("수도권 2호선");
@@ -96,8 +96,8 @@ class StationSearchServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getTotalCount()).isZero();
-        assertThat(result.getStations()).isEmpty();
+        assertThat(result.totalCount()).isZero();
+        assertThat(result.stations()).isEmpty();
     }
 
     @Test
