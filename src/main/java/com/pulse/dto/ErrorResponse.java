@@ -5,17 +5,11 @@ import com.pulse.exception.ErrorCode;
 
 import java.time.LocalDateTime;
 
-public class ErrorResponse {
-    private final String errorCode;
-    private final String message;
-    private final LocalDateTime timestamp;
-
-    private ErrorResponse(String errorCode, String message, LocalDateTime timestamp) {
-        this.errorCode = errorCode;
-        this.message = message;
-        this.timestamp = timestamp;
-    }
-
+public record ErrorResponse(
+    String errorCode,
+    String message,
+    LocalDateTime timestamp
+) {
     public static ErrorResponse of(BaseException exception) {
         return new ErrorResponse(
             exception.getErrorCode().name(),
@@ -30,17 +24,5 @@ public class ErrorResponse {
             message,
             LocalDateTime.now()
         );
-    }
-
-    public String getErrorCode() {
-        return errorCode;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
     }
 }
