@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,10 +66,10 @@ class BookmarkServiceTest {
     void createBookmark_Success() {
         // Given
         Long userId = 1L;
-        BookmarkCreateRequest request = new BookmarkCreateRequest("집-회사", 1000, 2000);
+        BookmarkCreateRequest request = new BookmarkCreateRequest("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0));
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, user);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(bookmarkRepository.findMaxDisplayOrderByUserId(userId)).thenReturn(0);
@@ -92,7 +93,7 @@ class BookmarkServiceTest {
     void createBookmark_UserNotFound() {
         // Given
         Long userId = 999L;
-        BookmarkCreateRequest request = new BookmarkCreateRequest("집-회사", 1000, 2000);
+        BookmarkCreateRequest request = new BookmarkCreateRequest("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0));
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
@@ -111,8 +112,8 @@ class BookmarkServiceTest {
         Long userId = 1L;
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
-        Bookmark bookmark1 = Bookmark.of("집-회사", 1000, 2000, 1, user);
-        Bookmark bookmark2 = Bookmark.of("회사-집", 2000, 1000, 2, user);
+        Bookmark bookmark1 = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
+        Bookmark bookmark2 = Bookmark.of("회사-집", 2000, 1000, LocalTime.of(18, 0), LocalTime.of(21, 0), 2, user);
 
         when(bookmarkRepository.findByUserIdOrderByDisplayOrderAsc(userId))
                 .thenReturn(List.of(bookmark1, bookmark2));
@@ -134,11 +135,11 @@ class BookmarkServiceTest {
         // Given
         Long userId = 1L;
         Long bookmarkId = 10L;
-        BookmarkUpdateRequest request = new BookmarkUpdateRequest("새이름", null, null);
+        BookmarkUpdateRequest request = new BookmarkUpdateRequest("새이름", null, null, null, null);
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         setUserId(user, userId);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, user);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
 
@@ -158,11 +159,11 @@ class BookmarkServiceTest {
         // Given
         Long userId = 1L;
         Long bookmarkId = 10L;
-        BookmarkUpdateRequest request = new BookmarkUpdateRequest("새이름", null, null);
+        BookmarkUpdateRequest request = new BookmarkUpdateRequest("새이름", null, null, null, null);
 
         User otherUser = User.of("other-user", ProviderType.KAKAO, "other123");
         setUserId(otherUser, 999L);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, otherUser);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, otherUser);
 
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
 
@@ -181,7 +182,7 @@ class BookmarkServiceTest {
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         setUserId(user, userId);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, user);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
 
@@ -219,7 +220,7 @@ class BookmarkServiceTest {
 
         User otherUser = User.of("other-user", ProviderType.KAKAO, "other123");
         setUserId(otherUser, 999L);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, otherUser);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, otherUser);
 
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
 
@@ -240,10 +241,10 @@ class BookmarkServiceTest {
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         setUserId(user, userId);
 
-        Bookmark bookmark1 = Bookmark.of("집-회사", 1000, 2000, 1, user);
+        Bookmark bookmark1 = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
         setBookmarkId(bookmark1, 1L);
 
-        Bookmark bookmark2 = Bookmark.of("회사-집", 2000, 1000, 2, user);
+        Bookmark bookmark2 = Bookmark.of("회사-집", 2000, 1000, LocalTime.of(18, 0), LocalTime.of(21, 0), 2, user);
         setBookmarkId(bookmark2, 2L);
 
         BookmarkReorderRequest.ReorderItem item1 = new BookmarkReorderRequest.ReorderItem(1L, 2);
@@ -285,7 +286,7 @@ class BookmarkServiceTest {
 
         User otherUser = User.of("other-user", ProviderType.KAKAO, "other123");
         setUserId(otherUser, 999L);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, otherUser);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, otherUser);
         setBookmarkId(bookmark, 1L);
 
         BookmarkReorderRequest.ReorderItem item = new BookmarkReorderRequest.ReorderItem(1L, 2);
@@ -308,7 +309,7 @@ class BookmarkServiceTest {
 
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         setUserId(user, userId);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, user);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
 
@@ -348,7 +349,7 @@ class BookmarkServiceTest {
 
         User otherUser = User.of("other-user", ProviderType.KAKAO, "other123");
         setUserId(otherUser, 999L);
-        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, 1, otherUser);
+        Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, otherUser);
 
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
 
