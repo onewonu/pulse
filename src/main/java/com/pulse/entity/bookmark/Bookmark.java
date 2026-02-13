@@ -7,6 +7,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(
@@ -32,6 +33,12 @@ public class Bookmark {
     @Column(name = "arrival_station_id", nullable = false)
     private Integer arrivalStationId;
 
+    @Column(name = "start_time", nullable = false)
+    private LocalTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalTime endTime;
+
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
 
@@ -53,12 +60,16 @@ public class Bookmark {
             String name,
             Integer departureStationId,
             Integer arrivalStationId,
+            LocalTime startTime,
+            LocalTime endTime,
             Integer displayOrder,
             User user
     ) {
         this.name = name;
         this.departureStationId = departureStationId;
         this.arrivalStationId = arrivalStationId;
+        this.startTime = startTime;
+        this.endTime = endTime;
         this.displayOrder = displayOrder;
         this.user = user;
     }
@@ -67,13 +78,15 @@ public class Bookmark {
             String name,
             Integer departureStationId,
             Integer arrivalStationId,
+            LocalTime startTime,
+            LocalTime endTime,
             Integer displayOrder,
             User user
     ) {
-        return new Bookmark(name, departureStationId, arrivalStationId, displayOrder, user);
+        return new Bookmark(name, departureStationId, arrivalStationId, startTime, endTime, displayOrder, user);
     }
 
-    public void update(String name, Integer departureStationId, Integer arrivalStationId) {
+    public void update(String name, Integer departureStationId, Integer arrivalStationId, LocalTime startTime, LocalTime endTime) {
         if (name != null) {
             this.name = name;
         }
@@ -82,6 +95,12 @@ public class Bookmark {
         }
         if (arrivalStationId != null) {
             this.arrivalStationId = arrivalStationId;
+        }
+        if (startTime != null) {
+            this.startTime = startTime;
+        }
+        if (endTime != null) {
+            this.endTime = endTime;
         }
     }
 
@@ -107,6 +126,14 @@ public class Bookmark {
 
     public Integer getArrivalStationId() {
         return arrivalStationId;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
     }
 
     public Integer getDisplayOrder() {

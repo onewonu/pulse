@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalTime;
+
 public record BookmarkUpdateRequest(
     @Size(max = 100, message = "Name must not exceed 100 characters")
     @JsonSetter(nulls = Nulls.FAIL)
@@ -13,5 +15,11 @@ public record BookmarkUpdateRequest(
     Integer departureStationId,
 
     @JsonSetter(nulls = Nulls.FAIL)
-    Integer arrivalStationId
+    Integer arrivalStationId,
+
+    @JsonSetter(nulls = Nulls.FAIL)
+    LocalTime startTime,
+
+    @JsonSetter(nulls = Nulls.FAIL)
+    LocalTime endTime
 ) {}

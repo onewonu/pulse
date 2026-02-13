@@ -49,6 +49,8 @@ public class BookmarkService {
             request.name(),
             request.departureStationId(),
             request.arrivalStationId(),
+            request.startTime(),
+            request.endTime(),
             newDisplayOrder,
             user
         );
@@ -68,14 +70,16 @@ public class BookmarkService {
             throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
         }
 
-        if (request.name() == null && request.departureStationId() == null && request.arrivalStationId() == null) {
+        if (request.name() == null && request.departureStationId() == null && request.arrivalStationId() == null && request.startTime() == null && request.endTime() == null) {
             throw new IllegalArgumentException("At least one field must be provided for update");
         }
 
         bookmark.update(
             request.name(),
             request.departureStationId(),
-            request.arrivalStationId()
+            request.arrivalStationId(),
+            request.startTime(),
+            request.endTime()
         );
 
         return BookmarkResponse.of(bookmark);
