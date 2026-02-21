@@ -5,11 +5,13 @@ import com.pulse.dto.bookmark.BookmarkReorderRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
 import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.entity.bookmark.Bookmark;
+import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.user.User;
 import com.pulse.exception.bookmark.BookmarkAccessDeniedException;
 import com.pulse.exception.bookmark.BookmarkNotFoundException;
 import com.pulse.exception.user.UserNotFoundException;
 import com.pulse.repository.bookmark.BookmarkRepository;
+import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +30,12 @@ public class BookmarkService {
 
     private final BookmarkRepository bookmarkRepository;
     private final UserRepository userRepository;
+    private final SubwayStationRepository subwayStationRepository;
 
-    public BookmarkService(BookmarkRepository bookmarkRepository, UserRepository userRepository) {
+    public BookmarkService(BookmarkRepository bookmarkRepository, UserRepository userRepository, SubwayStationRepository subwayStationRepository) {
         this.bookmarkRepository = bookmarkRepository;
         this.userRepository = userRepository;
+        this.subwayStationRepository = subwayStationRepository;
     }
 
     @Transactional
@@ -56,7 +60,9 @@ public class BookmarkService {
         );
 
         Bookmark savedBookmark = bookmarkRepository.save(bookmark);
-        return BookmarkResponse.of(savedBookmark);
+        String departureStationName = getStationName(savedBookmark.getDepartureStationId());
+        String arrivalStationName = getStationName(savedBookmark.getArrivalStationId());
+        return BookmarkResponse.of(savedBookmark, departureStationName, arrivalStationName);
     }
 
     @Transactional
@@ -82,7 +88,9 @@ public class BookmarkService {
             request.endTime()
         );
 
-        return BookmarkResponse.of(bookmark);
+        String departureStationName = getStationName(bookmark.getDepartureStationId());
+        String arrivalStationName = getStationName(bookmark.getArrivalStationId());
+        return BookmarkResponse.of(bookmark, departureStationName, arrivalStationName);
     }
 
     @Transactional
@@ -131,7 +139,11 @@ public class BookmarkService {
     public List<BookmarkResponse> getBookmarks(Long userId) {
         List<Bookmark> bookmarks = bookmarkRepository.findByUserIdOrderByDisplayOrderAsc(userId);
         return bookmarks.stream()
-                .map(BookmarkResponse::of)
+                .map(bookmark -> {
+                    String departureStationName = getStationName(bookmark.getDepartureStationId());
+                    String arrivalStationName = getStationName(bookmark.getArrivalStationId());
+                    return BookmarkResponse.of(bookmark, departureStationName, arrivalStationName);
+                })
                 .toList();
     }
 
@@ -146,7 +158,20 @@ public class BookmarkService {
             throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
         }
 
-        return BookmarkResponse.of(bookmark);
+        String departureStationName = getStationName(bookmark.getDepartureStationId());
+        String arrivalStationName = getStationName(bookmark.getArrivalStationId());
+
+        return BookmarkResponse.of(bookmark, departureStationName, arrivalStationName);
+    }
+
+    private String getStationName(Integer stationId) {
+        if (stationId == null) {
+            return null;
+        }
+
+        return subwayStationRepository.findById(String.valueOf(stationId))
+                .map(SubwayStation::getStationName)
+                .orElse(null);
     }
 
 }

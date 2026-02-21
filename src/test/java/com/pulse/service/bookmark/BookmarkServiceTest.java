@@ -5,12 +5,15 @@ import com.pulse.dto.bookmark.BookmarkReorderRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
 import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.entity.bookmark.Bookmark;
+import com.pulse.entity.subway.SubwayLine;
+import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.user.ProviderType;
 import com.pulse.entity.user.User;
 import com.pulse.exception.bookmark.BookmarkAccessDeniedException;
 import com.pulse.exception.bookmark.BookmarkNotFoundException;
 import com.pulse.exception.user.UserNotFoundException;
 import com.pulse.repository.bookmark.BookmarkRepository;
+import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.user.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +40,9 @@ class BookmarkServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private SubwayStationRepository subwayStationRepository;
 
     @InjectMocks
     private BookmarkService bookmarkService;
@@ -71,9 +77,16 @@ class BookmarkServiceTest {
         User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
         Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
+        SubwayLine line2 = SubwayLine.of("2호선", "#00A84D");
+        SubwayLine line7 = SubwayLine.of("7호선", "#747F00");
+        SubwayStation station1000 = SubwayStation.of("1000", "강남역", line2, 37.498095, 127.027610);
+        SubwayStation station2000 = SubwayStation.of("2000", "홍대입구역", line7, 37.557192, 126.925381);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(bookmarkRepository.findMaxDisplayOrderByUserId(userId)).thenReturn(0);
         when(bookmarkRepository.save(any(Bookmark.class))).thenReturn(bookmark);
+        when(subwayStationRepository.findById("1000")).thenReturn(Optional.of(station1000));
+        when(subwayStationRepository.findById("2000")).thenReturn(Optional.of(station2000));
 
         // When
         BookmarkResponse response = bookmarkService.createBookmark(userId, request);
@@ -82,7 +95,9 @@ class BookmarkServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("집-회사");
         assertThat(response.departureStationId()).isEqualTo(1000);
+        assertThat(response.departureStationName()).isEqualTo("강남역");
         assertThat(response.arrivalStationId()).isEqualTo(2000);
+        assertThat(response.arrivalStationName()).isEqualTo("홍대입구역");
 
         verify(userRepository, times(1)).findById(userId);
         verify(bookmarkRepository, times(1)).save(any(Bookmark.class));
@@ -115,8 +130,15 @@ class BookmarkServiceTest {
         Bookmark bookmark1 = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
         Bookmark bookmark2 = Bookmark.of("회사-집", 2000, 1000, LocalTime.of(18, 0), LocalTime.of(21, 0), 2, user);
 
+        SubwayLine line2 = SubwayLine.of("2호선", "#00A84D");
+        SubwayLine line7 = SubwayLine.of("7호선", "#747F00");
+        SubwayStation station1000 = SubwayStation.of("1000", "강남역", line2, 37.498095, 127.027610);
+        SubwayStation station2000 = SubwayStation.of("2000", "홍대입구역", line7, 37.557192, 126.925381);
+
         when(bookmarkRepository.findByUserIdOrderByDisplayOrderAsc(userId))
                 .thenReturn(List.of(bookmark1, bookmark2));
+        when(subwayStationRepository.findById("1000")).thenReturn(Optional.of(station1000));
+        when(subwayStationRepository.findById("2000")).thenReturn(Optional.of(station2000));
 
         // When
         List<BookmarkResponse> responses = bookmarkService.getBookmarks(userId);
@@ -124,7 +146,11 @@ class BookmarkServiceTest {
         // Then
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).name()).isEqualTo("집-회사");
+        assertThat(responses.get(0).departureStationName()).isEqualTo("강남역");
+        assertThat(responses.get(0).arrivalStationName()).isEqualTo("홍대입구역");
         assertThat(responses.get(1).name()).isEqualTo("회사-집");
+        assertThat(responses.get(1).departureStationName()).isEqualTo("홍대입구역");
+        assertThat(responses.get(1).arrivalStationName()).isEqualTo("강남역");
 
         verify(bookmarkRepository, times(1)).findByUserIdOrderByDisplayOrderAsc(userId);
     }
@@ -141,7 +167,14 @@ class BookmarkServiceTest {
         setUserId(user, userId);
         Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
+        SubwayLine line2 = SubwayLine.of("2호선", "#00A84D");
+        SubwayLine line7 = SubwayLine.of("7호선", "#747F00");
+        SubwayStation station1000 = SubwayStation.of("1000", "강남역", line2, 37.498095, 127.027610);
+        SubwayStation station2000 = SubwayStation.of("2000", "홍대입구역", line7, 37.557192, 126.925381);
+
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
+        when(subwayStationRepository.findById("1000")).thenReturn(Optional.of(station1000));
+        when(subwayStationRepository.findById("2000")).thenReturn(Optional.of(station2000));
 
         // When
         BookmarkResponse response = bookmarkService.updateBookmark(userId, bookmarkId, request);
@@ -149,6 +182,8 @@ class BookmarkServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("새이름");
+        assertThat(response.departureStationName()).isEqualTo("강남역");
+        assertThat(response.arrivalStationName()).isEqualTo("홍대입구역");
 
         verify(bookmarkRepository, times(1)).findById(bookmarkId);
     }
@@ -311,7 +346,14 @@ class BookmarkServiceTest {
         setUserId(user, userId);
         Bookmark bookmark = Bookmark.of("집-회사", 1000, 2000, LocalTime.of(9, 0), LocalTime.of(18, 0), 1, user);
 
+        SubwayLine line2 = SubwayLine.of("2호선", "#00A84D");
+        SubwayLine line7 = SubwayLine.of("7호선", "#747F00");
+        SubwayStation station1000 = SubwayStation.of("1000", "강남역", line2, 37.498095, 127.027610);
+        SubwayStation station2000 = SubwayStation.of("2000", "홍대입구역", line7, 37.557192, 126.925381);
+
         when(bookmarkRepository.findById(bookmarkId)).thenReturn(Optional.of(bookmark));
+        when(subwayStationRepository.findById("1000")).thenReturn(Optional.of(station1000));
+        when(subwayStationRepository.findById("2000")).thenReturn(Optional.of(station2000));
 
         // When
         BookmarkResponse response = bookmarkService.getBookmark(userId, bookmarkId);
@@ -320,7 +362,9 @@ class BookmarkServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("집-회사");
         assertThat(response.departureStationId()).isEqualTo(1000);
+        assertThat(response.departureStationName()).isEqualTo("강남역");
         assertThat(response.arrivalStationId()).isEqualTo(2000);
+        assertThat(response.arrivalStationName()).isEqualTo("홍대입구역");
 
         verify(bookmarkRepository, times(1)).findById(bookmarkId);
     }
