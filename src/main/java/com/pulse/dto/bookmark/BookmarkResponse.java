@@ -10,18 +10,22 @@ public record BookmarkResponse(
     String name,
     Integer departureStationId,
     Integer arrivalStationId,
+    String departureStationName,
+    String arrivalStationName,
     LocalTime startTime,
     LocalTime endTime,
     Integer displayOrder,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
-    public static BookmarkResponse of(Bookmark bookmark) {
+    public static BookmarkResponse of(Bookmark bookmark, String departureStationName, String arrivalStationName) {
         return new BookmarkResponse(
             bookmark.getId(),
             bookmark.getName(),
             bookmark.getDepartureStationId(),
             bookmark.getArrivalStationId(),
+            departureStationName,
+            arrivalStationName,
             bookmark.getStartTime(),
             bookmark.getEndTime(),
             bookmark.getDisplayOrder(),
