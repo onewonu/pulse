@@ -12,13 +12,25 @@ public record BookmarkResponse(
     Integer arrivalStationId,
     String departureStationName,
     String arrivalStationName,
+    String departureLineName,
+    String departureLineColor,
+    String arrivalLineName,
+    String arrivalLineColor,
     LocalTime startTime,
     LocalTime endTime,
     Integer displayOrder,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
-    public static BookmarkResponse of(Bookmark bookmark, String departureStationName, String arrivalStationName) {
+    public static BookmarkResponse of(
+        Bookmark bookmark,
+        String departureStationName,
+        String arrivalStationName,
+        String departureLineName,
+        String departureLineColor,
+        String arrivalLineName,
+        String arrivalLineColor
+    ) {
         return new BookmarkResponse(
             bookmark.getId(),
             bookmark.getName(),
@@ -26,6 +38,10 @@ public record BookmarkResponse(
             bookmark.getArrivalStationId(),
             departureStationName,
             arrivalStationName,
+            departureLineName,
+            departureLineColor,
+            arrivalLineName,
+            arrivalLineColor,
             bookmark.getStartTime(),
             bookmark.getEndTime(),
             bookmark.getDisplayOrder(),

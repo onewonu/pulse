@@ -60,9 +60,17 @@ public class BookmarkService {
         );
 
         Bookmark savedBookmark = bookmarkRepository.save(bookmark);
-        String departureStationName = getStationName(savedBookmark.getDepartureStationId());
-        String arrivalStationName = getStationName(savedBookmark.getArrivalStationId());
-        return BookmarkResponse.of(savedBookmark, departureStationName, arrivalStationName);
+        StationInfo departureInfo = getStationInfo(savedBookmark.getDepartureStationId());
+        StationInfo arrivalInfo = getStationInfo(savedBookmark.getArrivalStationId());
+        return BookmarkResponse.of(
+                savedBookmark,
+                departureInfo != null ? departureInfo.stationName() : null,
+                arrivalInfo != null ? arrivalInfo.stationName() : null,
+                departureInfo != null ? departureInfo.lineName() : null,
+                departureInfo != null ? departureInfo.lineColor() : null,
+                arrivalInfo != null ? arrivalInfo.lineName() : null,
+                arrivalInfo != null ? arrivalInfo.lineColor() : null
+        );
     }
 
     @Transactional
@@ -88,9 +96,17 @@ public class BookmarkService {
             request.endTime()
         );
 
-        String departureStationName = getStationName(bookmark.getDepartureStationId());
-        String arrivalStationName = getStationName(bookmark.getArrivalStationId());
-        return BookmarkResponse.of(bookmark, departureStationName, arrivalStationName);
+        StationInfo departureInfo = getStationInfo(bookmark.getDepartureStationId());
+        StationInfo arrivalInfo = getStationInfo(bookmark.getArrivalStationId());
+        return BookmarkResponse.of(
+                bookmark,
+                departureInfo != null ? departureInfo.stationName() : null,
+                arrivalInfo != null ? arrivalInfo.stationName() : null,
+                departureInfo != null ? departureInfo.lineName() : null,
+                departureInfo != null ? departureInfo.lineColor() : null,
+                arrivalInfo != null ? arrivalInfo.lineName() : null,
+                arrivalInfo != null ? arrivalInfo.lineColor() : null
+        );
     }
 
     @Transactional
@@ -140,9 +156,17 @@ public class BookmarkService {
         List<Bookmark> bookmarks = bookmarkRepository.findByUserIdOrderByDisplayOrderAsc(userId);
         return bookmarks.stream()
                 .map(bookmark -> {
-                    String departureStationName = getStationName(bookmark.getDepartureStationId());
-                    String arrivalStationName = getStationName(bookmark.getArrivalStationId());
-                    return BookmarkResponse.of(bookmark, departureStationName, arrivalStationName);
+                    StationInfo departureInfo = getStationInfo(bookmark.getDepartureStationId());
+                    StationInfo arrivalInfo = getStationInfo(bookmark.getArrivalStationId());
+                    return BookmarkResponse.of(
+                            bookmark,
+                            departureInfo != null ? departureInfo.stationName() : null,
+                            arrivalInfo != null ? arrivalInfo.stationName() : null,
+                            departureInfo != null ? departureInfo.lineName() : null,
+                            departureInfo != null ? departureInfo.lineColor() : null,
+                            arrivalInfo != null ? arrivalInfo.lineName() : null,
+                            arrivalInfo != null ? arrivalInfo.lineColor() : null
+                    );
                 })
                 .toList();
     }
@@ -158,20 +182,38 @@ public class BookmarkService {
             throw new BookmarkAccessDeniedException("You do not have permission to access this bookmark");
         }
 
-        String departureStationName = getStationName(bookmark.getDepartureStationId());
-        String arrivalStationName = getStationName(bookmark.getArrivalStationId());
+        StationInfo departureInfo = getStationInfo(bookmark.getDepartureStationId());
+        StationInfo arrivalInfo = getStationInfo(bookmark.getArrivalStationId());
 
-        return BookmarkResponse.of(bookmark, departureStationName, arrivalStationName);
+        return BookmarkResponse.of(
+                bookmark,
+                departureInfo != null ? departureInfo.stationName() : null,
+                arrivalInfo != null ? arrivalInfo.stationName() : null,
+                departureInfo != null ? departureInfo.lineName() : null,
+                departureInfo != null ? departureInfo.lineColor() : null,
+                arrivalInfo != null ? arrivalInfo.lineName() : null,
+                arrivalInfo != null ? arrivalInfo.lineColor() : null
+        );
     }
 
-    private String getStationName(Integer stationId) {
+    private StationInfo getStationInfo(Integer stationId) {
         if (stationId == null) {
             return null;
         }
 
         return subwayStationRepository.findById(String.valueOf(stationId))
-                .map(SubwayStation::getStationName)
+                .map(station -> new StationInfo(
+                        station.getStationName(),
+                        station.getSubwayLine().getLineName(),
+                        station.getSubwayLine().getColor()
+                ))
                 .orElse(null);
     }
+
+    private record StationInfo(
+            String stationName,
+            String lineName,
+            String lineColor
+    ) {}
 
 }
