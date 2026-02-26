@@ -48,6 +48,13 @@ public class BookmarkController {
         return ResponseEntity.ok("Bookmarks reordered successfully");
     }
 
+    @DeleteMapping
+    public ResponseEntity<String> deleteAllBookmarks() {
+        Long userId = getCurrentUserId();
+        bookmarkService.deleteAllBookmarks(userId);
+        return ResponseEntity.ok("All bookmarks deleted successfully");
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteBookmark(@PathVariable Long id) {
         Long userId = getCurrentUserId();
