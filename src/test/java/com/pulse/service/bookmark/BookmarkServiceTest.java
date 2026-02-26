@@ -402,4 +402,40 @@ class BookmarkServiceTest {
                 .isInstanceOf(BookmarkAccessDeniedException.class)
                 .hasMessageContaining("permission");
     }
+
+    @Test
+    @DisplayName("북마크 전체 삭제 성공")
+    void deleteAllBookmarks_Success() {
+        // Given
+        Long userId = 1L;
+
+        User user = User.of("test-user", ProviderType.KAKAO, "kakao123");
+        setUserId(user, userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        doNothing().when(bookmarkRepository).deleteByUserId(userId);
+
+        // When
+        bookmarkService.deleteAllBookmarks(userId);
+
+        // Then
+        verify(userRepository, times(1)).findById(userId);
+        verify(bookmarkRepository, times(1)).deleteByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("북마크 전체 삭제 실패 - 사용자 없음")
+    void deleteAllBookmarks_UserNotFound() {
+        // Given
+        Long userId = 999L;
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> bookmarkService.deleteAllBookmarks(userId))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("User not found");
+
+        verify(bookmarkRepository, never()).deleteByUserId(any());
+    }
 }

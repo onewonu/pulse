@@ -5,7 +5,6 @@ import com.pulse.dto.bookmark.BookmarkReorderRequest;
 import com.pulse.dto.bookmark.BookmarkResponse;
 import com.pulse.dto.bookmark.BookmarkUpdateRequest;
 import com.pulse.entity.bookmark.Bookmark;
-import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.user.User;
 import com.pulse.exception.bookmark.BookmarkAccessDeniedException;
 import com.pulse.exception.bookmark.BookmarkNotFoundException;
@@ -149,6 +148,17 @@ public class BookmarkService {
         }
 
         bookmarkRepository.delete(bookmark);
+    }
+
+    @Transactional
+    public void deleteAllBookmarks(Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            log.warn("User not found: userId={}", userId);
+            throw new UserNotFoundException("User not found");
+        }
+
+        bookmarkRepository.deleteByUserId(userId);
     }
 
     @Transactional(readOnly = true)
