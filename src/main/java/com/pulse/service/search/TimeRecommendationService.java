@@ -52,13 +52,30 @@ public class TimeRecommendationService {
     public TimeRecommendationResult recommendTimes(TimeRecommendationRequest request) {
         DayInfo dayInfo = convertToDayInfo(request);
 
-        List<LocalTime> departureTimes = getAvailableDepartureTimes(request, dayInfo);
-
-        if (departureTimes.isEmpty()) {
-            throw new NoSchedulesAvailableException("No train schedules found");
+        RouteTemplate template;
+        try {
+            template = fetchRouteTemplate(request, dayInfo, request.startTime());
+            if (template == null) {
+                throw new IncompleteCongestionDataException("No route found between stations");
+            }
+        } catch (OdsayApiException e) {
+            throw new IncompleteCongestionDataException("Failed to fetch route from Odsay API");
         }
 
-        List<RouteWithCongestion> routes = generateRoutesUsingTemplate(request, dayInfo, departureTimes);
+        String actualDepartureStationId = extractActualDepartureStationId(template);
+
+        List<LocalTime> departureTimes = getAvailableDepartureTimes(
+                actualDepartureStationId,
+                dayInfo,
+                request.startTime(),
+                request.endTime()
+        );
+
+        if (departureTimes.isEmpty()) {
+            throw new NoSchedulesAvailableException("No train schedules found for the actual departure station");
+        }
+
+        List<RouteWithCongestion> routes = generateRoutesFromTemplate(template, departureTimes);
 
         if (routes.isEmpty()) {
             throw new IncompleteCongestionDataException("Congestion data incomplete for all routes");
@@ -73,54 +90,41 @@ public class TimeRecommendationService {
         return new DayInfo(dayCode, dayType);
     }
 
-    private List<LocalTime> getAvailableDepartureTimes(TimeRecommendationRequest request, DayInfo dayInfo) {
+    private String extractActualDepartureStationId(RouteTemplate template) {
+        if (template.stations().isEmpty()) {
+            throw new IncompleteCongestionDataException("Route template has no stations");
+        }
+
+        String stationId = template.stations().getFirst().stationId();
+        if (stationId == null) {
+            throw new IncompleteCongestionDataException("First station in route has no ID");
+        }
+
+        return stationId;
+    }
+
+    private List<LocalTime> getAvailableDepartureTimes(
+            String departureStationId,
+            DayInfo dayInfo,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
         return subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
-                request.departureStationId().toString(),
+                departureStationId,
                 dayInfo.dayType(),
-                request.startTime(),
-                request.endTime()
+                startTime,
+                endTime
         );
     }
 
-    private List<RouteWithCongestion> generateRoutesUsingTemplate(
-            TimeRecommendationRequest request,
-            DayInfo dayInfo,
+    private List<RouteWithCongestion> generateRoutesFromTemplate(
+            RouteTemplate template,
             List<LocalTime> departureTimes
     ) {
-        LocalTime representativeTime = selectRepresentativeTime(departureTimes);
-        if (representativeTime == null) {
-            return Collections.emptyList();
-        }
-
-        RouteTemplate template;
-        try {
-            template = fetchRouteTemplate(request, dayInfo, representativeTime);
-            if (template == null) {
-                return Collections.emptyList();
-            }
-        } catch (OdsayApiException | DataAccessException e) {
-            return Collections.emptyList();
-        }
-
         return departureTimes.stream()
                 .map(departureTime -> generateRouteFromTemplate(template, departureTime))
                 .filter(Objects::nonNull)
                 .toList();
-    }
-
-    private LocalTime selectRepresentativeTime(List<LocalTime> departureTimes) {
-        if (departureTimes.isEmpty()) {
-            return null;
-        }
-
-        if (departureTimes.size() == 1) {
-            return departureTimes.getFirst();
-        }
-
-        List<LocalTime> sorted = new ArrayList<>(departureTimes);
-        sorted.sort(LocalTime::compareTo);
-
-        return sorted.get(sorted.size() / 2);
     }
 
     private RouteTemplate fetchRouteTemplate(
