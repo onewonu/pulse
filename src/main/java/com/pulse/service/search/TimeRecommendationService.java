@@ -79,11 +79,7 @@ public class TimeRecommendationService {
 
         List<RouteWithCongestion> routes = generateRoutesFromTemplate(template, departureTimes);
 
-        if (routes.isEmpty()) {
-            throw new IncompleteCongestionDataException("Congestion data incomplete for all routes");
-        }
-
-        return buildResponse(request, dayInfo, routes);
+        return buildResponse(request, dayInfo, routes, template);
     }
 
     private DayInfo convertToDayInfo(TimeRecommendationRequest request) {
@@ -167,8 +163,29 @@ public class TimeRecommendationService {
     private TimeRecommendationResult buildResponse(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
-            List<RouteWithCongestion> routes
+            List<RouteWithCongestion> routes,
+            RouteTemplate template
     ) {
+        if (routes.isEmpty()) {
+            String departureStationName = template.stations().isEmpty()
+                    ? null
+                    : template.stations().getFirst().stationName();
+            String arrivalStationName = template.stations().isEmpty()
+                    ? null
+                    : template.stations().getLast().stationName();
+
+            return new TimeRecommendationResult(
+                    request.departureStationId(),
+                    request.arrivalStationId(),
+                    departureStationName,
+                    arrivalStationName,
+                    request.searchDate(),
+                    dayInfo.dayType(),
+                    Collections.emptyList(),
+                    "No congestion data found. Only route information is provided."
+            );
+        }
+
         Map<String, List<RouteWithCongestion>> routesByPath = routes.stream()
                 .collect(Collectors.groupingBy(this::getRoutePathKey));
 
