@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,6 +32,7 @@ public class TimeRecommendationService {
 
     private static final int SHORTEST_TIME = 1;
     private static final int SUBWAY = 1;
+    private static final int MAX_COUNT = 3;
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
     private final SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
@@ -181,11 +183,9 @@ public class TimeRecommendationService {
                         ).reversed()))
                 .orElse(Collections.emptyList());
 
-        List<RouteWithCongestion> sortedRoutes = new ArrayList<>(mostCommonPathRoutes);
-        sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.averageScore));
+        List<RouteWithCongestion> selectedRoutes = selectDiverseRecommendations(mostCommonPathRoutes, MAX_COUNT);
 
-        List<TimeRecommendationResult.TimeRecommendation> recommendations = sortedRoutes.stream()
-                .limit(3)
+        List<TimeRecommendationResult.TimeRecommendation> recommendations = selectedRoutes.stream()
                 .map(this::mapToRecommendation)
                 .toList();
 
@@ -212,6 +212,42 @@ public class TimeRecommendationService {
                 .map(station -> station.stationId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining("-"));
+    }
+
+    private List<RouteWithCongestion> selectDiverseRecommendations(List<RouteWithCongestion> routes, int maxCount) {
+        if (routes.isEmpty() || maxCount <= 0) {
+            return Collections.emptyList();
+        }
+
+        List<RouteWithCongestion> sortedRoutes = new ArrayList<>(routes);
+        sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.averageScore));
+
+        Map<CongestionLevel, List<RouteWithCongestion>> levelGroups = sortedRoutes.stream()
+                .collect(Collectors.groupingBy(
+                        route -> CongestionLevel.fromScore(route.congestionData.averageScore),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<RouteWithCongestion> firstFromEachLevel = Stream.of(CongestionLevel.values())
+                .map(levelGroups::get)
+                .filter(list -> list != null && !list.isEmpty())
+                .map(List::getFirst)
+                .limit(maxCount)
+                .toList();
+
+        if (firstFromEachLevel.size() >= maxCount) {
+            return firstFromEachLevel;
+        }
+
+        Set<RouteWithCongestion> selectedSet = new HashSet<>(firstFromEachLevel);
+
+        List<RouteWithCongestion> remaining = sortedRoutes.stream()
+                .filter(route -> !selectedSet.contains(route))
+                .limit((long) maxCount - firstFromEachLevel.size())
+                .toList();
+
+        return Stream.concat(firstFromEachLevel.stream(), remaining.stream()).toList();
     }
 
     private String extractStationName(List<RouteWithCongestion> routes, boolean isDeparture) {
