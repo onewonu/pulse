@@ -34,6 +34,8 @@ public class TimeRecommendationService {
     private static final int SHORTEST_TIME = 1;
     private static final int SUBWAY = 1;
     private static final int MAX_COUNT = 3;
+    private static final DateTimeFormatter TIME_FORMAT_HHMM = DateTimeFormatter.ofPattern("HHmm");
+    private static final DateTimeFormatter TIME_FORMAT_HHMMSS = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
     private final SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
@@ -98,7 +100,7 @@ public class TimeRecommendationService {
                 request.departureStationId(),
                 request.arrivalStationId(),
                 dayInfo.dayCode(),
-                representativeTime.format(DateTimeFormatter.ofPattern("HHmm"))
+                representativeTime.format(TIME_FORMAT_HHMM)
         );
 
         OdsaySubwayScheduleResponse.PathData path = extractFastestPath(response);
@@ -365,8 +367,8 @@ public class TimeRecommendationService {
         LocalTime arrivalTime = departureTime.plusMinutes(template.totalTime());
 
         OdsaySubwayScheduleResponse.InfoData info = new OdsaySubwayScheduleResponse.InfoData();
-        info.setDepartureTime(departureTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-        info.setArrivalTime(arrivalTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+        info.setDepartureTime(departureTime.format(TIME_FORMAT_HHMMSS));
+        info.setArrivalTime(arrivalTime.format(TIME_FORMAT_HHMMSS));
         info.setTotalTime(template.totalTime());
         info.setTransferCount(template.transferCount());
 
