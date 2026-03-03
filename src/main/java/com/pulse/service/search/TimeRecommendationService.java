@@ -499,9 +499,9 @@ public class TimeRecommendationService {
                             station.lineColor,
                             station.arrivalTime,
                             station.departureTime,
-                            passenger != null ? passenger.getBoardingCount() : null,
-                            passenger != null ? passenger.getAlightingCount() : null,
-                            passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null
+                            getBoardingCount(passenger),
+                            getAlightingCount(passenger),
+                            getTotalPassengers(passenger)
                     );
                 })
                 .toList();
@@ -515,6 +515,18 @@ public class TimeRecommendationService {
                 congestionLevel,
                 stationCongestions
         );
+    }
+
+    private Integer getBoardingCount(SubwayPassengerHourly passenger) {
+        return passenger != null ? passenger.getBoardingCount() : null;
+    }
+
+    private Integer getAlightingCount(SubwayPassengerHourly passenger) {
+        return passenger != null ? passenger.getAlightingCount() : null;
+    }
+
+    private Integer getTotalPassengers(SubwayPassengerHourly passenger) {
+        return passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null;
     }
 
     private record RouteTemplate(
