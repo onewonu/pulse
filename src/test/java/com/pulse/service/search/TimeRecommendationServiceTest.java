@@ -108,7 +108,7 @@ class TimeRecommendationServiceTest {
         OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
         response.setResult(resultData);
 
-        when(odsayClient.searchSubwaySchedule(1000, 2000, 1, "0930")).thenReturn(response);
+        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
 
         // 호선 정보
         SubwayLine line2 = SubwayLine.of("수도권 2호선", "#00A84D");
@@ -149,7 +149,7 @@ class TimeRecommendationServiceTest {
         verify(subwayTrainScheduleRepository, times(1))
                 .findDistinctDepartureTimesByStationIdAndDayAndTimeRange("1000", "평일",
                         LocalTime.of(9, 0), LocalTime.of(10, 0));
-        verify(odsayClient, times(1)).searchSubwaySchedule(1000, 2000, 1, "0930");
+        verify(odsayClient, times(1)).searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString());
         verify(subwayLineRepository, times(1)).findById("수도권 2호선");
         verify(subwayPassengerHourlyRepository, times(1))
                 .findByStationIdsAndHourSlot(anyList(), eq((byte) 9));
@@ -166,6 +166,40 @@ class TimeRecommendationServiceTest {
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
         );
+
+        // Odsay API 응답 생성 (fetchRouteTemplate 호출용)
+        OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
+        station1.setStationID(1000);
+        station1.setStationName("강남역");
+        station1.setDepartureTime("09:00:00");
+        station1.setArrivalTime("09:00:00");
+
+        OdsaySubwayScheduleResponse.PassStopListData passStopList = new OdsaySubwayScheduleResponse.PassStopListData();
+        passStopList.setStations(List.of(station1));
+
+        OdsaySubwayScheduleResponse.SubPathData subPath = new OdsaySubwayScheduleResponse.SubPathData();
+        subPath.setMovingType(1);
+        subPath.setLaneName("수도권 2호선");
+        subPath.setPassStopList(passStopList);
+
+        OdsaySubwayScheduleResponse.InfoData info = new OdsaySubwayScheduleResponse.InfoData();
+        info.setDepartureTime("09:00:00");
+        info.setArrivalTime("09:05:00");
+        info.setTotalTime(5);
+        info.setTransferCount(0);
+
+        OdsaySubwayScheduleResponse.PathData path = new OdsaySubwayScheduleResponse.PathData();
+        path.setPathType(1);
+        path.setInfo(info);
+        path.setSubPath(List.of(subPath));
+
+        OdsaySubwayScheduleResponse.ResultData resultData = new OdsaySubwayScheduleResponse.ResultData();
+        resultData.setPath(List.of(path));
+
+        OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
+        response.setResult(resultData);
+
+        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
 
         when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
                 anyString(), anyString(), any(LocalTime.class), any(LocalTime.class)))
@@ -192,10 +226,6 @@ class TimeRecommendationServiceTest {
                 LocalTime.of(10, 0)
         );
 
-        when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
-                "1000", "평일", LocalTime.of(9, 0), LocalTime.of(10, 0)))
-                .thenReturn(List.of(LocalTime.of(9, 30)));
-
         // Odsay API가 빈 경로 반환
         OdsaySubwayScheduleResponse.ResultData resultData = new OdsaySubwayScheduleResponse.ResultData();
         resultData.setPath(List.of());
@@ -209,11 +239,7 @@ class TimeRecommendationServiceTest {
         // When & Then
         assertThatThrownBy(() -> timeRecommendationService.recommendTimes(request))
                 .isInstanceOf(IncompleteCongestionDataException.class)
-                .hasMessageContaining("Congestion data incomplete");
-
-        verify(subwayTrainScheduleRepository, times(1))
-                .findDistinctDepartureTimesByStationIdAndDayAndTimeRange("1000", "평일",
-                        LocalTime.of(9, 0), LocalTime.of(10, 0));
+                .hasMessageContaining("No route found between stations");
     }
 
     @Test
@@ -227,6 +253,40 @@ class TimeRecommendationServiceTest {
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
         );
+
+        // Odsay API 응답 생성
+        OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
+        station1.setStationID(1000);
+        station1.setStationName("강남역");
+        station1.setDepartureTime("09:00:00");
+        station1.setArrivalTime("09:00:00");
+
+        OdsaySubwayScheduleResponse.PassStopListData passStopList = new OdsaySubwayScheduleResponse.PassStopListData();
+        passStopList.setStations(List.of(station1));
+
+        OdsaySubwayScheduleResponse.SubPathData subPath = new OdsaySubwayScheduleResponse.SubPathData();
+        subPath.setMovingType(1);
+        subPath.setLaneName("수도권 2호선");
+        subPath.setPassStopList(passStopList);
+
+        OdsaySubwayScheduleResponse.InfoData info = new OdsaySubwayScheduleResponse.InfoData();
+        info.setDepartureTime("09:00:00");
+        info.setArrivalTime("09:05:00");
+        info.setTotalTime(5);
+        info.setTransferCount(0);
+
+        OdsaySubwayScheduleResponse.PathData path = new OdsaySubwayScheduleResponse.PathData();
+        path.setPathType(1);
+        path.setInfo(info);
+        path.setSubPath(List.of(subPath));
+
+        OdsaySubwayScheduleResponse.ResultData resultData = new OdsaySubwayScheduleResponse.ResultData();
+        resultData.setPath(List.of(path));
+
+        OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
+        response.setResult(resultData);
+
+        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
 
         when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
                 anyString(), eq("평일"), any(LocalTime.class), any(LocalTime.class)))
@@ -252,6 +312,40 @@ class TimeRecommendationServiceTest {
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
         );
+
+        // Odsay API 응답 생성
+        OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
+        station1.setStationID(1000);
+        station1.setStationName("강남역");
+        station1.setDepartureTime("09:00:00");
+        station1.setArrivalTime("09:00:00");
+
+        OdsaySubwayScheduleResponse.PassStopListData passStopList = new OdsaySubwayScheduleResponse.PassStopListData();
+        passStopList.setStations(List.of(station1));
+
+        OdsaySubwayScheduleResponse.SubPathData subPath = new OdsaySubwayScheduleResponse.SubPathData();
+        subPath.setMovingType(1);
+        subPath.setLaneName("수도권 2호선");
+        subPath.setPassStopList(passStopList);
+
+        OdsaySubwayScheduleResponse.InfoData info = new OdsaySubwayScheduleResponse.InfoData();
+        info.setDepartureTime("09:00:00");
+        info.setArrivalTime("09:05:00");
+        info.setTotalTime(5);
+        info.setTransferCount(0);
+
+        OdsaySubwayScheduleResponse.PathData path = new OdsaySubwayScheduleResponse.PathData();
+        path.setPathType(1);
+        path.setInfo(info);
+        path.setSubPath(List.of(subPath));
+
+        OdsaySubwayScheduleResponse.ResultData resultData = new OdsaySubwayScheduleResponse.ResultData();
+        resultData.setPath(List.of(path));
+
+        OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
+        response.setResult(resultData);
+
+        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
 
         when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
                 anyString(), eq("주말"), any(LocalTime.class), any(LocalTime.class)))
