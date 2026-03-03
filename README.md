@@ -499,141 +499,157 @@ StationNameNormalizer (역명 표준화)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 1단계: 요청 검증                                                   
+│ 1단계: 요청 검증 및 날짜 변환
 ├─────────────────────────────────────────────────────────────────┤
-│ StationSearchController                                          
-│ ├─ departureStationId: 출발역 ID (필수)                          
-│ ├─ arrivalStationId: 도착역 ID (필수)                            
-│ ├─ searchDate: 검색 날짜 (필수, ISO 형식)                         
-│ ├─ startTime: 시작 시간 (필수, HH:mm)                            
-│ └─ endTime: 종료 시간 (필수, HH:mm)                               
+│ StationSearchController
+│ ├─ departureStationId: 출발역 ID (필수)
+│ ├─ arrivalStationId: 도착역 ID (필수)
+│ ├─ searchDate: 검색 날짜 (필수, ISO 형식)
+│ ├─ startTime: 시작 시간 (필수, HH:mm)
+│ └─ endTime: 종료 시간 (필수, HH:mm)
+│
+│ DayCodeConverter.convert(searchDate)
+│ ├─ 월~금: dayCode = 0 (평일)
+│ └─ 토~일: dayCode = 1 (주말)
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 2단계: 요일 코드 변환                                              
+│ 2단계: 경로 템플릿 생성 (Odsay API 1회 호출)
 ├─────────────────────────────────────────────────────────────────┤
-│ DayCodeConverter.convert(searchDate)                             
-│ ├─ 월~금: dayCode = 0 (평일)                                     
-│ └─ 토~일: dayCode = 1 (주말)                                     
+│ fetchRouteTemplate(startTime)
+│
+│ 1. Odsay API 호출
+│    └─ OdsayClient.searchSubwaySchedule()
+│        ├─ 출발역, 도착역, 요일, 대표시간(startTime)
+│        └─ 응답: 경로 정보 (역 시퀀스, 소요시간, 환승 등)
+│
+│ 2. 최단시간 경로 선택
+│    └─ extractFastestPath()
+│        └─ pathType=1 (최단시간) 경로 선택
+│
+│ 3. 역 템플릿 추출
+│    └─ extractStationTemplates()
+│        ├─ 각 역의 도착 시간 파싱
+│        ├─ 출발역 기준 시간 오프셋 계산
+│        │   예: 출발역 +0분, 역삼 +3분, 선릉 +6분
+│        └─ StationTemplate 생성:
+│            ├─ stationId, stationName
+│            ├─ lineName, lineColor
+│            └─ minutesFromDeparture (시간 오프셋)
+│
+│ 4. RouteTemplate 생성
+│    ├─ stations: 역 시퀀스 + 시간 오프셋
+│    ├─ totalTime: 총 소요 시간
+│    ├─ transferCount: 환승 횟수
+│    └─ referenceDepartureTime: 기준 출발 시간
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 3단계: Odsay 경로 검색 (Rate Limit 고려)                          
+│ 3단계: 실제 출발역 ID 확정 (다중노선 환승역 문제 해결)
 ├─────────────────────────────────────────────────────────────────┤
-│ TimeRecommendationService.recommendTimes()                       
-│                                                                   
-│ For each time in [startTime, endTime]:
-│   ├─ DB에서 실제 열차 출발 시간 조회 (SubwayTrainSchedule)
-│   │   예: 08:00, 08:03, 08:06, 08:09, ... (배차 간격에 따라)
-│   ├─ OdsayClient.searchRoute(departure, arrival, date, time)
-│   └─ 경로 정보 수집:                                              
-│       ├─ departureTime: 출발 시간                                
-│       ├─ arrivalTime: 도착 시간                                  
-│       ├─ totalTime: 총 소요 시간 (분)                            
-│       ├─ transferCount: 환승 횟수                                
-│       └─ path: 경유 역 목록                                       
+│ extractActualDepartureStationId(template)
+│
+│ 📌 문제 상황:
+│    사용자 선택: 시청 2호선 (ID: 222)
+│    실제 경로: 시청 1호선 (ID: 150) 사용
+│    → 사용자 선택 ID로 DB 조회 시 스케줄 없음 오류
+│
+│ 💡 해결책:
+│    템플릿의 첫 번째 역 ID를 실제 출발역으로 사용
+│    └─ Odsay API가 결정한 실제 경로 기준
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 4단계: 경유 역별 승객 통계 조회                                     
+│ 4단계: DB에서 실제 열차 출발 시간 조회
 ├─────────────────────────────────────────────────────────────────┤
-│ For each route:                                                  
-│   For each station in route.path:                                
-│     ├─ StationNameNormalizer.normalize(stationName)             
-│     ├─ SubwayStationRepository.findByName(normalized)           
-│     └─ SubwayPassengerHourlyRepository.findByStationAndDateTime
-│         ├─ statDate: searchDate                                 
-│         └─ hourSlot: station 도착 시간의 시간대                   
+│ getAvailableDepartureTimes(actualStationId, dayType, range)
+│
+│ SubwayTrainScheduleRepository.findDistinctDepartureTimes()
+│ ├─ WHERE station_id = actualDepartureStationId
+│ ├─ AND day_code = 0 (또는 1)
+│ ├─ AND departure_time BETWEEN startTime AND endTime
+│ └─ ORDER BY departure_time
+│
+│ 결과 예시: [08:00, 08:03, 08:06, 08:09, 08:12, ...]
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5단계: 혼잡도 점수 계산 및 레벨 분류
+│ 5단계: 템플릿 기반 추천 생성 및 혼잡도 계산
 ├─────────────────────────────────────────────────────────────────┤
-│ For each route:
-│   1. 총 혼잡도 계산
-│      totalScore = Σ (boardingCount + alightingCount)
+│ generateRecommendationsFromTemplate(template, departureTimes)
 │
-│      경유하는 모든 역의:
-│      - 승차 인원 (boardingCount)
-│      - 하차 인원 (alightingCount)
-│      을 합산
+│ For each departureTime in [08:00, 08:03, 08:06, ...]:
 │
-│      ※ 승객 데이터가 없는 역은 계산에서 제외
+│   1. 역별 도착 시간 계산
+│      └─ calculateStationTimesForDeparture()
+│          ├─ 각 역의 시간 = departureTime + minutesFromDeparture
+│          │   예: 08:00 + 3분 → 역삼 08:03 도착
+│          └─ StationWithTime 생성 (역 ID, 이름, 도착시간)
 │
-│   2. 역당 평균 혼잡도 계산
-│      averageScore = totalScore / validStationCount
-│      ├─ validStationCount: 승객 데이터가 있는 역 수
-│      ├─ 누락 역은 계산에서 제외
-│      └─ 실제 데이터 기반 평균으로 정확도 향상
+│   2. 혼잡도 데이터 조회 및 계산
+│      └─ calculateCongestion(stationsWithTime)
+│          ├─ deduplicateStations(): 환승역 중복 제거
+│          ├─ groupStationIdsByHour(): 시간대별 그룹화
+│          │   예: {8시: [역1, 역2], 9시: [역3, 역4]}
+│          ├─ fetchPassengerData(): DB에서 승객 데이터 조회
+│          │   SubwayPassengerHourlyRepository 배치 조회
+│          └─ calculateAverageScore(): 평균 혼잡도 계산
+│              totalScore = Σ(승차+하차) / 데이터있는역수
 │
-│   3. 혼잡도 레벨 분류 (averageScore 기준)
-│      ├─ LOW: averageScore < 2,000 (한산함)
-│      │   → 역당 평균 2,000명 미만
-│      ├─ MEDIUM: 2,000 ≤ averageScore < 5,000 (보통)
-│      │   → 역당 평균 2,000~5,000명
-│      └─ HIGH: averageScore ≥ 5,000 (혼잡)
-│          → 역당 평균 5,000명 이상
-│
-│ 📊 특징:
-│     - 경로 길이에 영향받지 않는 공정한 혼잡도 비교
-│     - 역당 평균으로 실제 체감 혼잡도 반영
-│     - 데이터 있는 역 기반 계산으로 정확도 향상
+│   3. DepartureTimeRecommendation 생성
+│      ├─ pathInfo: 경로 메타데이터
+│      ├─ stations: 역 시퀀스 + 시간
+│      └─ congestion: 혼잡도 데이터
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6단계: 경로 패턴 선택 및 정렬
+│ 6단계: 경로 패턴 선택 및 다양성 기반 추천
 ├─────────────────────────────────────────────────────────────────┤
-│ 1. 경로 그룹화
-│    ├─ 역 ID 시퀀스로 경로 패턴 구분
-│    │   예: "1001-1002-1003" (강남-역삼-선릉)
-│    └─ Map<경로키, List<시간대별 경로>> 생성
+│ buildResponse(recommendations)
 │
-│ 2. 최다 빈도 경로 선택
-│    ├─ 각 경로 패턴의 빈도(List size) 비교
-│    ├─ 가장 많은 시간대에 나타나는 경로 패턴 선택
-│    └─ 동점일 경우:
-│        └─ 해당 경로의 평균 혼잡도가 낮은 경로 우선
-│           (각 경로의 모든 시간대 averageScore 평균 계산)
+│ 1. 최다 빈도 경로 선택
+│    └─ selectMostCommonPath()
+│        ├─ generatePathKey(): 역 ID 시퀀스로 경로 패턴 구분
+│        │   예: "1001-1002-1003" (강남-역삼-선릉)
+│        ├─ 경로 패턴별 그룹화
+│        └─ 최다 빈도 경로 선택 (동점 시 평균 혼잡도 낮은 것)
 │
-│ 📊 경로 선택 예시:
-│     경로A (강남-역삼-선릉): 10개 시간대, 평균 혼잡도 1200
-│     경로B (강남-신논현-논현): 8개 시간대, 평균 혼잡도 800
-│     경로C (강남-역삼-선릉): 10개 시간대, 평균 혼잡도 800 ← 선택
+│ 2. 다양성 기반 추천 선택 (최대 3개)
+│    └─ selectDiverseRecommendations()
+│        ├─ 혼잡도 점수 오름차순 정렬
+│        ├─ groupByLevel(): 혼잡도 레벨별 그룹화
+│        │   ├─ LOW: score < 2,000 (한산함)
+│        │   ├─ MEDIUM: 2,000 ≤ score < 5,000 (보통)
+│        │   └─ HIGH: score ≥ 5,000 (혼잡)
+│        ├─ selectFirstFromEachLevel(): 각 레벨에서 1개씩 선택
+│        └─ fillRemainingSlots(): 부족하면 낮은 혼잡도 순 채움
 │
-│     → 경로A와 C가 동일 빈도(10개) → 평균 혼잡도 낮은 경로C 선택
+│ 📊 추천 결과 예시:
+│     1위: 08:12 출발 - 혼잡도 LOW (1,200명)
+│     2위: 08:24 출발 - 혼잡도 MEDIUM (3,500명)
+│     3위: 08:36 출발 - 혼잡도 HIGH (5,800명)
 │
-│ 3. 선택된 경로 내 시간대 정렬
-│    ├─ 동일 경로의 시간대별 데이터만 비교
-│    ├─ averageScore 오름차순 정렬 (낮은 혼잡도 우선)
-│    └─ 상위 3개 시간대 선택
-│
-│ 4. TimeRecommendationResult 생성:
-│     ├─ departureStationName: 출발역명
-│     ├─ arrivalStationName: 도착역명
-│     ├─ travelDate: 검색 날짜
-│     ├─ dayType: "평일" 또는 "주말"
-│     └─ recommendations: [
-│           {
-│             departureTime: 출발 시간
-│             arrivalTime: 도착 시간
-│             totalTime: 소요 시간 (분)
-│             transferCount: 환승 횟수
-│             congestionScore: 역당 평균 혼잡도 (averageScore)
-│             congestionLevel: LOW/MEDIUM/HIGH
-│             stationCongestions: [
-│               {
-│                 stationName: 역명
-│                 lineName: 노선명
-│                 lineColor: 노선 색상
-│                 arrivalTime: 도착 시간
-│                 departureTime: 출발 시간
-│                 boardingCount: 승차 인원 (null 가능)
-│                 alightingCount: 하차 인원 (null 가능)
-│                 totalPassengers: 총 승객 (null 가능)
-│               }, ...
-│             ]
-│           }, ...
-│         ]
+│ 3. TimeRecommendationResult 생성
+│    ├─ departureStationName, arrivalStationName
+│    ├─ travelDate, dayType
+│    └─ recommendations: [
+│          {
+│            departureTime: 출발 시간
+│            arrivalTime: 도착 시간
+│            totalTime: 소요 시간 (분)
+│            transferCount: 환승 횟수
+│            congestionScore: 역당 평균 혼잡도
+│            congestionLevel: LOW/MEDIUM/HIGH
+│            stationCongestions: [
+│              {
+│                stationName, lineName, lineColor
+│                arrivalTime, departureTime
+│                boardingCount, alightingCount
+│                totalPassengers
+│              }, ...
+│            ]
+│          }, ...
+│        ]
 └─────────────────────────────────────────────────────────────────┘
 ```
 

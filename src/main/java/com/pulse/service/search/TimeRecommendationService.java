@@ -20,9 +20,11 @@ import com.pulse.util.TimeParser;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,6 +33,9 @@ public class TimeRecommendationService {
 
     private static final int SHORTEST_TIME = 1;
     private static final int SUBWAY = 1;
+    private static final int MAX_COUNT = 3;
+    private static final DateTimeFormatter TIME_FORMAT_HHMM = DateTimeFormatter.ofPattern("HHmm");
+    private static final DateTimeFormatter TIME_FORMAT_HHMMSS = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final SubwayTrainScheduleRepository subwayTrainScheduleRepository;
     private final SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
@@ -52,19 +57,32 @@ public class TimeRecommendationService {
     public TimeRecommendationResult recommendTimes(TimeRecommendationRequest request) {
         DayInfo dayInfo = convertToDayInfo(request);
 
-        List<LocalTime> departureTimes = getAvailableDepartureTimes(request, dayInfo);
+        RouteTemplate template;
+        try {
+            template = fetchRouteTemplate(request, dayInfo, request.startTime());
+            if (template == null) {
+                throw new IncompleteCongestionDataException("No route found between stations");
+            }
+        } catch (OdsayApiException e) {
+            throw new IncompleteCongestionDataException("Failed to fetch route from Odsay API");
+        }
+
+        String actualDepartureStationId = extractActualDepartureStationId(template);
+
+        List<LocalTime> departureTimes = getAvailableDepartureTimes(
+                actualDepartureStationId,
+                dayInfo,
+                request.startTime(),
+                request.endTime()
+        );
 
         if (departureTimes.isEmpty()) {
-            throw new NoSchedulesAvailableException("No train schedules found");
+            throw new NoSchedulesAvailableException("No train schedules found for the actual departure station");
         }
 
-        List<RouteWithCongestion> routes = processAllDepartureTimes(request, dayInfo, departureTimes);
+        List<DepartureTimeRecommendation> recommendations = generateRecommendationsFromTemplate(template, departureTimes);
 
-        if (routes.isEmpty()) {
-            throw new IncompleteCongestionDataException("Congestion data incomplete for all routes");
-        }
-
-        return buildResponse(request, dayInfo, routes);
+        return buildResponse(request, dayInfo, recommendations, template);
     }
 
     private DayInfo convertToDayInfo(TimeRecommendationRequest request) {
@@ -73,116 +91,39 @@ public class TimeRecommendationService {
         return new DayInfo(dayCode, dayType);
     }
 
-    private List<LocalTime> getAvailableDepartureTimes(TimeRecommendationRequest request, DayInfo dayInfo) {
-        return subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
-                request.departureStationId().toString(),
-                dayInfo.dayType(),
-                request.startTime(),
-                request.endTime()
-        );
-    }
-
-    private List<RouteWithCongestion> processAllDepartureTimes(
+    private RouteTemplate fetchRouteTemplate(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
-            List<LocalTime> departureTimes
+            LocalTime representativeTime
     ) {
-        return departureTimes.stream()
-                .map(departureTime -> processSingleDepartureTime(request, dayInfo, departureTime))
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    private RouteWithCongestion processSingleDepartureTime(
-            TimeRecommendationRequest request,
-            DayInfo dayInfo,
-            LocalTime departureTime
-    ) {
-        try {
-            OdsaySubwayScheduleResponse response = odsayClient.searchSubwaySchedule(
-                    request.departureStationId(),
-                    request.arrivalStationId(),
-                    dayInfo.dayCode(),
-                    departureTime.format(DateTimeFormatter.ofPattern("HHmm"))
-            );
-
-            OdsaySubwayScheduleResponse.PathData path = extractFastestPath(response);
-            if (path == null) {
-                return null;
-            }
-
-            List<StationWithTime> stationsWithTime = extractStationsWithTime(path);
-            CongestionData congestionData = calculateCongestion(stationsWithTime);
-
-            return new RouteWithCongestion(path, stationsWithTime, congestionData);
-        } catch (OdsayApiException | DataAccessException e) {
-            return null;
-        }
-    }
-
-    private TimeRecommendationResult buildResponse(
-            TimeRecommendationRequest request,
-            DayInfo dayInfo,
-            List<RouteWithCongestion> routes
-    ) {
-        Map<String, List<RouteWithCongestion>> routesByPath = routes.stream()
-                .collect(Collectors.groupingBy(this::getRoutePathKey));
-
-        List<RouteWithCongestion> mostCommonPathRoutes = routesByPath.values().stream()
-                .max(Comparator
-                        .comparingInt(List<RouteWithCongestion>::size)
-                        .thenComparing(Comparator.comparingDouble(
-                                (List<RouteWithCongestion> routeList) -> routeList.stream()
-                                        .mapToDouble(r -> r.congestionData.averageScore)
-                                        .average()
-                                        .orElse(Double.MAX_VALUE)
-                        ).reversed()))
-                .orElse(Collections.emptyList());
-
-        List<RouteWithCongestion> sortedRoutes = new ArrayList<>(mostCommonPathRoutes);
-        sortedRoutes.sort(Comparator.comparingDouble(r -> r.congestionData.averageScore));
-
-        List<TimeRecommendationResult.TimeRecommendation> recommendations = sortedRoutes.stream()
-                .limit(3)
-                .map(this::mapToRecommendation)
-                .toList();
-
-        String departureStationName = extractStationName(mostCommonPathRoutes, true);
-        String arrivalStationName = extractStationName(mostCommonPathRoutes, false);
-
-        return new TimeRecommendationResult(
+        OdsaySubwayScheduleResponse response = odsayClient.searchSubwaySchedule(
                 request.departureStationId(),
                 request.arrivalStationId(),
-                departureStationName,
-                arrivalStationName,
-                request.searchDate(),
-                dayInfo.dayType(),
-                recommendations,
-                null
+                dayInfo.dayCode(),
+                representativeTime.format(TIME_FORMAT_HHMM)
         );
-    }
 
-    private String getRoutePathKey(RouteWithCongestion route) {
-        if (route.stationsWithTime == null) {
-            return "";
-        }
-        return route.stationsWithTime.stream()
-                .map(station -> station.stationId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining("-"));
-    }
-
-    private String extractStationName(List<RouteWithCongestion> routes, boolean isDeparture) {
-        if (routes.isEmpty()) {
+        OdsaySubwayScheduleResponse.PathData path = extractFastestPath(response);
+        if (path == null) {
             return null;
         }
 
-        List<StationWithTime> stations = routes.getFirst().stationsWithTime;
-        if (stations.isEmpty()) {
-            return null;
-        }
+        OdsaySubwayScheduleResponse.InfoData info = path.getInfo();
+        LocalTime referenceDepartureTime = TimeParser.parseHHmmss(info.getDepartureTime());
+        LocalTime referenceArrivalTime = TimeParser.parseHHmmss(info.getArrivalTime());
 
-        return isDeparture ? stations.getFirst().stationName : stations.getLast().stationName;
+        List<StationTemplate> stationTemplates = extractStationTemplates(
+                path,
+                referenceDepartureTime
+        );
+
+        return new RouteTemplate(
+                stationTemplates,
+                info.getTotalTime(),
+                info.getTransferCount(),
+                referenceDepartureTime,
+                referenceArrivalTime
+        );
     }
 
     private OdsaySubwayScheduleResponse.PathData extractFastestPath(OdsaySubwayScheduleResponse response) {
@@ -197,97 +138,360 @@ public class TimeRecommendationService {
                 .orElse(paths.getFirst());
     }
 
-    private List<StationWithTime> extractStationsWithTime(OdsaySubwayScheduleResponse.PathData path) {
+    private List<StationTemplate> extractStationTemplates(
+            OdsaySubwayScheduleResponse.PathData path,
+            LocalTime referenceDepartureTime
+    ) {
         if (path.getSubPath() == null) {
             return Collections.emptyList();
         }
 
         return path.getSubPath().stream()
                 .filter(subPath -> subPath.getMovingType() == SUBWAY)
-                .flatMap(subPath -> {
-                    OdsaySubwayScheduleResponse.PassStopListData passStopList = subPath.getPassStopList();
-                    String lineName = subPath.getLaneName();
+                .flatMap(subPath -> extractStationsFromSubPath(subPath, referenceDepartureTime))
+                .toList();
+    }
 
-                    String lineColor = Optional.ofNullable(lineName)
-                            .map(LineNameNormalizer::normalize)
-                            .flatMap(subwayLineRepository::findById)
-                            .map(SubwayLine::getColor)
-                            .orElse(null);
+    private Stream<StationTemplate> extractStationsFromSubPath(
+            OdsaySubwayScheduleResponse.SubPathData subPath,
+            LocalTime referenceDepartureTime) {
+        OdsaySubwayScheduleResponse.PassStopListData passStopList = subPath.getPassStopList();
+        if (passStopList == null || passStopList.getStations() == null) {
+            return Stream.empty();
+        }
 
-                    if (passStopList == null || passStopList.getStations() == null) {
-                        return Stream.empty();
-                    }
+        String lineName = subPath.getLaneName();
+        String lineColor = getLineColor(lineName);
 
-                    return passStopList.getStations().stream()
-                            .map(station -> {
-                                String stationId = station.getStationID() != null ? station.getStationID().toString() : null;
-                                String normalizedName = StationNameNormalizer.normalize(station.getStationName());
-                                LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
-                                LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
+        return passStopList.getStations().stream()
+                .map(station -> createStationTemplate(station, lineName, lineColor, referenceDepartureTime));
+    }
 
-                                return new StationWithTime(stationId, normalizedName, arrivalTime, departureTime, lineName, lineColor);
-                            });
+    private String getLineColor(String lineName) {
+        if (lineName == null) {
+            return null;
+        }
+
+        return Optional.of(lineName)
+                .map(LineNameNormalizer::normalize)
+                .flatMap(subwayLineRepository::findById)
+                .map(SubwayLine::getColor)
+                .orElse(null);
+    }
+
+    private StationTemplate createStationTemplate(
+            OdsaySubwayScheduleResponse.StationInfoData station,
+            String lineName,
+            String lineColor,
+            LocalTime referenceDepartureTime) {
+        String stationId = station.getStationID() != null
+                ? station.getStationID().toString()
+                : null;
+        String normalizedName = StationNameNormalizer.normalize(station.getStationName());
+        LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
+        LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
+
+        int minutesFromDepartureToArrival = 0;
+        int minutesFromDepartureToDeparture = 0;
+
+        if (arrivalTime != null && referenceDepartureTime != null) {
+            minutesFromDepartureToArrival = (int) Duration
+                    .between(referenceDepartureTime, arrivalTime)
+                    .toMinutes();
+        }
+
+        if (departureTime != null && referenceDepartureTime != null) {
+            minutesFromDepartureToDeparture = (int) Duration
+                    .between(referenceDepartureTime, departureTime)
+                    .toMinutes();
+        }
+
+        return new StationTemplate(
+                stationId,
+                normalizedName,
+                lineName,
+                lineColor,
+                minutesFromDepartureToArrival,
+                minutesFromDepartureToDeparture
+        );
+    }
+
+    private String extractActualDepartureStationId(RouteTemplate template) {
+        if (template.stations().isEmpty()) {
+            throw new IncompleteCongestionDataException("Route template has no stations");
+        }
+
+        String stationId = template.stations().getFirst().stationId();
+        if (stationId == null) {
+            throw new IncompleteCongestionDataException("First station in route has no ID");
+        }
+
+        return stationId;
+    }
+
+    private List<LocalTime> getAvailableDepartureTimes(
+            String departureStationId,
+            DayInfo dayInfo,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
+        return subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
+                departureStationId,
+                dayInfo.dayType(),
+                startTime,
+                endTime
+        );
+    }
+
+    private List<DepartureTimeRecommendation> generateRecommendationsFromTemplate(
+            RouteTemplate template,
+            List<LocalTime> departureTimes
+    ) {
+        return departureTimes.stream()
+                .map(departureTime -> generateRecommendationForDeparture(template, departureTime))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private DepartureTimeRecommendation generateRecommendationForDeparture(
+            RouteTemplate template,
+            LocalTime departureTime
+    ) {
+        try {
+            List<StationWithTime> stationsWithTime = calculateStationTimesForDeparture(
+                    template,
+                    departureTime
+            );
+
+            CongestionData congestionData = calculateCongestion(stationsWithTime);
+
+            OdsaySubwayScheduleResponse.InfoData info = createRouteInfo(template, departureTime);
+
+            OdsaySubwayScheduleResponse.PathData pathData = new OdsaySubwayScheduleResponse.PathData();
+            pathData.setInfo(info);
+            pathData.setPathType(SHORTEST_TIME);
+
+            return new DepartureTimeRecommendation(pathData, stationsWithTime, congestionData);
+        } catch (DataAccessException e) {
+            return null;
+        }
+    }
+
+    private List<StationWithTime> calculateStationTimesForDeparture(
+            RouteTemplate template,
+            LocalTime departureTime
+    ) {
+        return template.stations().stream()
+                .map(stationTemplate -> {
+                    LocalTime arrivalTime = departureTime.plusMinutes(stationTemplate.minutesFromDepartureToArrival());
+                    LocalTime stationDepartureTime = departureTime.plusMinutes(stationTemplate.minutesFromDepartureToDeparture());
+
+                    return new StationWithTime(
+                            stationTemplate.stationId(),
+                            stationTemplate.stationName(),
+                            arrivalTime,
+                            stationDepartureTime,
+                            stationTemplate.lineName(),
+                            stationTemplate.lineColor()
+                    );
                 })
                 .toList();
     }
 
     private CongestionData calculateCongestion(List<StationWithTime> stations) {
-        Map<String, StationWithTime> uniqueStations = stations.stream()
+        Map<String, StationWithTime> uniqueStations = deduplicateStations(stations);
+        Map<Byte, List<String>> stationsByHour = groupStationIdsByHour(uniqueStations.values());
+        List<SubwayPassengerHourly> passengers = fetchPassengerData(stationsByHour);
+
+        Map<String, SubwayPassengerHourly> passengerMap = passengers.stream()
+                .collect(Collectors.toMap(
+                        passenger -> passenger.getSubwayStation().getStationId(),
+                        passenger -> passenger,
+                        (existing, replacement) -> existing
+                ));
+
+        double averageScore = calculateAverageScore(passengers);
+
+        return new CongestionData(passengerMap, averageScore);
+    }
+
+    private Map<String, StationWithTime> deduplicateStations(List<StationWithTime> stations) {
+        return stations.stream()
                 .filter(station -> station.stationId != null)
                 .collect(Collectors.toMap(
                         station -> station.stationId,
                         station -> station,
                         (existing, replacement) -> existing
                 ));
+    }
 
-        Map<Byte, List<String>> stationsByHour = uniqueStations.values().stream()
+    private Map<Byte, List<String>> groupStationIdsByHour(Collection<StationWithTime> stations) {
+        return stations.stream()
                 .map(station -> {
-                    LocalTime stationTime = station.arrivalTime != null ? station.arrivalTime : station.departureTime;
-                    if (stationTime == null || station.stationId == null) {
+                    if (station.arrivalTime == null || station.stationId == null) {
                         return null;
                     }
-                    return Map.entry((byte) stationTime.getHour(), station.stationId);
+                    return Map.entry((byte) station.arrivalTime.getHour(), station.stationId);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
+    }
 
-        List<SubwayPassengerHourly> allPassengers = stationsByHour.entrySet().stream()
+    private List<SubwayPassengerHourly> fetchPassengerData(Map<Byte, List<String>> stationsByHour) {
+        return stationsByHour.entrySet().stream()
                 .flatMap(entry -> subwayPassengerHourlyRepository
                         .findByStationIdsAndHourSlot(entry.getValue(), entry.getKey())
                         .stream())
                 .toList();
+    }
 
-        Map<String, SubwayPassengerHourly> passengerMap = new HashMap<>();
-        double totalScore = 0.0;
-
-        for (SubwayPassengerHourly passenger : allPassengers) {
-            passengerMap.put(passenger.getSubwayStation().getStationId(), passenger);
-            totalScore += passenger.getBoardingCount() + passenger.getAlightingCount();
+    private double calculateAverageScore(List<SubwayPassengerHourly> passengers) {
+        if (passengers.isEmpty()) {
+            return 0.0;
         }
 
-        int validStationCount = allPassengers.size();
-        double averageScore = validStationCount > 0 ? totalScore / validStationCount : 0.0;
+        double total = passengers.stream()
+                .mapToDouble(passenger -> passenger.getBoardingCount() + passenger.getAlightingCount())
+                .sum();
 
-        return new CongestionData(
-                passengerMap,
-                averageScore
+        return total / passengers.size();
+    }
+
+    private OdsaySubwayScheduleResponse.InfoData createRouteInfo(
+            RouteTemplate template,
+            LocalTime departureTime
+    ) {
+        LocalTime arrivalTime = departureTime.plusMinutes(template.totalTime());
+
+        OdsaySubwayScheduleResponse.InfoData info = new OdsaySubwayScheduleResponse.InfoData();
+        info.setDepartureTime(departureTime.format(TIME_FORMAT_HHMMSS));
+        info.setArrivalTime(arrivalTime.format(TIME_FORMAT_HHMMSS));
+        info.setTotalTime(template.totalTime());
+        info.setTransferCount(template.transferCount());
+
+        return info;
+    }
+
+    private TimeRecommendationResult buildResponse(
+            TimeRecommendationRequest request,
+            DayInfo dayInfo,
+            List<DepartureTimeRecommendation> recommendations,
+            RouteTemplate template
+    ) {
+        if (recommendations.isEmpty()) {
+            return buildEmptyResult(request, dayInfo, template);
+        }
+
+        List<DepartureTimeRecommendation> selected = selectDiverseRecommendations(recommendations);
+
+        List<TimeRecommendationResult.TimeRecommendation> results = selected.stream()
+                .map(this::toResultRecommendation)
+                .toList();
+
+        return new TimeRecommendationResult(
+                request.departureStationId(),
+                request.arrivalStationId(),
+                getFirstStationName(template),
+                getLastStationName(template),
+                request.searchDate(),
+                dayInfo.dayType(),
+                results,
+                null
         );
     }
 
-    private TimeRecommendationResult.TimeRecommendation mapToRecommendation(RouteWithCongestion route) {
-        OdsaySubwayScheduleResponse.InfoData info = route.path.getInfo();
+    private TimeRecommendationResult buildEmptyResult(
+            TimeRecommendationRequest request,
+            DayInfo dayInfo,
+            RouteTemplate template) {
+        String departureStationName = getFirstStationName(template);
+        String arrivalStationName = getLastStationName(template);
+
+        return new TimeRecommendationResult(
+                request.departureStationId(),
+                request.arrivalStationId(),
+                departureStationName,
+                arrivalStationName,
+                request.searchDate(),
+                dayInfo.dayType(),
+                Collections.emptyList(),
+                "No congestion data found. Only route information is provided."
+        );
+    }
+
+    private String getFirstStationName(RouteTemplate template) {
+        return template.stations().isEmpty() ? null : template.stations().getFirst().stationName();
+    }
+
+    private String getLastStationName(RouteTemplate template) {
+        return template.stations().isEmpty() ? null : template.stations().getLast().stationName();
+    }
+
+    private List<DepartureTimeRecommendation> selectDiverseRecommendations(List<DepartureTimeRecommendation> recommendations) {
+        if (recommendations.isEmpty() || MAX_COUNT <= 0) {
+            return Collections.emptyList();
+        }
+
+        List<DepartureTimeRecommendation> sorted = new ArrayList<>(recommendations);
+        sorted.sort(Comparator.comparingDouble(r -> r.congestion.averageScore));
+
+        Map<CongestionLevel, List<DepartureTimeRecommendation>> levelGroups = groupByLevel(sorted);
+        List<DepartureTimeRecommendation> firstFromEachLevel = selectFirstFromEachLevel(levelGroups);
+
+        if (firstFromEachLevel.size() >= MAX_COUNT) {
+            return firstFromEachLevel;
+        }
+
+        return fillRemainingSlots(firstFromEachLevel, sorted);
+    }
+
+    private Map<CongestionLevel, List<DepartureTimeRecommendation>> groupByLevel(
+            List<DepartureTimeRecommendation> sortedRecommendations) {
+        return sortedRecommendations.stream()
+                .collect(Collectors.groupingBy(
+                        rec -> CongestionLevel.fromScore(rec.congestion.averageScore),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+    }
+
+    private List<DepartureTimeRecommendation> selectFirstFromEachLevel(
+            Map<CongestionLevel, List<DepartureTimeRecommendation>> levelGroups) {
+        return Stream.of(CongestionLevel.values())
+                .map(levelGroups::get)
+                .filter(list -> list != null && !list.isEmpty())
+                .map(List::getFirst)
+                .limit(MAX_COUNT)
+                .toList();
+    }
+
+    private List<DepartureTimeRecommendation> fillRemainingSlots(
+            List<DepartureTimeRecommendation> selected,
+            List<DepartureTimeRecommendation> sortedRecommendations) {
+        Set<DepartureTimeRecommendation> selectedSet = new HashSet<>(selected);
+
+        List<DepartureTimeRecommendation> remaining = sortedRecommendations.stream()
+                .filter(rec -> !selectedSet.contains(rec))
+                .limit((long) MAX_COUNT - selected.size())
+                .toList();
+
+        return Stream.concat(selected.stream(), remaining.stream()).toList();
+    }
+
+    private TimeRecommendationResult.TimeRecommendation toResultRecommendation(DepartureTimeRecommendation recommendation) {
+        OdsaySubwayScheduleResponse.InfoData info = recommendation.pathInfo.getInfo();
 
         LocalTime departureTime = TimeParser.parseHHmmss(info.getDepartureTime());
         LocalTime arrivalTime = TimeParser.parseHHmmss(info.getArrivalTime());
 
-        CongestionLevel congestionLevel = CongestionLevel.fromScore(route.congestionData.averageScore);
+        CongestionLevel congestionLevel = CongestionLevel.fromScore(recommendation.congestion.averageScore);
 
-        List<TimeRecommendationResult.StationCongestion> stationCongestions = route.stationsWithTime.stream()
+        List<TimeRecommendationResult.StationCongestion> stationCongestions = recommendation.stations.stream()
                 .map(station -> {
-                    SubwayPassengerHourly passenger = route.congestionData.passengerMap.get(station.stationId);
+                    SubwayPassengerHourly passenger = recommendation.congestion.passengerMap.get(station.stationId);
                     return new TimeRecommendationResult.StationCongestion(
                             station.stationId,
                             station.stationName,
@@ -295,9 +499,9 @@ public class TimeRecommendationService {
                             station.lineColor,
                             station.arrivalTime,
                             station.departureTime,
-                            passenger != null ? passenger.getBoardingCount() : null,
-                            passenger != null ? passenger.getAlightingCount() : null,
-                            passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null
+                            getBoardingCount(passenger),
+                            getAlightingCount(passenger),
+                            getTotalPassengers(passenger)
                     );
                 })
                 .toList();
@@ -307,11 +511,40 @@ public class TimeRecommendationService {
                 arrivalTime,
                 info.getTotalTime(),
                 info.getTransferCount(),
-                route.congestionData.averageScore,
+                recommendation.congestion.averageScore,
                 congestionLevel,
                 stationCongestions
         );
     }
+
+    private Integer getBoardingCount(SubwayPassengerHourly passenger) {
+        return passenger != null ? passenger.getBoardingCount() : null;
+    }
+
+    private Integer getAlightingCount(SubwayPassengerHourly passenger) {
+        return passenger != null ? passenger.getAlightingCount() : null;
+    }
+
+    private Integer getTotalPassengers(SubwayPassengerHourly passenger) {
+        return passenger != null ? (passenger.getBoardingCount() + passenger.getAlightingCount()) : null;
+    }
+
+    private record RouteTemplate(
+            List<StationTemplate> stations,
+            int totalTime,
+            int transferCount,
+            LocalTime referenceDepartureTime,
+            LocalTime referenceArrivalTime
+    ) {}
+
+    private record StationTemplate(
+            String stationId,
+            String stationName,
+            String lineName,
+            String lineColor,
+            int minutesFromDepartureToArrival,
+            int minutesFromDepartureToDeparture
+    ) {}
 
     private record DayInfo(
             int dayCode,
@@ -327,10 +560,10 @@ public class TimeRecommendationService {
             String lineColor
     ) {}
 
-    private record RouteWithCongestion(
-            OdsaySubwayScheduleResponse.PathData path,
-            List<StationWithTime> stationsWithTime,
-            CongestionData congestionData
+    private record DepartureTimeRecommendation(
+            OdsaySubwayScheduleResponse.PathData pathInfo,
+            List<StationWithTime> stations,
+            CongestionData congestion
     ) {}
 
     private record CongestionData(
