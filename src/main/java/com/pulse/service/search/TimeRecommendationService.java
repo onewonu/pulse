@@ -376,8 +376,7 @@ public class TimeRecommendationService {
             return buildEmptyResult(request, dayInfo, template);
         }
 
-        List<DepartureTimeRecommendation> mostCommonPath = selectMostCommonPath(recommendations);
-        List<DepartureTimeRecommendation> selected = selectDiverseRecommendations(mostCommonPath);
+        List<DepartureTimeRecommendation> selected = selectDiverseRecommendations(recommendations);
 
         List<TimeRecommendationResult.TimeRecommendation> results = selected.stream()
                 .map(this::toResultRecommendation)
@@ -386,8 +385,8 @@ public class TimeRecommendationService {
         return new TimeRecommendationResult(
                 request.departureStationId(),
                 request.arrivalStationId(),
-                extractStationName(mostCommonPath, true),
-                extractStationName(mostCommonPath, false),
+                extractStationName(recommendations, true),
+                extractStationName(recommendations, false),
                 request.searchDate(),
                 dayInfo.dayType(),
                 results,
@@ -421,38 +420,6 @@ public class TimeRecommendationService {
 
     private String getLastStationName(RouteTemplate template) {
         return template.stations().isEmpty() ? null : template.stations().getLast().stationName();
-    }
-
-    private List<DepartureTimeRecommendation> selectMostCommonPath(
-            List<DepartureTimeRecommendation> recommendations) {
-        Map<String, List<DepartureTimeRecommendation>> recommendationsByPath =
-                recommendations.stream()
-                        .collect(Collectors.groupingBy(this::generatePathKey));
-
-        return recommendationsByPath.values().stream()
-                .max(Comparator
-                        .comparingInt(List<DepartureTimeRecommendation>::size)
-                        .thenComparing(byAverageCongestion()))
-                .orElse(Collections.emptyList());
-    }
-
-    private String generatePathKey(DepartureTimeRecommendation rec) {
-        if (rec.stations == null) {
-            return "";
-        }
-        return rec.stations.stream()
-                .map(station -> station.stationId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining("-"));
-    }
-
-    private Comparator<List<DepartureTimeRecommendation>> byAverageCongestion() {
-        return Comparator.comparingDouble(
-                (List<DepartureTimeRecommendation> recList) -> recList.stream()
-                        .mapToDouble(r -> r.congestion.averageScore)
-                        .average()
-                        .orElse(Double.MAX_VALUE)
-        ).reversed();
     }
 
     private List<DepartureTimeRecommendation> selectDiverseRecommendations(List<DepartureTimeRecommendation> recommendations) {
