@@ -20,6 +20,7 @@ import com.pulse.util.TimeParser;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -186,11 +187,20 @@ public class TimeRecommendationService {
                 : null;
         String normalizedName = StationNameNormalizer.normalize(station.getStationName());
         LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
+        LocalTime departureTime = TimeParser.parseHHmmss(station.getDepartureTime());
 
-        int minutesFromDeparture = 0;
+        int minutesFromDepartureToArrival = 0;
+        int minutesFromDepartureToDeparture = 0;
+
         if (arrivalTime != null && referenceDepartureTime != null) {
-            minutesFromDeparture = (int) java.time.Duration
+            minutesFromDepartureToArrival = (int) Duration
                     .between(referenceDepartureTime, arrivalTime)
+                    .toMinutes();
+        }
+
+        if (departureTime != null && referenceDepartureTime != null) {
+            minutesFromDepartureToDeparture = (int) Duration
+                    .between(referenceDepartureTime, departureTime)
                     .toMinutes();
         }
 
@@ -199,7 +209,8 @@ public class TimeRecommendationService {
                 normalizedName,
                 lineName,
                 lineColor,
-                minutesFromDeparture
+                minutesFromDepartureToArrival,
+                minutesFromDepartureToDeparture
         );
     }
 
@@ -270,13 +281,14 @@ public class TimeRecommendationService {
     ) {
         return template.stations().stream()
                 .map(stationTemplate -> {
-                    LocalTime stationTime = departureTime.plusMinutes(stationTemplate.minutesFromDeparture());
+                    LocalTime arrivalTime = departureTime.plusMinutes(stationTemplate.minutesFromDepartureToArrival());
+                    LocalTime stationDepartureTime = departureTime.plusMinutes(stationTemplate.minutesFromDepartureToDeparture());
 
                     return new StationWithTime(
                             stationTemplate.stationId(),
                             stationTemplate.stationName(),
-                            stationTime,
-                            stationTime,
+                            arrivalTime,
+                            stationDepartureTime,
                             stationTemplate.lineName(),
                             stationTemplate.lineColor()
                     );
@@ -314,21 +326,16 @@ public class TimeRecommendationService {
     private Map<Byte, List<String>> groupStationIdsByHour(Collection<StationWithTime> stations) {
         return stations.stream()
                 .map(station -> {
-                    LocalTime time = getStationTime(station);
-                    if (time == null || station.stationId == null) {
+                    if (station.arrivalTime == null || station.stationId == null) {
                         return null;
                     }
-                    return Map.entry((byte) time.getHour(), station.stationId);
+                    return Map.entry((byte) station.arrivalTime.getHour(), station.stationId);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
-    }
-
-    private LocalTime getStationTime(StationWithTime station) {
-        return station.arrivalTime != null ? station.arrivalTime : station.departureTime;
     }
 
     private List<SubwayPassengerHourly> fetchPassengerData(Map<Byte, List<String>> stationsByHour) {
@@ -535,7 +542,8 @@ public class TimeRecommendationService {
             String stationName,
             String lineName,
             String lineColor,
-            int minutesFromDeparture
+            int minutesFromDepartureToArrival,
+            int minutesFromDepartureToDeparture
     ) {}
 
     private record DayInfo(
