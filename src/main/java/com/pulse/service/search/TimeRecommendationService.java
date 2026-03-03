@@ -392,8 +392,8 @@ public class TimeRecommendationService {
         return new TimeRecommendationResult(
                 request.departureStationId(),
                 request.arrivalStationId(),
-                extractStationName(recommendations, true),
-                extractStationName(recommendations, false),
+                getFirstStationName(template),
+                getLastStationName(template),
                 request.searchDate(),
                 dayInfo.dayType(),
                 results,
@@ -423,7 +423,6 @@ public class TimeRecommendationService {
     private String getFirstStationName(RouteTemplate template) {
         return template.stations().isEmpty() ? null : template.stations().getFirst().stationName();
     }
-
 
     private String getLastStationName(RouteTemplate template) {
         return template.stations().isEmpty() ? null : template.stations().getLast().stationName();
@@ -514,19 +513,6 @@ public class TimeRecommendationService {
                 congestionLevel,
                 stationCongestions
         );
-    }
-
-    private String extractStationName(List<DepartureTimeRecommendation> recommendations, boolean isDeparture) {
-        if (recommendations.isEmpty()) {
-            return null;
-        }
-
-        List<StationWithTime> stations = recommendations.getFirst().stations;
-        if (stations.isEmpty()) {
-            return null;
-        }
-
-        return isDeparture ? stations.getFirst().stationName : stations.getLast().stationName;
     }
 
     private record RouteTemplate(
