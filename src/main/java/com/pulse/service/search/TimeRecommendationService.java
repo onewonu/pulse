@@ -267,11 +267,11 @@ public class TimeRecommendationService {
 
             OdsaySubwayScheduleResponse.InfoData info = createRouteInfo(template, departureTime);
 
-            OdsaySubwayScheduleResponse.PathData syntheticPath = new OdsaySubwayScheduleResponse.PathData();
-            syntheticPath.setInfo(info);
-            syntheticPath.setPathType(SHORTEST_TIME);
+            OdsaySubwayScheduleResponse.PathData pathData = new OdsaySubwayScheduleResponse.PathData();
+            pathData.setInfo(info);
+            pathData.setPathType(SHORTEST_TIME);
 
-            return new DepartureTimeRecommendation(syntheticPath, stationsWithTime, congestionData);
+            return new DepartureTimeRecommendation(pathData, stationsWithTime, congestionData);
         } catch (DataAccessException e) {
             return null;
         }
@@ -305,8 +305,8 @@ public class TimeRecommendationService {
 
         Map<String, SubwayPassengerHourly> passengerMap = passengers.stream()
                 .collect(Collectors.toMap(
-                        p -> p.getSubwayStation().getStationId(),
-                        p -> p,
+                        passenger -> passenger.getSubwayStation().getStationId(),
+                        passenger -> passenger,
                         (existing, replacement) -> existing
                 ));
 
@@ -354,7 +354,7 @@ public class TimeRecommendationService {
         }
 
         double total = passengers.stream()
-                .mapToDouble(p -> p.getBoardingCount() + p.getAlightingCount())
+                .mapToDouble(passenger -> passenger.getBoardingCount() + passenger.getAlightingCount())
                 .sum();
 
         return total / passengers.size();
@@ -481,17 +481,17 @@ public class TimeRecommendationService {
         return Stream.concat(selected.stream(), remaining.stream()).toList();
     }
 
-    private TimeRecommendationResult.TimeRecommendation toResultRecommendation(DepartureTimeRecommendation rec) {
-        OdsaySubwayScheduleResponse.InfoData info = rec.pathInfo.getInfo();
+    private TimeRecommendationResult.TimeRecommendation toResultRecommendation(DepartureTimeRecommendation recommendation) {
+        OdsaySubwayScheduleResponse.InfoData info = recommendation.pathInfo.getInfo();
 
         LocalTime departureTime = TimeParser.parseHHmmss(info.getDepartureTime());
         LocalTime arrivalTime = TimeParser.parseHHmmss(info.getArrivalTime());
 
-        CongestionLevel congestionLevel = CongestionLevel.fromScore(rec.congestion.averageScore);
+        CongestionLevel congestionLevel = CongestionLevel.fromScore(recommendation.congestion.averageScore);
 
-        List<TimeRecommendationResult.StationCongestion> stationCongestions = rec.stations.stream()
+        List<TimeRecommendationResult.StationCongestion> stationCongestions = recommendation.stations.stream()
                 .map(station -> {
-                    SubwayPassengerHourly passenger = rec.congestion.passengerMap.get(station.stationId);
+                    SubwayPassengerHourly passenger = recommendation.congestion.passengerMap.get(station.stationId);
                     return new TimeRecommendationResult.StationCongestion(
                             station.stationId,
                             station.stationName,
@@ -511,7 +511,7 @@ public class TimeRecommendationService {
                 arrivalTime,
                 info.getTotalTime(),
                 info.getTransferCount(),
-                rec.congestion.averageScore,
+                recommendation.congestion.averageScore,
                 congestionLevel,
                 stationCongestions
         );
