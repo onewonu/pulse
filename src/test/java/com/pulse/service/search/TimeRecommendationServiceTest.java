@@ -52,8 +52,8 @@ class TimeRecommendationServiceTest {
     void recommendTimes_Success() {
         // Given
         TimeRecommendationRequest request = new TimeRecommendationRequest(
-                1000,
-                2000,
+                "1000",
+                "2000",
                 LocalDate.of(2024, 1, 15), // 월요일
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
@@ -66,19 +66,19 @@ class TimeRecommendationServiceTest {
 
         // Odsay API 응답 생성
         OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
-        station1.setStationID(1000);
+        station1.setStationID("1000");
         station1.setStationName("강남역");
         station1.setDepartureTime("09:30:00");
         station1.setArrivalTime("09:30:00");
 
         OdsaySubwayScheduleResponse.StationInfoData station2 = new OdsaySubwayScheduleResponse.StationInfoData();
-        station2.setStationID(1001);
+        station2.setStationID("1001");
         station2.setStationName("역삼역");
         station2.setDepartureTime("09:32:00");
         station2.setArrivalTime("09:32:00");
 
         OdsaySubwayScheduleResponse.StationInfoData station3 = new OdsaySubwayScheduleResponse.StationInfoData();
-        station3.setStationID(2000);
+        station3.setStationID("2000");
         station3.setStationName("선릉역");
         station3.setDepartureTime("09:35:00");
         station3.setArrivalTime("09:35:00");
@@ -108,7 +108,7 @@ class TimeRecommendationServiceTest {
         OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
         response.setResult(resultData);
 
-        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
+        when(odsayClient.searchSubwaySchedule(anyString(), anyString(), anyInt(), anyString())).thenReturn(response);
 
         // 호선 정보
         SubwayLine line2 = SubwayLine.of("수도권 2호선", "#00A84D");
@@ -135,8 +135,8 @@ class TimeRecommendationServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.departureStationId()).isEqualTo(1000);
-        assertThat(result.arrivalStationId()).isEqualTo(2000);
+        assertThat(result.departureStationId()).isEqualTo("1000");
+        assertThat(result.arrivalStationId()).isEqualTo("2000");
         assertThat(result.recommendations()).hasSize(1);
 
         TimeRecommendationResult.TimeRecommendation recommendation = result.recommendations().getFirst();
@@ -149,7 +149,7 @@ class TimeRecommendationServiceTest {
         verify(subwayTrainScheduleRepository, times(1))
                 .findDistinctDepartureTimesByStationIdAndDayAndTimeRange("1000", "평일",
                         LocalTime.of(9, 0), LocalTime.of(10, 0));
-        verify(odsayClient, times(1)).searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString());
+        verify(odsayClient, times(1)).searchSubwaySchedule(anyString(), anyString(), anyInt(), anyString());
         verify(subwayLineRepository, times(1)).findById("수도권 2호선");
         verify(subwayPassengerHourlyRepository, times(1))
                 .findByStationIdsAndHourSlot(anyList(), eq((byte) 9));
@@ -160,8 +160,8 @@ class TimeRecommendationServiceTest {
     void recommendTimes_NoSchedulesAvailable() {
         // Given
         TimeRecommendationRequest request = new TimeRecommendationRequest(
-                1000,
-                2000,
+                "1000",
+                "2000",
                 LocalDate.of(2024, 1, 15),
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
@@ -169,7 +169,7 @@ class TimeRecommendationServiceTest {
 
         // Odsay API 응답 생성 (fetchRouteTemplate 호출용)
         OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
-        station1.setStationID(1000);
+        station1.setStationID("1000");
         station1.setStationName("강남역");
         station1.setDepartureTime("09:00:00");
         station1.setArrivalTime("09:00:00");
@@ -199,7 +199,7 @@ class TimeRecommendationServiceTest {
         OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
         response.setResult(resultData);
 
-        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
+        when(odsayClient.searchSubwaySchedule(anyString(), anyString(), anyInt(), anyString())).thenReturn(response);
 
         when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
                 anyString(), anyString(), any(LocalTime.class), any(LocalTime.class)))
@@ -219,8 +219,8 @@ class TimeRecommendationServiceTest {
     void recommendTimes_IncompleteCongestionData() {
         // Given
         TimeRecommendationRequest request = new TimeRecommendationRequest(
-                1000,
-                2000,
+                "1000",
+                "2000",
                 LocalDate.of(2024, 1, 15),
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
@@ -233,7 +233,7 @@ class TimeRecommendationServiceTest {
         OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
         response.setResult(resultData);
 
-        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString()))
+        when(odsayClient.searchSubwaySchedule(anyString(), anyString(), anyInt(), anyString()))
                 .thenReturn(response);
 
         // When & Then
@@ -247,8 +247,8 @@ class TimeRecommendationServiceTest {
     void recommendTimes_WeekdayConversion() {
         // Given
         TimeRecommendationRequest request = new TimeRecommendationRequest(
-                1000,
-                2000,
+                "1000",
+                "2000",
                 LocalDate.of(2024, 1, 15), // 월요일
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
@@ -256,7 +256,7 @@ class TimeRecommendationServiceTest {
 
         // Odsay API 응답 생성
         OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
-        station1.setStationID(1000);
+        station1.setStationID("1000");
         station1.setStationName("강남역");
         station1.setDepartureTime("09:00:00");
         station1.setArrivalTime("09:00:00");
@@ -286,7 +286,7 @@ class TimeRecommendationServiceTest {
         OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
         response.setResult(resultData);
 
-        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
+        when(odsayClient.searchSubwaySchedule(anyString(), anyString(), anyInt(), anyString())).thenReturn(response);
 
         when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
                 anyString(), eq("평일"), any(LocalTime.class), any(LocalTime.class)))
@@ -306,8 +306,8 @@ class TimeRecommendationServiceTest {
     void recommendTimes_WeekendConversion() {
         // Given
         TimeRecommendationRequest request = new TimeRecommendationRequest(
-                1000,
-                2000,
+                "1000",
+                "2000",
                 LocalDate.of(2024, 1, 13), // 토요일
                 LocalTime.of(9, 0),
                 LocalTime.of(10, 0)
@@ -315,7 +315,7 @@ class TimeRecommendationServiceTest {
 
         // Odsay API 응답 생성
         OdsaySubwayScheduleResponse.StationInfoData station1 = new OdsaySubwayScheduleResponse.StationInfoData();
-        station1.setStationID(1000);
+        station1.setStationID("1000");
         station1.setStationName("강남역");
         station1.setDepartureTime("09:00:00");
         station1.setArrivalTime("09:00:00");
@@ -345,7 +345,7 @@ class TimeRecommendationServiceTest {
         OdsaySubwayScheduleResponse response = new OdsaySubwayScheduleResponse();
         response.setResult(resultData);
 
-        when(odsayClient.searchSubwaySchedule(anyInt(), anyInt(), anyInt(), anyString())).thenReturn(response);
+        when(odsayClient.searchSubwaySchedule(anyString(), anyString(), anyInt(), anyString())).thenReturn(response);
 
         when(subwayTrainScheduleRepository.findDistinctDepartureTimesByStationIdAndDayAndTimeRange(
                 anyString(), eq("주말"), any(LocalTime.class), any(LocalTime.class)))
