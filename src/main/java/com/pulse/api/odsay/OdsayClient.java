@@ -75,7 +75,7 @@ public class OdsayClient {
                 "&stationClass=" + SUBWAY;
     }
 
-    public OdsaySubwayScheduleResponse searchSubwaySchedule(int sid, int eid, int day, String time) {
+    public OdsaySubwayScheduleResponse searchSubwaySchedule(String sid, String eid, int day, String time) {
         String urlString = buildSubwayScheduleUrl(sid, eid, day, time);
 
         try {
@@ -88,7 +88,7 @@ public class OdsayClient {
             throw new ApiCommunicationException(
                     String.format(
                             "Failed to communicate with ODsay API for searchSubwaySchedule:" +
-                                    " sid=%d, eid=%d, day=%d, time=%s",
+                                    " sid=%s, eid=%s, day=%d, time=%s",
                             sid,
                             eid,
                             day,
@@ -98,7 +98,7 @@ public class OdsayClient {
         }
     }
 
-    private String buildSubwayScheduleUrl(int sid, int eid, int day, String time) {
+    private String buildSubwayScheduleUrl(String sid, String eid, int day, String time) {
         String encodedApiKey = URLEncoder.encode(properties.getKey(), StandardCharsets.UTF_8);
 
         return properties.getBaseUrl() + "/subwayPathSchedule" +

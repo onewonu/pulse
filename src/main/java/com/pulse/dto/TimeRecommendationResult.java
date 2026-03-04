@@ -5,8 +5,8 @@ import java.time.LocalTime;
 import java.util.List;
 
 public record TimeRecommendationResult(
-    Integer departureStationId,
-    Integer arrivalStationId,
+    String departureStationId,
+    String arrivalStationId,
     String departureStationName,
     String arrivalStationName,
     LocalDate travelDate,

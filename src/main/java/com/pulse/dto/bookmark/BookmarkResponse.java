@@ -8,8 +8,8 @@ import java.time.LocalTime;
 public record BookmarkResponse(
     Long id,
     String name,
-    Integer departureStationId,
-    Integer arrivalStationId,
+    String departureStationId,
+    String arrivalStationId,
     String departureStationName,
     String arrivalStationName,
     String departureLineName,

@@ -28,10 +28,10 @@ public class Bookmark {
     private String name;
 
     @Column(name = "departure_station_id", nullable = false)
-    private Integer departureStationId;
+    private String departureStationId;
 
     @Column(name = "arrival_station_id", nullable = false)
-    private Integer arrivalStationId;
+    private String arrivalStationId;
 
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
@@ -58,8 +58,8 @@ public class Bookmark {
 
     private Bookmark(
             String name,
-            Integer departureStationId,
-            Integer arrivalStationId,
+            String departureStationId,
+            String arrivalStationId,
             LocalTime startTime,
             LocalTime endTime,
             Integer displayOrder,
@@ -76,8 +76,8 @@ public class Bookmark {
 
     public static Bookmark of(
             String name,
-            Integer departureStationId,
-            Integer arrivalStationId,
+            String departureStationId,
+            String arrivalStationId,
             LocalTime startTime,
             LocalTime endTime,
             Integer displayOrder,
@@ -86,7 +86,7 @@ public class Bookmark {
         return new Bookmark(name, departureStationId, arrivalStationId, startTime, endTime, displayOrder, user);
     }
 
-    public void update(String name, Integer departureStationId, Integer arrivalStationId, LocalTime startTime, LocalTime endTime) {
+    public void update(String name, String departureStationId, String arrivalStationId, LocalTime startTime, LocalTime endTime) {
         if (name != null) {
             this.name = name;
         }
@@ -120,11 +120,11 @@ public class Bookmark {
         return name;
     }
 
-    public Integer getDepartureStationId() {
+    public String getDepartureStationId() {
         return departureStationId;
     }
 
-    public Integer getArrivalStationId() {
+    public String getArrivalStationId() {
         return arrivalStationId;
     }
 

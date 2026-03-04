@@ -273,10 +273,10 @@ public class OdsaySubwayScheduleResponse {
         private String endName;
 
         @JsonProperty("startID")
-        private Integer startID;
+        private String startID;
 
         @JsonProperty("endID")
-        private Integer endID;
+        private String endID;
 
         @JsonProperty("departureTime")
         private String departureTime;
@@ -330,11 +330,11 @@ public class OdsaySubwayScheduleResponse {
             return endName;
         }
 
-        public Integer getStartID() {
+        public String getStartID() {
             return startID;
         }
 
-        public Integer getEndID() {
+        public String getEndID() {
             return endID;
         }
 
@@ -398,11 +398,11 @@ public class OdsaySubwayScheduleResponse {
             this.endName = endName;
         }
 
-        public void setStartID(Integer startID) {
+        public void setStartID(String startID) {
             this.startID = startID;
         }
 
-        public void setEndID(Integer endID) {
+        public void setEndID(String endID) {
             this.endID = endID;
         }
 
@@ -459,7 +459,7 @@ public class OdsaySubwayScheduleResponse {
         private Integer index;
 
         @JsonProperty("stationID")
-        private Integer stationID;
+        private String stationID;
 
         @JsonProperty("stationName")
         private String stationName;
@@ -480,7 +480,7 @@ public class OdsaySubwayScheduleResponse {
             return index;
         }
 
-        public Integer getStationID() {
+        public String getStationID() {
             return stationID;
         }
 
@@ -508,7 +508,7 @@ public class OdsaySubwayScheduleResponse {
             this.index = index;
         }
 
-        public void setStationID(Integer stationID) {
+        public void setStationID(String stationID) {
             this.stationID = stationID;
         }
 

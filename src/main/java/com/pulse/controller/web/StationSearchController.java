@@ -7,7 +7,7 @@ import com.pulse.service.search.TimeRecommendationService;
 import com.pulse.service.search.StationSearchService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -46,8 +46,8 @@ public class StationSearchController {
 
     @GetMapping("/route")
     public ResponseEntity<TimeRecommendationResult> recommendTimes(
-            @RequestParam("departureStationId") @NotNull @Positive Integer departureStationId,
-            @RequestParam("arrivalStationId") @NotNull @Positive Integer arrivalStationId,
+            @RequestParam("departureStationId") @NotNull @NotBlank @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric") String departureStationId,
+            @RequestParam("arrivalStationId") @NotNull @NotBlank @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric") String arrivalStationId,
             @RequestParam("searchDate") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate searchDate,
             @RequestParam("startTime") @NotNull @DateTimeFormat(pattern = "HH:mm") LocalTime startTime,
             @RequestParam("endTime") @NotNull @DateTimeFormat(pattern = "HH:mm") LocalTime endTime

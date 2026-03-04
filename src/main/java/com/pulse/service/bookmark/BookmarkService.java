@@ -206,12 +206,12 @@ public class BookmarkService {
         );
     }
 
-    private StationInfo getStationInfo(Integer stationId) {
+    private StationInfo getStationInfo(String stationId) {
         if (stationId == null) {
             return null;
         }
 
-        return subwayStationRepository.findById(String.valueOf(stationId))
+        return subwayStationRepository.findById(stationId)
                 .map(station -> new StationInfo(
                         station.getStationName(),
                         station.getSubwayLine().getLineName(),

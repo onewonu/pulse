@@ -2,6 +2,7 @@ package com.pulse.dto.bookmark;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalTime;
@@ -12,10 +13,14 @@ public record BookmarkCreateRequest(
     String name,
 
     @NotNull(message = "Departure station ID is required")
-    Integer departureStationId,
+    @NotBlank(message = "Departure station ID cannot be blank")
+    @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric")
+    String departureStationId,
 
     @NotNull(message = "Arrival station ID is required")
-    Integer arrivalStationId,
+    @NotBlank(message = "Arrival station ID cannot be blank")
+    @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric")
+    String arrivalStationId,
 
     @NotNull(message = "Start time is required")
     LocalTime startTime,
