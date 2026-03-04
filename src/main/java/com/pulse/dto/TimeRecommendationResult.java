@@ -23,7 +23,7 @@ public record TimeRecommendationResult(
         LocalTime arrivalTime,
         int totalTime,
         int transferCount,
-        double congestionScore,
+        int congestionScore,
         CongestionLevel congestionLevel,
         List<StationCongestion> stationCongestions
     ) {}

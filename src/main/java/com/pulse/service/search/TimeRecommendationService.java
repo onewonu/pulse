@@ -185,7 +185,7 @@ public class TimeRecommendationService {
             String lineColor,
             LocalTime referenceDepartureTime) {
         String stationId = station.getStationID() != null
-                ? station.getStationID().toString()
+                ? station.getStationID()
                 : null;
         String normalizedName = StationNameNormalizer.normalize(station.getStationName());
         LocalTime arrivalTime = TimeParser.parseHHmmss(station.getArrivalTime());
@@ -310,7 +310,7 @@ public class TimeRecommendationService {
                         (existing, replacement) -> existing
                 ));
 
-        double averageScore = calculateAverageScore(passengers);
+        int averageScore = calculateAverageScore(passengers);
 
         return new CongestionData(passengerMap, averageScore);
     }
@@ -348,13 +348,13 @@ public class TimeRecommendationService {
                 .toList();
     }
 
-    private double calculateAverageScore(List<SubwayPassengerHourly> passengers) {
+    private int calculateAverageScore(List<SubwayPassengerHourly> passengers) {
         if (passengers.isEmpty()) {
-            return 0.0;
+            return 0;
         }
 
-        double total = passengers.stream()
-                .mapToDouble(passenger -> passenger.getBoardingCount() + passenger.getAlightingCount())
+        int total = passengers.stream()
+                .mapToInt(passenger -> passenger.getBoardingCount() + passenger.getAlightingCount())
                 .sum();
 
         return total / passengers.size();
@@ -436,7 +436,7 @@ public class TimeRecommendationService {
         }
 
         List<DepartureTimeRecommendation> sorted = new ArrayList<>(recommendations);
-        sorted.sort(Comparator.comparingDouble(r -> r.congestion.averageScore));
+        sorted.sort(Comparator.comparingInt(r -> r.congestion.averageScore));
 
         Map<CongestionLevel, List<DepartureTimeRecommendation>> levelGroups = groupByLevel(sorted);
         List<DepartureTimeRecommendation> firstFromEachLevel = selectFirstFromEachLevel(levelGroups);
@@ -568,6 +568,6 @@ public class TimeRecommendationService {
 
     private record CongestionData(
             Map<String, SubwayPassengerHourly> passengerMap,
-            double averageScore
+            int averageScore
     ) {}
 }
