@@ -2,6 +2,7 @@ package com.pulse.dto.bookmark;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalTime;
@@ -12,10 +13,12 @@ public record BookmarkUpdateRequest(
     String name,
 
     @JsonSetter(nulls = Nulls.FAIL)
-    Integer departureStationId,
+    @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric")
+    String departureStationId,
 
     @JsonSetter(nulls = Nulls.FAIL)
-    Integer arrivalStationId,
+    @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric")
+    String arrivalStationId,
 
     @JsonSetter(nulls = Nulls.FAIL)
     LocalTime startTime,

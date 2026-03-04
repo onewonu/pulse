@@ -1,5 +1,6 @@
 package com.pulse.dto.bookmark;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.pulse.entity.bookmark.Bookmark;
 
 import java.time.LocalDateTime;
@@ -8,15 +9,17 @@ import java.time.LocalTime;
 public record BookmarkResponse(
     Long id,
     String name,
-    Integer departureStationId,
-    Integer arrivalStationId,
+    String departureStationId,
+    String arrivalStationId,
     String departureStationName,
     String arrivalStationName,
     String departureLineName,
     String departureLineColor,
     String arrivalLineName,
     String arrivalLineColor,
+    @JsonFormat(pattern = "HH:mm")
     LocalTime startTime,
+    @JsonFormat(pattern = "HH:mm")
     LocalTime endTime,
     Integer displayOrder,
     LocalDateTime createdAt,

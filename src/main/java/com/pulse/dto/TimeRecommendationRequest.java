@@ -1,20 +1,23 @@
 package com.pulse.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 public record TimeRecommendationRequest(
     @NotNull
-    @Positive
-    Integer departureStationId,
+    @NotBlank(message = "Departure station ID is required")
+    @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric")
+    String departureStationId,
 
     @NotNull
-    @Positive
-    Integer arrivalStationId,
+    @NotBlank(message = "Arrival station ID is required")
+    @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric")
+    String arrivalStationId,
 
     @NotNull
     LocalDate searchDate,

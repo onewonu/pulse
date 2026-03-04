@@ -1,12 +1,14 @@
 package com.pulse.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
 public record TimeRecommendationResult(
-    Integer departureStationId,
-    Integer arrivalStationId,
+    String departureStationId,
+    String arrivalStationId,
     String departureStationName,
     String arrivalStationName,
     LocalDate travelDate,
@@ -15,11 +17,13 @@ public record TimeRecommendationResult(
     String message
 ) {
     public record TimeRecommendation(
+        @JsonFormat(pattern = "HH:mm")
         LocalTime departureTime,
+        @JsonFormat(pattern = "HH:mm")
         LocalTime arrivalTime,
         int totalTime,
         int transferCount,
-        double congestionScore,
+        int congestionScore,
         CongestionLevel congestionLevel,
         List<StationCongestion> stationCongestions
     ) {}
@@ -29,7 +33,9 @@ public record TimeRecommendationResult(
         String stationName,
         String lineName,
         String lineColor,
+        @JsonFormat(pattern = "HH:mm")
         LocalTime arrivalTime,
+        @JsonFormat(pattern = "HH:mm")
         LocalTime departureTime,
         Integer boardingCount,
         Integer alightingCount,
