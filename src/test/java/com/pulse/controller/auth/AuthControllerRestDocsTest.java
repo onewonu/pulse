@@ -72,9 +72,9 @@ class AuthControllerRestDocsTest extends RestDocsSupport {
                 .andDo(restDocs.document(
                         requestFields(
                                 fieldWithPath("providerType").description("소셜 로그인 제공자 (KAKAO, GOOGLE)"),
-                                fieldWithPath("nickname").description("사용자 닉네임 (선택)").optional(),
+                                fieldWithPath("nickname").description("사용자 닉네임").optional(),
                                 fieldWithPath("authorizationCode").description("소셜 인가 코드"),
-                                fieldWithPath("redirectUri").description("리다이렉트 URI (선택)").optional()
+                                fieldWithPath("redirectUri").description("리다이렉트 URI").optional()
                         ),
                         responseFields(
                                 fieldWithPath("accessToken").description("액세스 토큰"),

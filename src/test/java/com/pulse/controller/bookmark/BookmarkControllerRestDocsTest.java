@@ -149,11 +149,11 @@ class BookmarkControllerRestDocsTest extends RestDocsSupport {
                                 parameterWithName("id").description("수정할 북마크 ID")
                         ),
                         requestFields(
-                                fieldWithPath("name").description("변경할 북마크 이름 (선택)").optional(),
-                                fieldWithPath("departureStationId").description("변경할 출발역 ID (선택)").optional(),
-                                fieldWithPath("arrivalStationId").description("변경할 도착역 ID (선택)").optional(),
-                                fieldWithPath("startTime").description("변경할 출발 시간 (선택)").optional(),
-                                fieldWithPath("endTime").description("변경할 도착 시간 (선택)").optional()
+                                fieldWithPath("name").description("변경할 북마크 이름").optional(),
+                                fieldWithPath("departureStationId").description("변경할 출발역 ID").optional(),
+                                fieldWithPath("arrivalStationId").description("변경할 도착역 ID").optional(),
+                                fieldWithPath("startTime").description("변경할 출발 시간").optional(),
+                                fieldWithPath("endTime").description("변경할 도착 시간").optional()
                         ),
                         responseFields(
                                 fieldWithPath("id").description("북마크 ID"),
