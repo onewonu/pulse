@@ -64,8 +64,7 @@ class DataLoadControllerRestDocsTest extends RestDocsSupport {
                 .willReturn(sampleSuccess("subwayStatistics", 1500));
 
         // when & then
-        mockMvc.perform(post("/admin/data-load/subway/statistics")
-                        .param("yearMonth", "202603"))
+        mockMvc.perform(post("/admin/data-load/subway/statistics?yearMonth=202603"))
                 .andExpect(status().isOk())
                 .andDo(restDocs.document(
                         queryParameters(
@@ -89,8 +88,7 @@ class DataLoadControllerRestDocsTest extends RestDocsSupport {
         given(subwayStatisticsDataLoadService.loadSubwayStatisticsData(any())).willReturn(sampleSuccess("subwayStatistics", 1500));
 
         // when & then
-        mockMvc.perform(post("/admin/data-load/all")
-                        .param("yearMonth", "202603"))
+        mockMvc.perform(post("/admin/data-load/all?yearMonth=202603"))
                 .andExpect(status().isOk())
                 .andDo(restDocs.document(
                         queryParameters(
@@ -119,8 +117,7 @@ class DataLoadControllerRestDocsTest extends RestDocsSupport {
                 .willReturn(sampleSuccess("subwayStatistics", 1500));
 
         // when & then
-        mockMvc.perform(delete("/admin/data-load/subway/statistics")
-                        .param("yearMonth", "202603"))
+        mockMvc.perform(delete("/admin/data-load/subway/statistics?yearMonth=202603"))
                 .andExpect(status().isOk())
                 .andDo(restDocs.document(
                         queryParameters(
