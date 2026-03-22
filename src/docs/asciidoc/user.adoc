@@ -1,0 +1,19 @@
+[[user]]
+== 사용자 API
+
+[[user-me]]
+=== 현재 사용자 정보 조회
+
+`GET /user/me`
+
+==== 요청 예시
+
+include::{snippets}/user-controller-rest-docs-test/get-current-user/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/user-controller-rest-docs-test/get-current-user/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/user-controller-rest-docs-test/get-current-user/http-response.adoc[]

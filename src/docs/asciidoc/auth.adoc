@@ -1,0 +1,61 @@
+[[auth]]
+== 인증 API
+
+[[auth-login]]
+=== 소셜 로그인
+
+`POST /auth/login`
+
+==== 요청 필드
+
+include::{snippets}/auth-controller-rest-docs-test/login/request-fields.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/auth-controller-rest-docs-test/login/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/auth-controller-rest-docs-test/login/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/auth-controller-rest-docs-test/login/http-response.adoc[]
+
+---
+
+[[auth-refresh]]
+=== 토큰 갱신
+
+`POST /auth/refresh`
+
+==== 요청 필드
+
+include::{snippets}/auth-controller-rest-docs-test/refresh/request-fields.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/auth-controller-rest-docs-test/refresh/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/auth-controller-rest-docs-test/refresh/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/auth-controller-rest-docs-test/refresh/http-response.adoc[]
+
+---
+
+[[auth-logout]]
+=== 로그아웃
+
+`POST /auth/logout`
+
+==== 요청 예시
+
+include::{snippets}/auth-controller-rest-docs-test/logout/http-request.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/auth-controller-rest-docs-test/logout/http-response.adoc[]

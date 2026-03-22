@@ -35,6 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/test/**").permitAll()
                         .requestMatchers("/search/**").permitAll()
+                        .requestMatchers("/docs/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
