@@ -5,9 +5,6 @@ plugins {
     id 'org.asciidoctor.jvm.convert' version '3.3.2'
 }
 
-configurations {
-    asciidoctorExt
-}
 
 ext {
     snippetsDir = layout.buildDirectory.dir('generated-snippets').get().asFile
