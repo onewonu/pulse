@@ -1,0 +1,126 @@
+[[admin]]
+== 관리자 데이터 로드 API
+
+[[admin-subway-master]]
+=== 지하철 마스터 데이터 로드
+
+`POST /admin/data-load/subway/master`
+
+==== 요청 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-master-data/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-master-data/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-master-data/http-response.adoc[]
+
+---
+
+[[admin-subway-statistics]]
+=== 지하철 통계 데이터 로드
+
+`POST /admin/data-load/subway/statistics`
+
+==== 요청 파라미터
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-statistics/query-parameters.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-statistics/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-statistics/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-subway-statistics/http-response.adoc[]
+
+---
+
+[[admin-all]]
+=== 전체 데이터 로드
+
+`POST /admin/data-load/all`
+
+==== 요청 파라미터
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-data/query-parameters.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-data/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-data/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-data/http-response.adoc[]
+
+---
+
+[[admin-subway-statistics-delete]]
+=== 지하철 통계 데이터 삭제
+
+`DELETE /admin/data-load/subway/statistics`
+
+==== 요청 파라미터
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-subway-statistics/query-parameters.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-subway-statistics/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-subway-statistics/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-subway-statistics/http-response.adoc[]
+
+---
+
+[[admin-train-schedule]]
+=== 전체 열차 스케줄 로드
+
+`POST /admin/data-load/train-schedule/all`
+
+==== 요청 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-train-schedules/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-train-schedules/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/load-all-train-schedules/http-response.adoc[]
+
+---
+
+[[admin-train-schedule-delete]]
+=== 전체 열차 스케줄 삭제
+
+`DELETE /admin/data-load/train-schedule/all`
+
+==== 요청 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-all-train-schedules/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-all-train-schedules/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/data-load-controller-rest-docs-test/delete-all-train-schedules/http-response.adoc[]

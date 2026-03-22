@@ -1,0 +1,46 @@
+[[search]]
+== 역 검색 API
+
+[[search-station]]
+=== 역 이름으로 역 검색
+
+`GET /search/station`
+
+==== 요청 파라미터
+
+include::{snippets}/station-search-controller-rest-docs-test/search-station/query-parameters.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/station-search-controller-rest-docs-test/search-station/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/station-search-controller-rest-docs-test/search-station/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/station-search-controller-rest-docs-test/search-station/http-response.adoc[]
+
+---
+
+[[search-route]]
+=== 추천 시간대 조회
+
+`GET /search/route`
+
+==== 요청 파라미터
+
+include::{snippets}/station-search-controller-rest-docs-test/recommend-times/query-parameters.adoc[]
+
+==== 요청 예시
+
+include::{snippets}/station-search-controller-rest-docs-test/recommend-times/http-request.adoc[]
+
+==== 응답 필드
+
+include::{snippets}/station-search-controller-rest-docs-test/recommend-times/response-fields.adoc[]
+
+==== 응답 예시
+
+include::{snippets}/station-search-controller-rest-docs-test/recommend-times/http-response.adoc[]
