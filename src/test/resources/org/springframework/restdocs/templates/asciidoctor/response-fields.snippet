@@ -1,0 +1,11 @@
+|===
+|필드명|타입|Null 여부|설명
+
+{{#fields}}
+|{{#tableCellContent}}`{{path}}`{{/tableCellContent}}
+|{{#tableCellContent}}`{{type}}`{{/tableCellContent}}
+|{{#tableCellContent}}{{^optional}}NotNull{{/optional}}{{#optional}}Null{{/optional}}{{/tableCellContent}}
+|{{#tableCellContent}}{{description}}{{/tableCellContent}}
+
+{{/fields}}
+|===
