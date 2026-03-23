@@ -4,6 +4,8 @@
 
 > 서울 수도권 지하철 승객 데이터 기반 경로 추천 서비스
 
+- [API 문서](https://api.pulse.it.kr/docs/index.html)
+
 ### 주요 기능
 
 - **역 검색**: 다중 노선 지원 및 좌표 정보를 포함한 지하철역 검색
@@ -26,7 +28,6 @@
 - [데이터 적재 프로세스](#데이터-적재-프로세스)
 - [검색 프로세스](#검색-프로세스)
 - [배포 프로세스](#배포-프로세스)
-- [API 엔드포인트](#api-엔드포인트)
 - [프로젝트 구조](#프로젝트-구조)
 
 <br/>
@@ -298,561 +299,62 @@ StationNameNormalizer (역명 표준화)
 
 ### 1. 마스터 데이터 적재 (노선 및 역)
 
-**API**: `POST /admin/data-load/subway/master`
+`POST /admin/data-load/subway/master`
 
-**프로세스:**
-```
-1. JSON 파일 읽기
-
-2. 데이터 검증
-   ├─ 필수 필드 확인
-   └─ 데이터 형식 검증
-
-3. SubwayLine 엔티티 생성/업데이트
-   ├─ 노선명으로 중복 확인
-   ├─ LineNameNormalizer로 표준화
-   └─ 배치 저장 (batch_size=100)
-
-4. SubwayStation 엔티티 생성/업데이트
-   ├─ (stationName, lineName) 복합키로 중복 확인
-   ├─ StationNameNormalizer로 표준화
-   ├─ 좌표 데이터 매핑
-   └─ 배치 저장 (batch_size=100)
-```
-
-**최적화 전략:**
-- Hibernate 배치 삽입 (batch_size=100)
-- 중복 데이터는 Unique 제약조건으로 자동 처리
-- 메모리 내 HashMap 캐싱으로 조회 성능 향상
+JSON 파일에서 노선/역 데이터를 읽어 역명·노선명을 정규화한 후 배치 저장(batch_size=100)합니다. `(stationName, lineName)` 복합 Unique 제약으로 중복을 자동 처리합니다.
 
 ### 2. 승객 통계 데이터 적재
 
-**API**: `POST /admin/data-load/subway/statistics?yearMonth=202401`
+`POST /admin/data-load/subway/statistics?yearMonth=202401`
 
-**프로세스:**
-```
-1. 메모리 캐시 구성 (N+1 쿼리 방지)
-   ├─ 노선 캐시: Map<lineName, SubwayLine> (24개)
-   ├─ 역 캐시: Map<stationName|lineName, SubwayStation> (869개)
-   └─ DB 조회 단 2번으로 625,680건 처리 시 125만 번 쿼리 방지
-
-2. 서울 열린데이터 광장 API 호출
-   ├─ 파라미터: yearMonth (예: 202401)
-   ├─ 페이지네이션: 1000개/페이지
-   └─ 응답: 일별/역별 24시간 승하차 데이터
-
-3. 응답 검증 (SeoulApiResponseValidator)
-   ├─ 성공 코드 확인 (INFO-000)
-   ├─ 데이터 존재 확인
-   └─ 필수 필드 검증
-
-4. 데이터 정규화
-   ├─ StationNameNormalizer: 역명 표준화
-   │   예: "강남역" → "강남", "신논현 역" → "신논현"
-   └─ LineNameNormalizer: 노선명 표준화
-       예: "2 호선" → "2호선", "신분당선 " → "신분당선"
-
-5. SubwayDataMapper: 1개 레코드 → 24개 레코드 변환
-   ┌──────────────────────────────────────┐
-   │ API 응답 (1개 레코드)                    
-   │ - statDate: 2024-01-15               
-   │ - station: 강남                        
-   │ - 0500승차: 120                        
-   │ - 0500하차: 80                         
-   │ - ... (24시간 데이터)                   
-   └──────────────────────────────────────┘
-                    ↓
-   ┌──────────────────────────────────────┐
-   │ SubwayPassengerHourly (24개 레코드)    
-   │ 1. statDate=2024-01-15, hour=5,       
-   │    boarding=120, alighting=80         
-   │ 2. statDate=2024-01-15, hour=6, ...   
-   │ ... (시간대별 24개)                     
-   └──────────────────────────────────────┘
-
-6. 역 매핑 및 저장
-   ├─ 메모리 캐시에서 SubwayStation 조회 (O(1), DB 조회 불필요)
-   ├─ Unique 제약조건: (station, statDate, hourSlot)
-   │   → 중복 시 자동 스킵 또는 업데이트
-   └─ 배치 삽입 (batch_size=100)
-
-7. 진행 상황 로깅
-   └─ 페이지별 진행률, 총 적재 건수 출력
-```
-
+서울 열린데이터 광장 API를 페이지네이션(1000개/페이지)으로 호출합니다. 1개 레코드(역별 일별 24시간 데이터)를 24개의 `SubwayPassengerHourly` 레코드로 변환해 저장합니다. N+1 방지를 위해 노선·역 정보를 시작 시 메모리 캐시로 적재합니다.
 
 ### 3. 열차 시간표 적재
 
-**API**: `POST /admin/data-load/train-schedule/all`
+`POST /admin/data-load/train-schedule/all`
 
-**프로세스:**
-```
-1. 서울교통공사 API 호출
-   ├─ 전체 노선 순회
-   └─ 역별/요일별 시간표 조회
-
-2. 응답 검증 (SeoulMetroApiResponseValidator)
-   ├─ 성공 코드 확인 (resultCode=0)
-   └─ 데이터 유효성 검증
-
-3. 시간 파싱 (TimeParser)
-   ├─ 입력: "HHmmss" 형식 (예: "053000")
-   └─ 출력: LocalTime (예: 05:30:00)
-
-4. TrainScheduleMapper: API 응답 → 엔티티 변환
-   ┌──────────────────────────────────────┐
-   │ API 응답                               
-   │ - stationName: 강남                    
-   │ - lineName: 2호선                      
-   │ - dayCode: 0 (평일)                    
-   │ - arrivalTime: 053000                  
-   │ - departureTime: 053030               
-   └──────────────────────────────────────┘
-                    ↓
-   ┌──────────────────────────────────────┐
-   │ SubwayTrainSchedule 엔티티             
-   │ - station: SubwayStation               
-   │ - dayCode: 0                           
-   │ - arrivalTime: 05:30:00                
-   │ - departureTime: 05:30:30              
-   └──────────────────────────────────────┘
-
-5. 요일 코드 변환 (DayCodeConverter)
-   ├─ 평일: 0
-   └─ 주말: 1
-
-6. 배치 저장
-   ├─ 기존 데이터 삭제 (전체 교체 방식)
-   └─ 신규 데이터 삽입 (batch_size=100)
-```
-
-**데이터 신선도:**
-- 열차 시간표는 노선 개편 시에만 변경
-- 관리자가 변경 시점에 수동으로 재적재
+서울교통공사 API에서 전 노선의 역별·요일별 시간표를 조회합니다. 기존 데이터를 전체 삭제 후 신규 데이터를 배치 삽입하는 전체 교체 방식을 사용합니다. 노선 개편 시 수동으로 재적재합니다.
 
 ## 검색 프로세스
 
-### 1. 역 검색 프로세스
+### 1. 역 검색
 
-**API**: `GET /search/station?stationName=강남`
+`GET /search/station?stationName=강남`
 
-**플로우:**
-```
-1. 사용자 요청
-   └─ 검색어: "강남" (최소 2자)
+Odsay API(CID=1000, 서울 수도권 필터)로 역을 검색해 이름·좌표·노선 색상을 반환합니다.
 
-2. StationSearchController
-   ├─ @Validated로 입력 검증
-   └─ StationSearchService 호출
+### 2. 경로 및 시간 추천
 
-3. StationSearchService
-   └─ OdsayClient.searchStation()
+`GET /search/route?departureStationId=222&arrivalStationId=234&searchDate=2024-01-15&startTime=08:00&endTime=09:00`
 
-4. Odsay API 호출
-   ┌──────────────────────────────────────┐
-   │ GET https://api.odsay.com/v1/api/...  
-   │ Parameters:                            
-   │ - stationName: 강남                    
-   │ - CID: 1000 (서울 수도권 필터)          
-   └──────────────────────────────────────┘
+1. **경로 템플릿 생성**: Odsay API 1회 호출로 최단시간 경로와 역별 시간 오프셋을 산출합니다.
+2. **실제 출발역 확정**: 환승역의 경우 사용자 선택 ID와 실제 경로 ID가 다를 수 있으므로, Odsay API가 결정한 첫 번째 역 ID를 기준으로 사용합니다.
+3. **출발 시간 조회**: DB에서 해당 역의 요일별 실제 열차 출발 시간 목록을 조회합니다.
+4. **혼잡도 계산**: 출발 시간별로 경유 역의 `SubwayPassengerHourly` 데이터를 조회해 평균 혼잡도를 산출합니다.
+5. **다양성 기반 추천**: LOW/MEDIUM/HIGH 레벨에서 각 1개씩 선택해 최대 3개의 시간대를 추천합니다.
 
-5. 응답 검증 (OdsayApiResponseValidator)
-   ├─ resultCode == 0 확인
-   └─ station 배열 존재 확인
+### 3. 북마크
 
-6. 응답 변환
-   ┌──────────────────────────────────────┐
-   │ Odsay API 응답                         
-   │ - stationName: 강남                    
-   │ - stationID: 222                      
-   │ - x: 127.02761 (경도)                  
-   │ - y: 37.49794 (위도)                   
-   │ - laneName: 2호선                      
-   └──────────────────────────────────────┘
-                    ↓
-   ┌──────────────────────────────────────┐
-   │ StationSearchResult                    
-   │ - totalCount: 1                        
-   │ - stations: [                          
-   │     {                                  
-   │       stationName: 강남                
-   │       stationID: 222                  
-   │       x: 127.02761                     
-   │       y: 37.49794                      
-   │       laneName: 2호선                  
-   │       lineColor: #00A84D               
-   │     }                                  
-   │   ]                                    
-   └──────────────────────────────────────┘
-
-7. 클라이언트 응답
-```
-
-**특징:**
-- **CID=1000 필터**: 서울 수도권만 검색 (타 지역 제외)
-- **좌표 제공**: 지도 통합 가능
-- **노선 색상**: 시각화에 활용
-
-### 2. 경로 및 시간 추천 프로세스
-
-**API**: `GET /search/route?departureStationId=222&arrivalStationId=234&searchDate=2024-01-15&startTime=08:00&endTime=09:00`
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1단계: 요청 검증 및 날짜 변환
-├─────────────────────────────────────────────────────────────────┤
-│ StationSearchController
-│ ├─ departureStationId: 출발역 ID (필수)
-│ ├─ arrivalStationId: 도착역 ID (필수)
-│ ├─ searchDate: 검색 날짜 (필수, ISO 형식)
-│ ├─ startTime: 시작 시간 (필수, HH:mm)
-│ └─ endTime: 종료 시간 (필수, HH:mm)
-│
-│ DayCodeConverter.convert(searchDate)
-│ ├─ 월~금: dayCode = 0 (평일)
-│ └─ 토~일: dayCode = 1 (주말)
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 2단계: 경로 템플릿 생성 (Odsay API 1회 호출)
-├─────────────────────────────────────────────────────────────────┤
-│ fetchRouteTemplate(startTime)
-│
-│ 1. Odsay API 호출
-│    └─ OdsayClient.searchSubwaySchedule()
-│        ├─ 출발역, 도착역, 요일, 대표시간(startTime)
-│        └─ 응답: 경로 정보 (역 시퀀스, 소요시간, 환승 등)
-│
-│ 2. 최단시간 경로 선택
-│    └─ extractFastestPath()
-│        └─ pathType=1 (최단시간) 경로 선택
-│
-│ 3. 역 템플릿 추출
-│    └─ extractStationTemplates()
-│        ├─ 각 역의 도착 시간 파싱
-│        ├─ 출발역 기준 시간 오프셋 계산
-│        │   예: 출발역 +0분, 역삼 +3분, 선릉 +6분
-│        └─ StationTemplate 생성:
-│            ├─ stationId, stationName
-│            ├─ lineName, lineColor
-│            └─ minutesFromDeparture (시간 오프셋)
-│
-│ 4. RouteTemplate 생성
-│    ├─ stations: 역 시퀀스 + 시간 오프셋
-│    ├─ totalTime: 총 소요 시간
-│    ├─ transferCount: 환승 횟수
-│    └─ referenceDepartureTime: 기준 출발 시간
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 3단계: 실제 출발역 ID 확정 (다중노선 환승역 문제 해결)
-├─────────────────────────────────────────────────────────────────┤
-│ extractActualDepartureStationId(template)
-│
-│ 📌 문제 상황:
-│    사용자 선택: 시청 2호선 (ID: 222)
-│    실제 경로: 시청 1호선 (ID: 150) 사용
-│    → 사용자 선택 ID로 DB 조회 시 스케줄 없음 오류
-│
-│ 💡 해결책:
-│    템플릿의 첫 번째 역 ID를 실제 출발역으로 사용
-│    └─ Odsay API가 결정한 실제 경로 기준
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 4단계: DB에서 실제 열차 출발 시간 조회
-├─────────────────────────────────────────────────────────────────┤
-│ getAvailableDepartureTimes(actualStationId, dayType, range)
-│
-│ SubwayTrainScheduleRepository.findDistinctDepartureTimes()
-│ ├─ WHERE station_id = actualDepartureStationId
-│ ├─ AND day_code = 0 (또는 1)
-│ ├─ AND departure_time BETWEEN startTime AND endTime
-│ └─ ORDER BY departure_time
-│
-│ 결과 예시: [08:00, 08:03, 08:06, 08:09, 08:12, ...]
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 5단계: 템플릿 기반 추천 생성 및 혼잡도 계산
-├─────────────────────────────────────────────────────────────────┤
-│ generateRecommendationsFromTemplate(template, departureTimes)
-│
-│ For each departureTime in [08:00, 08:03, 08:06, ...]:
-│
-│   1. 역별 도착 시간 계산
-│      └─ calculateStationTimesForDeparture()
-│          ├─ 각 역의 시간 = departureTime + minutesFromDeparture
-│          │   예: 08:00 + 3분 → 역삼 08:03 도착
-│          └─ StationWithTime 생성 (역 ID, 이름, 도착시간)
-│
-│   2. 혼잡도 데이터 조회 및 계산
-│      └─ calculateCongestion(stationsWithTime)
-│          ├─ deduplicateStations(): 환승역 중복 제거
-│          ├─ groupStationIdsByHour(): 시간대별 그룹화
-│          │   예: {8시: [역1, 역2], 9시: [역3, 역4]}
-│          ├─ fetchPassengerData(): DB에서 승객 데이터 조회
-│          │   SubwayPassengerHourlyRepository 배치 조회
-│          └─ calculateAverageScore(): 평균 혼잡도 계산
-│              totalScore = Σ(승차+하차) / 데이터있는역수
-│
-│   3. DepartureTimeRecommendation 생성
-│      ├─ pathInfo: 경로 메타데이터
-│      ├─ stations: 역 시퀀스 + 시간
-│      └─ congestion: 혼잡도 데이터
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 6단계: 경로 패턴 선택 및 다양성 기반 추천
-├─────────────────────────────────────────────────────────────────┤
-│ buildResponse(recommendations)
-│
-│ 1. 최다 빈도 경로 선택
-│    └─ selectMostCommonPath()
-│        ├─ generatePathKey(): 역 ID 시퀀스로 경로 패턴 구분
-│        │   예: "1001-1002-1003" (강남-역삼-선릉)
-│        ├─ 경로 패턴별 그룹화
-│        └─ 최다 빈도 경로 선택 (동점 시 평균 혼잡도 낮은 것)
-│
-│ 2. 다양성 기반 추천 선택 (최대 3개)
-│    └─ selectDiverseRecommendations()
-│        ├─ 혼잡도 점수 오름차순 정렬
-│        ├─ groupByLevel(): 혼잡도 레벨별 그룹화
-│        │   ├─ LOW: score < 2,000 (한산함)
-│        │   ├─ MEDIUM: 2,000 ≤ score < 5,000 (보통)
-│        │   └─ HIGH: score ≥ 5,000 (혼잡)
-│        ├─ selectFirstFromEachLevel(): 각 레벨에서 1개씩 선택
-│        └─ fillRemainingSlots(): 부족하면 낮은 혼잡도 순 채움
-│
-│ 📊 추천 결과 예시:
-│     1위: 08:12 출발 - 혼잡도 LOW (1,200명)
-│     2위: 08:24 출발 - 혼잡도 MEDIUM (3,500명)
-│     3위: 08:36 출발 - 혼잡도 HIGH (5,800명)
-│
-│ 3. TimeRecommendationResult 생성
-│    ├─ departureStationName, arrivalStationName
-│    ├─ travelDate, dayType
-│    └─ recommendations: [
-│          {
-│            departureTime: 출발 시간
-│            arrivalTime: 도착 시간
-│            totalTime: 소요 시간 (분)
-│            transferCount: 환승 횟수
-│            congestionScore: 역당 평균 혼잡도
-│            congestionLevel: LOW/MEDIUM/HIGH
-│            stationCongestions: [
-│              {
-│                stationName, lineName, lineColor
-│                arrivalTime, departureTime
-│                boardingCount, alightingCount
-│                totalPassengers
-│              }, ...
-│            ]
-│          }, ...
-│        ]
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 3. 북마크 검색 최적화
-
-**인덱스 전략:**
-```sql
-CREATE INDEX idx_bookmark_user_order
-ON bookmark (user_id, display_order);
-```
-
-**조회 최적화:**
-- `(user_id, display_order)` 복합 인덱스로 O(log n) 조회
-- Display order로 정렬된 상태로 반환
-- 사용자별 북마크 격리
+`(user_id, display_order)` 복합 인덱스로 사용자별 북마크를 정렬된 순서로 조회합니다.
 
 ## 배포 프로세스
 
-Pulse는 **GitHub Actions + AWS CodeDeploy**를 통한 자동화된 배포 파이프라인을 사용합니다.
-
-### 배포 아키텍처
+**GitHub Actions + AWS CodeDeploy** 기반 자동화 파이프라인입니다.
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                        GitHub Repository                          
-│                     (코드 저장소 + CI/CD)                           
-└────────────────────────┬─────────────────────────────────────────┘
-                         │
-                         │ Push / Manual Trigger
-                         ↓
-┌──────────────────────────────────────────────────────────────────┐
-│                      GitHub Actions Workflow                      
-│                    (.github/workflows/deploy.yml)                 
-│                                                                    
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ 1. Build Stage                                            
-│  │    ├─ Checkout code                                       
-│  │    ├─ Setup Java 21 (Amazon Corretto)                    
-│  │    ├─ Grant execute permission: chmod +x gradlew         
-│  │    └─ Build: ./gradlew clean build                       
-│  └──────────────────────────────────────────────────────────┘   
-│                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ 2. Package Stage                                          
-│  │    ├─ Create deploy/ directory                           
-│  │    ├─ Copy JAR: pulse-0.0.1-SNAPSHOT.jar                 
-│  │    ├─ Copy appspec.yml                                   
-│  │    ├─ Copy scripts/ directory                            
-│  │    └─ Create ZIP: pulse-deployment-{run_number}.zip     
-│  └──────────────────────────────────────────────────────────┘   
-│                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ 3. Upload Stage                                           
-│  │    ├─ Configure AWS credentials (OIDC)                   
-│  │    └─ Upload ZIP to S3 bucket                            
-│  └──────────────────────────────────────────────────────────┘   
-│                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐   
-│  │ 4. Deploy Trigger                                        
-│  │    └─ Create CodeDeploy deployment                       
-│  └──────────────────────────────────────────────────────────┘   
-└────────────────────────┬─────────────────────────────────────────┘
-                         │
-                         ↓
-┌──────────────────────────────────────────────────────────────────┐
-│                         AWS S3 Bucket                             
-│                      (배포 아티팩트 임시 저장소)                              
-└────────────────────────┬─────────────────────────────────────────┘
-                         │
-                         │ CodeDeploy pulls artifact
-                         ↓
-┌──────────────────────────────────────────────────────────────────┐
-│                       AWS CodeDeploy                              
-│                      (배포 오케스트레이션)                              
-└────────────────────────┬─────────────────────────────────────────┘
-                         │
-                         │ Execute lifecycle hooks
-                         ↓
-┌──────────────────────────────────────────────────────────────────┐
-│                         AWS EC2 Instance                          
-│                         (애플리케이션 서버)                             
-│                                                                    
-│  ┌──────────────────────────────────────────────────────────┐
-│  │ Lifecycle Hook 1: ApplicationStop
-│  │ - 실행 중인 애플리케이션 프로세스 중지
-│  │ - Graceful shutdown 후 필요시 강제 종료
-│  └──────────────────────────────────────────────────────────┘   
-│                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐
-│  │ Lifecycle Hook 2: BeforeInstall
-│  │ - 기존 JAR 파일 삭제
-│  │ - 로그 디렉토리 생성
-│  └──────────────────────────────────────────────────────────┘   
-│                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐
-│  │ Lifecycle Hook 3: AfterInstall
-│  │ - 파일 소유권 및 권한 설정
-│  └──────────────────────────────────────────────────────────┘   
-│                         ↓                                          
-│  ┌──────────────────────────────────────────────────────────┐
-│  │ Lifecycle Hook 4: ApplicationStart
-│  │ - Spring Boot 애플리케이션 시작 (prod 프로파일)
-│  │ - JVM 옵션: Xms256m, Xmx768m
-│  │ - 백그라운드 실행 및 PID 저장
-│  └──────────────────────────────────────────────────────────┘ 
-│                         ↓                                      
-│  ┌──────────────────────────────────────────────────────────┐
-│  │ Lifecycle Hook 5: ValidateService
-│  │ - 헬스체크 엔드포인트 호출 (최대 30회, 2초 간격)
-│  │ - HTTP 200 응답 확인으로 정상 배포 검증
-│  │ - 실패 시 자동 롤백
-│  └──────────────────────────────────────────────────────────┘ 
-└──────────────────────────────────────────────────────────────────┘
-                         ↓
-┌──────────────────────────────────────────────────────────────────┐
-│                      Deployment Complete                          
-│                  애플리케이션 정상 실행 중                           
-└──────────────────────────────────────────────────────────────────┘
+GitHub Push
+    ↓
+GitHub Actions: 빌드(./gradlew clean build) → ZIP 패키징 → S3 업로드
+    ↓
+AWS CodeDeploy: EC2 Lifecycle Hook 순차 실행
+    ├─ ApplicationStop   : 기존 프로세스 종료
+    ├─ BeforeInstall     : 기존 JAR 삭제
+    ├─ AfterInstall      : 파일 권한 설정
+    ├─ ApplicationStart  : Spring Boot 시작 (prod 프로파일, JVM Xms256m/Xmx768m)
+    └─ ValidateService   : 헬스체크 성공 시 배포 완료, 실패 시 자동 롤백
 ```
 
-### 프로덕션 설정
-
-**환경 변수 로딩 (AWS Secrets Manager):**
-```
-Spring Boot 시작
-    ↓
-application-prod.yml 로드
-    ↓
-AWS Secrets Manager 연동
-    ↓
-Secrets 조회:
-    ├─ pulse/database (DB 자격증명)
-    ├─ pulse/jwt (JWT secret)
-    ├─ pulse/seoul-api (Seoul API key)
-    ├─ pulse/odsay-api (Odsay API key)
-    ├─ pulse/metro-api (Metro API key)
-    ├─ pulse/kakao-oauth (Kakao credentials)
-    └─ pulse/google-oauth (Google credentials)
-    ↓
-@ConfigurationProperties 바인딩
-    ↓
-애플리케이션 초기화 완료
-```
-
-### 롤백 전략
-
-**자동 롤백:**
-- `ValidateService` 헬스 체크 실패 시 자동 롤백
-- 이전 배포 버전으로 복원
-
-## API 엔드포인트
-
-### 인증 API
-
-| Method | Endpoint | 인증 | 설명 |
-|--------|----------|------|------|
-| POST | `/auth/login` | 불필요 | OAuth 소셜 로그인 (Kakao/Google) |
-| POST | `/auth/refresh` | 불필요 | Access Token 갱신 |
-| POST | `/auth/logout` | 필요 | 로그아웃 (Refresh Token 삭제) |
-
-### 검색 API
-
-| Method | Endpoint | 인증 | 설명 |
-|--------|----------|------|------|
-| GET | `/search/station` | 불필요 | 역 검색 (이름 기반) |
-| GET | `/search/route` | 불필요 | 경로 및 시간 추천 (혼잡도 포함) |
-
-**주요 파라미터:**
-- `stationName`: 역 이름 (최소 2자)
-- `departureStationId`: 출발역 ID
-- `arrivalStationId`: 도착역 ID
-- `searchDate`: 검색 날짜 (YYYY-MM-DD)
-- `startTime`: 시작 시간 (HH:mm)
-- `endTime`: 종료 시간 (HH:mm)
-
-### 북마크 API
-
-| Method | Endpoint | 인증 | 설명 |
-|--------|----------|------|------|
-| POST | `/bookmarks` | 필요 | 북마크 생성 |
-| GET | `/bookmarks` | 필요 | 모든 북마크 조회 |
-| GET | `/bookmarks/{id}` | 필요 | 특정 북마크 조회 |
-| PATCH | `/bookmarks/{id}` | 필요 | 북마크 수정 |
-| PUT | `/bookmarks/reorder` | 필요 | 북마크 순서 변경 |
-| DELETE | `/bookmarks/{id}` | 필요 | 북마크 삭제 |
-
-### 사용자 API
-
-| Method | Endpoint | 인증 | 설명 |
-|--------|----------|------|------|
-| GET | `/user/me` | 필요 | 현재 사용자 정보 조회 |
-
-### 관리자 API
-
-| Method | Endpoint | 인증 | 설명 |
-|--------|----------|------|------|
-| POST | `/admin/data-load/subway/master` | Admin | 노선/역 마스터 데이터 적재 |
-| POST | `/admin/data-load/subway/statistics` | Admin | 승객 통계 데이터 적재 |
-| POST | `/admin/data-load/train-schedule/all` | Admin | 열차 시간표 적재 |
-
-**상세 API 문서:**
-- 요청/응답 예시는 Postman Collection 참조
-- Swagger UI: `/swagger-ui.html` (개발 환경)
+**환경 변수**: `application-prod.yml` 로드 시 AWS Secrets Manager에서 DB·JWT·외부 API 자격증명을 가져와 `@ConfigurationProperties`에 바인딩합니다.
 
 ## 프로젝트 구조
 
@@ -860,27 +362,38 @@ Secrets 조회:
 pulse/
 ├── src/main/java/com/pulse/
 │   ├── api/                           # 외부 API 클라이언트
+│   │   ├── config/
+│   │   │   └── RestTemplateConfig.java
 │   │   ├── seoulopendata/             # 서울 열린데이터 광장
 │   │   │   ├── SeoulOpenDataClient.java
-│   │   │   ├── dto/                   # 요청/응답 DTO
+│   │   │   ├── ApiResult.java
+│   │   │   ├── dto/
 │   │   │   └── validator/             # SeoulApiResponseValidator
 │   │   ├── odsay/                     # Odsay (역 검색, 경로)
 │   │   │   ├── OdsayClient.java
 │   │   │   ├── dto/
-│   │   │   └── validator/             # OdsayApiResponseValidator
+│   │   │   └── validator/             # OdsayApiResponseValidator, OdsaySubwayScheduleResponseValidator
 │   │   ├── seoulmetro/                # 서울교통공사 (시간표)
 │   │   │   ├── SeoulMetroClient.java
-│   │   │   └── validator/
+│   │   │   ├── dto/
+│   │   │   └── validator/             # SeoulMetroApiResponseValidator
 │   │   ├── kakao/                     # Kakao OAuth
 │   │   │   ├── KakaoApiClient.java
 │   │   │   └── dto/
 │   │   └── google/                    # Google OAuth
 │   │       ├── GoogleApiClient.java
 │   │       └── dto/
-│   ├── config/                        # Spring 설정
+│   ├── config/                        # Spring 설정 및 @ConfigurationProperties
 │   │   ├── SecurityConfig.java        # 보안 설정
-│   │   ├── JpaConfig.java             # JPA 설정
-│   │   └── properties/                # @ConfigurationProperties
+│   │   ├── WebConfig.java             # CORS 설정
+│   │   ├── AwsSecretsConfig.java      # AWS Secrets Manager 연동
+│   │   ├── JwtProperties.java
+│   │   ├── KakaoApiProperties.java
+│   │   ├── GoogleApiProperties.java
+│   │   ├── OdsayApiProperties.java
+│   │   ├── SeoulApiProperties.java
+│   │   ├── SeoulMetroApiProperties.java
+│   │   └── MasterDataProperties.java
 │   ├── controller/                    # REST 컨트롤러
 │   │   ├── auth/                      # 인증
 │   │   ├── web/                       # 검색 (공개)
@@ -888,47 +401,57 @@ pulse/
 │   │   ├── user/                      # 사용자
 │   │   └── admin/                     # 관리자 (데이터 적재)
 │   ├── service/                       # 비즈니스 로직
-│   │   ├── auth/                      # 인증 서비스
-│   │   ├── search/                    # 검색 서비스
-│   │   │   ├── StationSearchService.java
-│   │   │   └── TimeRecommendationService.java
-│   │   ├── dataload/                  # 데이터 적재 서비스
-│   │   │   ├── SubwayDataLoadService.java
-│   │   │   └── TrainScheduleLoadService.java
-│   │   ├── bookmark/                  # 북마크 서비스
-│   │   └── user/                      # 사용자 서비스
+│   │   ├── auth/                      # AuthService, RefreshTokenService, SocialAuthService
+│   │   ├── search/                    # StationSearchService, TimeRecommendationService
+│   │   ├── dataload/subway/           # SubwayMasterDataLoadService, SubwayStatisticsDataLoadService,
+│   │   │                              # TrainScheduleDataLoadService
+│   │   ├── bookmark/                  # BookmarkService
+│   │   └── user/                      # UserService
 │   ├── repository/                    # JPA 리포지토리
 │   │   ├── user/
 │   │   ├── subway/
 │   │   └── bookmark/
 │   ├── entity/                        # JPA 엔티티
-│   │   ├── user/                      # User, RefreshToken
+│   │   ├── user/                      # User, RefreshToken, ProviderType, UserRole
 │   │   ├── subway/                    # SubwayLine, SubwayStation,
-│   │   │                              # SubwayPassengerHourly,
-│   │   │                              # SubwayTrainSchedule
+│   │   │                              # SubwayPassengerHourly, SubwayTrainSchedule
 │   │   └── bookmark/                  # Bookmark
 │   ├── dto/                           # DTO (요청/응답)
 │   │   ├── auth/
 │   │   ├── bookmark/
-│   │   └── user/
+│   │   ├── user/
+│   │   ├── masterdata/
+│   │   ├── StationSearchResult.java
+│   │   ├── TimeRecommendationRequest.java
+│   │   ├── TimeRecommendationResult.java
+│   │   ├── CongestionLevel.java
+│   │   ├── DataLoadResult.java
+│   │   └── ErrorResponse.java
 │   ├── security/                      # 보안 컴포넌트
 │   │   ├── JwtAuthenticationFilter.java  # JWT 필터
-│   │   ├── JwtTokenProvider.java         # JWT 생성/검증
-│   │   └── CustomUserDetailsService.java
+│   │   └── JwtTokenProvider.java         # JWT 생성/검증
 │   ├── mapper/                        # 데이터 변환 매퍼
 │   │   ├── SubwayDataMapper.java          # 1개 → 24개 레코드
 │   │   └── TrainScheduleMapper.java
 │   ├── util/                          # 유틸리티
 │   │   ├── StationNameNormalizer.java     # 역명 정규화
 │   │   ├── LineNameNormalizer.java        # 노선명 정규화
+│   │   ├── LineDirectionResolver.java     # 노선 방향 결정
+│   │   ├── SubwayTimeNormalizer.java      # 지하철 시간 정규화
 │   │   ├── DayCodeConverter.java          # 요일 코드 변환
-│   │   └── TimeParser.java                # 시간 파싱
+│   │   └── TimeParser.java               # 시간 파싱
 │   ├── exception/                     # 커스텀 예외
 │   │   ├── ErrorCode.java
-│   │   ├── auth/                          # 인증 예외
-│   │   └── GlobalExceptionHandler.java
+│   │   ├── BaseException.java
+│   │   ├── GlobalExceptionHandler.java
+│   │   ├── auth/
+│   │   ├── bookmark/
+│   │   ├── config/
+│   │   ├── dataload/
+│   │   ├── search/
+│   │   └── user/
 │   └── scheduler/                     # 스케줄러
-│       └── RefreshTokenCleanupScheduler.java  # 토큰 정리
+│       └── RefreshTokenCleanupScheduler.java  # 만료 토큰 정리
 ├── src/main/resources/
 │   ├── application.yml                # 기본 설정
 │   ├── application-local.yml          # 로컬 개발
@@ -936,6 +459,26 @@ pulse/
 │   └── data/                          # 마스터 데이터
 │       ├── lines.json                 # 노선 정보
 │       └── stations.json              # 역 정보
+├── src/docs/asciidoc/                 # API 문서 소스
+│   ├── index.adoc
+│   ├── auth.adoc
+│   ├── search.adoc
+│   ├── bookmark.adoc
+│   ├── user.adoc
+│   └── admin.adoc
+├── src/test/java/com/pulse/
+│   ├── controller/                    # Spring REST Docs 컨트롤러 테스트
+│   │   ├── auth/
+│   │   ├── web/
+│   │   ├── bookmark/
+│   │   ├── user/
+│   │   └── admin/
+│   ├── service/                       # 서비스 단위 테스트
+│   │   ├── bookmark/
+│   │   ├── dataload/subway/
+│   │   └── search/
+│   └── support/
+│       └── RestDocsSupport.java       # RestDocs 공통 설정
 ├── scripts/                           # 배포 스크립트
 │   ├── stop_application.sh
 │   ├── before_install.sh
