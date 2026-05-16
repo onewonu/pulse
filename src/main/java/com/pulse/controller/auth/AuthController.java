@@ -1,6 +1,7 @@
 package com.pulse.controller.auth;
 
 import com.pulse.dto.auth.LoginResponse;
+import com.pulse.dto.auth.LogoutResponse;
 import com.pulse.dto.auth.RefreshTokenRequest;
 import com.pulse.dto.auth.SocialLoginRequest;
 import com.pulse.dto.auth.TokenRefreshResponse;
@@ -42,10 +43,10 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout() {
+    public ResponseEntity<LogoutResponse> logout() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Long userId = (Long) authentication.getPrincipal();
         authService.logout(userId);
-        return ResponseEntity.ok("Logout successful");
+        return ResponseEntity.ok(LogoutResponse.of());
     }
 }
