@@ -3,7 +3,7 @@ package com.pulse.service.dataload.subway;
 import com.pulse.api.seoulmetro.SeoulMetroClient;
 import com.pulse.api.seoulmetro.dto.SeoulMetroTrainScheduleResponse;
 import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
 import com.pulse.exception.dataload.ApiCommunicationException;
@@ -54,13 +54,13 @@ public class TrainScheduleDataLoadService {
         this.mapper = mapper;
     }
 
-    public DataLoadResult deleteAllTrainSchedules() {
+    public DataLoadResponse deleteAllTrainSchedules() {
         long count = scheduleRepository.count();
         scheduleRepository.deleteAll();
-        return DataLoadResult.success("All train schedules deleted", (int) count);
+        return DataLoadResponse.success("All train schedules deleted", (int) count);
     }
 
-    public DataLoadResult loadTrainSchedules(String dayType) {
+    public DataLoadResponse loadTrainSchedules(String dayType) {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
 
         deleteExistingSchedules(dayType, operationId);
@@ -77,7 +77,7 @@ public class TrainScheduleDataLoadService {
         Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules, operationId);
         int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap, operationId);
 
-        return DataLoadResult.success("Train schedules (" + dayType + ")", totalCount);
+        return DataLoadResponse.success("Train schedules (" + dayType + ")", totalCount);
     }
 
     private void deleteExistingSchedules(String dayType, String operationId) {

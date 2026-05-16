@@ -1,8 +1,8 @@
 package com.pulse.controller.web;
 
-import com.pulse.dto.StationSearchResult;
-import com.pulse.dto.TimeRecommendationRequest;
-import com.pulse.dto.TimeRecommendationResult;
+import com.pulse.dto.search.StationSearchResponse;
+import com.pulse.dto.search.TimeRecommendationRequest;
+import com.pulse.dto.search.TimeRecommendationResponse;
 import com.pulse.service.search.TimeRecommendationService;
 import com.pulse.service.search.StationSearchService;
 import jakarta.validation.constraints.NotBlank;
@@ -34,18 +34,18 @@ public class StationSearchController {
     }
 
     @GetMapping("/station")
-    public ResponseEntity<StationSearchResult> searchStation(
+    public ResponseEntity<StationSearchResponse> searchStation(
             @RequestParam
             @NotBlank(message = "stationName cannot be blank")
             @Size(min = 2, message = "stationName must be at least 2 characters")
             String stationName
     ) {
-        StationSearchResult result = stationSearchService.searchStation(stationName);
+        StationSearchResponse result = stationSearchService.searchStation(stationName);
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/route")
-    public ResponseEntity<TimeRecommendationResult> recommendTimes(
+    public ResponseEntity<TimeRecommendationResponse> recommendTimes(
             @RequestParam("departureStationId") @NotNull @NotBlank @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric") String departureStationId,
             @RequestParam("arrivalStationId") @NotNull @NotBlank @Pattern(regexp = "^\\d+$", message = "Station ID must be numeric") String arrivalStationId,
             @RequestParam("searchDate") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate searchDate,
@@ -60,7 +60,7 @@ public class StationSearchController {
                 endTime
         );
 
-        TimeRecommendationResult result = timeRecommendationService.recommendTimes(request);
+        TimeRecommendationResponse result = timeRecommendationService.recommendTimes(request);
         return ResponseEntity.ok(result);
     }
 }

@@ -4,7 +4,7 @@ import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
 import com.pulse.config.SeoulApiProperties;
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
@@ -52,19 +52,19 @@ public class SubwayStatisticsDataLoadService {
         this.properties = properties;
     }
 
-    public DataLoadResult deleteStatisticsByYearMonth(String yearMonth) {
+    public DataLoadResponse deleteStatisticsByYearMonth(String yearMonth) {
         int deletedCount = subwayPassengerRepository.deleteByYearMonth(yearMonth);
-        return DataLoadResult.success("Subway statistics deleted", deletedCount);
+        return DataLoadResponse.success("Subway statistics deleted", deletedCount);
     }
 
-    public DataLoadResult loadSubwayStatisticsData(String yearMonth) {
+    public DataLoadResponse loadSubwayStatisticsData(String yearMonth) {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
         MasterDataCaches caches = loadMasterDataCaches(operationId);
         List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
         Map<String, SubwayPassengerHourly> hourlyDataMap = processPassengerData(apiDataList, caches, operationId);
         int totalCount = savePassengerData(hourlyDataMap);
 
-        return DataLoadResult.success("Subway statistics data (" + yearMonth + ")", totalCount);
+        return DataLoadResponse.success("Subway statistics data (" + yearMonth + ")", totalCount);
     }
 
     private MasterDataCaches loadMasterDataCaches(String operationId) {

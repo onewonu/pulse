@@ -2,7 +2,7 @@ package com.pulse.service.dataload.subway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pulse.config.MasterDataProperties;
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.dto.masterdata.LinesData;
 import com.pulse.dto.masterdata.StationExportData;
 import com.pulse.dto.masterdata.StationMasterData;
@@ -85,7 +85,7 @@ class SubwayMasterDataLoadServiceTest {
         when(subwayStationRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        DataLoadResult result = service.loadMasterDataFromJson();
+        DataLoadResponse result = service.loadMasterDataFromJson();
 
         // Then
         assertThat(result).isNotNull();

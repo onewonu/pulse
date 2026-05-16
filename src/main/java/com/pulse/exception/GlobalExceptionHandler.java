@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException e) {
-        log.error("Constraint violation occurred: {}", e.getMessage());
+        log.warn("Constraint violation occurred: {}", e.getMessage());
 
         StringBuilder message = new StringBuilder();
         for (ConstraintViolation<?> violation : e.getConstraintViolations()) {

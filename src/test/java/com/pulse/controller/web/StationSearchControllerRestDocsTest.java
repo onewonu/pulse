@@ -1,8 +1,8 @@
 package com.pulse.controller.web;
 
-import com.pulse.dto.StationSearchResult;
-import com.pulse.dto.TimeRecommendationResult;
-import com.pulse.dto.CongestionLevel;
+import com.pulse.dto.search.StationSearchResponse;
+import com.pulse.dto.search.TimeRecommendationResponse;
+import com.pulse.dto.search.CongestionLevel;
 import com.pulse.service.search.StationSearchService;
 import com.pulse.service.search.TimeRecommendationService;
 import com.pulse.support.RestDocsSupport;
@@ -37,11 +37,11 @@ class StationSearchControllerRestDocsTest extends RestDocsSupport {
     @DisplayName("역 이름으로 역 검색")
     void searchStation() throws Exception {
         // given
-        StationSearchResult result = new StationSearchResult(
+        StationSearchResponse result = new StationSearchResponse(
                 2,
                 List.of(
-                        new StationSearchResult.StationItem("강남", "228", 127.0276, 37.4979, "2호선", "#00A84D"),
-                        new StationSearchResult.StationItem("강남구청", "734", 127.0435, 37.5172, "7호선", "#747F00")
+                        new StationSearchResponse.StationItem("강남", "228", 127.0276, 37.4979, "2호선", "#00A84D"),
+                        new StationSearchResponse.StationItem("강남구청", "734", 127.0435, 37.5172, "7호선", "#747F00")
                 )
         );
         given(stationSearchService.searchStation("강남")).willReturn(result);
@@ -71,7 +71,7 @@ class StationSearchControllerRestDocsTest extends RestDocsSupport {
     @DisplayName("출발/도착역과 시간대로 추천 시간 조회")
     void recommendTimes() throws Exception {
         // given
-        TimeRecommendationResult result = new TimeRecommendationResult(
+        TimeRecommendationResponse result = new TimeRecommendationResponse(
                 "228",
                 "150",
                 "강남",
@@ -79,7 +79,7 @@ class StationSearchControllerRestDocsTest extends RestDocsSupport {
                 LocalDate.of(2026, 3, 21),
                 "평일",
                 List.of(
-                        new TimeRecommendationResult.TimeRecommendation(
+                        new TimeRecommendationResponse.TimeRecommendation(
                                 LocalTime.of(9, 0),
                                 LocalTime.of(9, 45),
                                 45,
@@ -87,7 +87,7 @@ class StationSearchControllerRestDocsTest extends RestDocsSupport {
                                 2500,
                                 CongestionLevel.LOW,
                                 List.of(
-                                        new TimeRecommendationResult.StationCongestion(
+                                        new TimeRecommendationResponse.StationCongestion(
                                                 "228", "강남", "2호선", "#00A84D",
                                                 LocalTime.of(9, 0), LocalTime.of(9, 2),
                                                 1200, 800, 5000

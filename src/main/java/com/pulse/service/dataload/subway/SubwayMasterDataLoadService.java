@@ -2,7 +2,7 @@ package com.pulse.service.dataload.subway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pulse.config.MasterDataProperties;
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.dto.masterdata.LinesData;
 import com.pulse.dto.masterdata.StationMasterData;
 import com.pulse.dto.masterdata.StationExportData;
@@ -53,7 +53,7 @@ public class SubwayMasterDataLoadService {
         this.masterDataProperties = masterDataProperties;
     }
 
-    public DataLoadResult loadMasterDataFromJson() {
+    public DataLoadResponse loadMasterDataFromJson() {
         String operationId = UUID.randomUUID().toString().substring(0, 8);
 
         log.info("[{}] Start loading subway master data: lines={}, stations={}",
@@ -73,7 +73,7 @@ public class SubwayMasterDataLoadService {
         log.info("[{}] Subway master data loading completed: {} lines, {} stations (total: {})",
                 operationId, lines.size(), stations.size(), lines.size() + stations.size());
 
-        return DataLoadResult.success("Subway master data", lines.size() + stations.size());
+        return DataLoadResponse.success("Subway master data", lines.size() + stations.size());
     }
 
     private void deleteAllExistingMasterData(String operationId) {

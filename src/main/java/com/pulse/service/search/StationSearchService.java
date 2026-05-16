@@ -3,7 +3,7 @@ package com.pulse.service.search;
 import com.pulse.api.odsay.OdsayClient;
 import com.pulse.api.odsay.dto.OdsayStationSearchResponse;
 import com.pulse.api.odsay.dto.StationData;
-import com.pulse.dto.StationSearchResult;
+import com.pulse.dto.search.StationSearchResponse;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.util.LineNameNormalizer;
@@ -24,7 +24,7 @@ public class StationSearchService {
         this.subwayLineRepository = subwayLineRepository;
     }
 
-    public StationSearchResult searchStation(String stationName) {
+    public StationSearchResponse searchStation(String stationName) {
         if (stationName == null || stationName.trim().length() < 2) {
             throw new IllegalArgumentException("stationName must be at least 2 characters");
         }
@@ -33,17 +33,17 @@ public class StationSearchService {
 
         OdsayStationSearchResponse.ResultData result = response.getResult();
         if (result == null || result.getStations() == null || result.getStations().isEmpty()) {
-            return new StationSearchResult(0, Collections.emptyList());
+            return new StationSearchResponse(0, Collections.emptyList());
         }
 
-        List<StationSearchResult.StationItem> stations = result.getStations().stream()
+        List<StationSearchResponse.StationItem> stations = result.getStations().stream()
                 .map(this::mapToStationItem)
                 .toList();
 
-        return new StationSearchResult(result.getTotalCount(), stations);
+        return new StationSearchResponse(result.getTotalCount(), stations);
     }
 
-    private StationSearchResult.StationItem mapToStationItem(StationData data) {
+    private StationSearchResponse.StationItem mapToStationItem(StationData data) {
         String laneName = data.getLaneName();
 
         String lineColor = Optional.ofNullable(laneName)
@@ -52,7 +52,7 @@ public class StationSearchService {
                 .map(SubwayLine::getColor)
                 .orElse(null);
 
-        return new StationSearchResult.StationItem(
+        return new StationSearchResponse.StationItem(
                 data.getStationName(),
                 data.getStationID(),
                 data.getX(),

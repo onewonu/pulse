@@ -1,6 +1,6 @@
 package com.pulse.controller.admin;
 
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.service.dataload.subway.SubwayMasterDataLoadService;
 import com.pulse.service.dataload.subway.SubwayStatisticsDataLoadService;
 import com.pulse.service.dataload.subway.TrainScheduleDataLoadService;
@@ -37,30 +37,30 @@ public class DataLoadController {
     }
 
     @PostMapping("/subway/master")
-    public ResponseEntity<DataLoadResult> loadSubwayMasterData() {
-        DataLoadResult result = subwayMasterDataLoadService.loadMasterDataFromJson();
+    public ResponseEntity<DataLoadResponse> loadSubwayMasterData() {
+        DataLoadResponse result = subwayMasterDataLoadService.loadMasterDataFromJson();
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/subway/statistics")
-    public ResponseEntity<DataLoadResult> loadSubwayStatistics(
+    public ResponseEntity<DataLoadResponse> loadSubwayStatistics(
             @RequestParam
             @NotBlank(message = "yearMonth cannot be blank")
             @Pattern(regexp = "^\\d{6}$", message = "yearMonth must be 6 digits in yyyyMM format")
             String yearMonth
     ) {
-        DataLoadResult result = subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth);
+        DataLoadResponse result = subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/all")
-    public ResponseEntity<Map<String, DataLoadResult>> loadAllData(
+    public ResponseEntity<Map<String, DataLoadResponse>> loadAllData(
             @RequestParam
             @NotBlank(message = "yearMonth cannot be blank")
             @Pattern(regexp = "^\\d{6}$", message = "yearMonth must be 6 digits in yyyyMM format")
             String yearMonth
     ) {
-        Map<String, DataLoadResult> results = new HashMap<>();
+        Map<String, DataLoadResponse> results = new HashMap<>();
 
         results.put("subwayMaster", subwayMasterDataLoadService.loadMasterDataFromJson());
         results.put("subwayStatistics", subwayStatisticsDataLoadService.loadSubwayStatisticsData(yearMonth));
@@ -69,19 +69,19 @@ public class DataLoadController {
     }
 
     @DeleteMapping("/subway/statistics")
-    public ResponseEntity<DataLoadResult> deleteSubwayStatistics(
+    public ResponseEntity<DataLoadResponse> deleteSubwayStatistics(
             @RequestParam
             @NotBlank(message = "yearMonth cannot be blank")
             @Pattern(regexp = "^\\d{6}$", message = "yearMonth must be 6 digits in yyyyMM format")
             String yearMonth
     ) {
-        DataLoadResult result = subwayStatisticsDataLoadService.deleteStatisticsByYearMonth(yearMonth);
+        DataLoadResponse result = subwayStatisticsDataLoadService.deleteStatisticsByYearMonth(yearMonth);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/train-schedule/all")
-    public ResponseEntity<Map<String, DataLoadResult>> loadAllTrainSchedules() {
-        Map<String, DataLoadResult> results = new HashMap<>();
+    public ResponseEntity<Map<String, DataLoadResponse>> loadAllTrainSchedules() {
+        Map<String, DataLoadResponse> results = new HashMap<>();
         String[] dayTypes = {"평일", "주말"};
 
         for (String dayType : dayTypes) {
@@ -92,8 +92,8 @@ public class DataLoadController {
     }
 
     @DeleteMapping("/train-schedule/all")
-    public ResponseEntity<DataLoadResult> deleteAllTrainSchedules() {
-        DataLoadResult result = trainScheduleDataLoadService.deleteAllTrainSchedules();
+    public ResponseEntity<DataLoadResponse> deleteAllTrainSchedules() {
+        DataLoadResponse result = trainScheduleDataLoadService.deleteAllTrainSchedules();
         return ResponseEntity.ok(result);
     }
 }
