@@ -2,9 +2,9 @@ package com.pulse.service.search;
 
 import com.pulse.api.odsay.OdsayClient;
 import com.pulse.api.odsay.dto.OdsaySubwayScheduleResponse;
-import com.pulse.dto.CongestionLevel;
-import com.pulse.dto.TimeRecommendationRequest;
-import com.pulse.dto.TimeRecommendationResult;
+import com.pulse.dto.search.CongestionLevel;
+import com.pulse.dto.search.TimeRecommendationRequest;
+import com.pulse.dto.search.TimeRecommendationResponse;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.exception.search.IncompleteCongestionDataException;
@@ -54,7 +54,7 @@ public class TimeRecommendationService {
         this.odsayClient = odsayClient;
     }
 
-    public TimeRecommendationResult recommendTimes(TimeRecommendationRequest request) {
+    public TimeRecommendationResponse recommendTimes(TimeRecommendationRequest request) {
         DayInfo dayInfo = convertToDayInfo(request);
 
         RouteTemplate template;
@@ -375,7 +375,7 @@ public class TimeRecommendationService {
         return info;
     }
 
-    private TimeRecommendationResult buildResponse(
+    private TimeRecommendationResponse buildResponse(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
             List<DepartureTimeRecommendation> recommendations,
@@ -387,11 +387,11 @@ public class TimeRecommendationService {
 
         List<DepartureTimeRecommendation> selected = selectDiverseRecommendations(recommendations);
 
-        List<TimeRecommendationResult.TimeRecommendation> results = selected.stream()
+        List<TimeRecommendationResponse.TimeRecommendation> results = selected.stream()
                 .map(this::toResultRecommendation)
                 .toList();
 
-        return new TimeRecommendationResult(
+        return new TimeRecommendationResponse(
                 request.departureStationId(),
                 request.arrivalStationId(),
                 getFirstStationName(template),
@@ -403,14 +403,14 @@ public class TimeRecommendationService {
         );
     }
 
-    private TimeRecommendationResult buildEmptyResult(
+    private TimeRecommendationResponse buildEmptyResult(
             TimeRecommendationRequest request,
             DayInfo dayInfo,
             RouteTemplate template) {
         String departureStationName = getFirstStationName(template);
         String arrivalStationName = getLastStationName(template);
 
-        return new TimeRecommendationResult(
+        return new TimeRecommendationResponse(
                 request.departureStationId(),
                 request.arrivalStationId(),
                 departureStationName,
@@ -481,7 +481,7 @@ public class TimeRecommendationService {
         return Stream.concat(selected.stream(), remaining.stream()).toList();
     }
 
-    private TimeRecommendationResult.TimeRecommendation toResultRecommendation(DepartureTimeRecommendation recommendation) {
+    private TimeRecommendationResponse.TimeRecommendation toResultRecommendation(DepartureTimeRecommendation recommendation) {
         OdsaySubwayScheduleResponse.InfoData info = recommendation.pathInfo.getInfo();
 
         LocalTime departureTime = TimeParser.parseHHmmss(info.getDepartureTime());
@@ -489,10 +489,10 @@ public class TimeRecommendationService {
 
         CongestionLevel congestionLevel = CongestionLevel.fromScore(recommendation.congestion.averageScore);
 
-        List<TimeRecommendationResult.StationCongestion> stationCongestions = recommendation.stations.stream()
+        List<TimeRecommendationResponse.StationCongestion> stationCongestions = recommendation.stations.stream()
                 .map(station -> {
                     SubwayPassengerHourly passenger = recommendation.congestion.passengerMap.get(station.stationId);
-                    return new TimeRecommendationResult.StationCongestion(
+                    return new TimeRecommendationResponse.StationCongestion(
                             station.stationId,
                             station.stationName,
                             station.lineName,
@@ -506,7 +506,7 @@ public class TimeRecommendationService {
                 })
                 .toList();
 
-        return new TimeRecommendationResult.TimeRecommendation(
+        return new TimeRecommendationResponse.TimeRecommendation(
                 departureTime,
                 arrivalTime,
                 info.getTotalTime(),

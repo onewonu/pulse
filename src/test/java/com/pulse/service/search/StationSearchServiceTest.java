@@ -3,7 +3,7 @@ package com.pulse.service.search;
 import com.pulse.api.odsay.OdsayClient;
 import com.pulse.api.odsay.dto.OdsayStationSearchResponse;
 import com.pulse.api.odsay.dto.StationData;
-import com.pulse.dto.StationSearchResult;
+import com.pulse.dto.search.StationSearchResponse;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.repository.subway.SubwayLineRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -59,14 +59,14 @@ class StationSearchServiceTest {
         when(subwayLineRepository.findById("수도권 2호선")).thenReturn(Optional.of(line2));
 
         // When
-        StationSearchResult result = stationSearchService.searchStation(stationName);
+        StationSearchResponse result = stationSearchService.searchStation(stationName);
 
         // Then
         assertThat(result).isNotNull();
         assertThat(result.totalCount()).isEqualTo(1);
         assertThat(result.stations()).hasSize(1);
 
-        StationSearchResult.StationItem item = result.stations().getFirst();
+        StationSearchResponse.StationItem item = result.stations().getFirst();
         assertThat(item.stationName()).isEqualTo("강남역");
         assertThat(item.stationID()).isEqualTo("1000");
         assertThat(item.laneName()).isEqualTo("2호선");
@@ -92,7 +92,7 @@ class StationSearchServiceTest {
         when(odsayClient.searchStation(stationName)).thenReturn(response);
 
         // When
-        StationSearchResult result = stationSearchService.searchStation(stationName);
+        StationSearchResponse result = stationSearchService.searchStation(stationName);
 
         // Then
         assertThat(result).isNotNull();

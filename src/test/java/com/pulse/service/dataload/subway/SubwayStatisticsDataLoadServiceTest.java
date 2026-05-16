@@ -4,7 +4,7 @@ import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
 import com.pulse.config.SeoulApiProperties;
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
@@ -98,7 +98,7 @@ class SubwayStatisticsDataLoadServiceTest {
         when(subwayPassengerHourlyRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        DataLoadResult result = service.loadSubwayStatisticsData("202401");
+        DataLoadResponse result = service.loadSubwayStatisticsData("202401");
 
         // Then
         assertThat(result).isNotNull();
@@ -118,7 +118,7 @@ class SubwayStatisticsDataLoadServiceTest {
         when(subwayPassengerHourlyRepository.deleteByYearMonth(yearMonth)).thenReturn(100);
 
         // When
-        DataLoadResult result = service.deleteStatisticsByYearMonth(yearMonth);
+        DataLoadResponse result = service.deleteStatisticsByYearMonth(yearMonth);
 
         // Then
         assertThat(result).isNotNull();

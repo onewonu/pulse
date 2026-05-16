@@ -1,4 +1,4 @@
-package com.pulse.dto;
+package com.pulse.dto.search;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;

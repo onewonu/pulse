@@ -1,4 +1,4 @@
-package com.pulse.dto;
+package com.pulse.dto.search;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-public record TimeRecommendationResult(
+public record TimeRecommendationResponse(
     String departureStationId,
     String arrivalStationId,
     String departureStationName,

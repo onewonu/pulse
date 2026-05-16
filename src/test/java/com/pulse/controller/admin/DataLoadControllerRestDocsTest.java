@@ -1,6 +1,6 @@
 package com.pulse.controller.admin;
 
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.service.dataload.subway.SubwayMasterDataLoadService;
 import com.pulse.service.dataload.subway.SubwayStatisticsDataLoadService;
 import com.pulse.service.dataload.subway.TrainScheduleDataLoadService;
@@ -32,8 +32,8 @@ class DataLoadControllerRestDocsTest extends RestDocsSupport {
         return new DataLoadController(subwayMasterDataLoadService, subwayStatisticsDataLoadService, trainScheduleDataLoadService);
     }
 
-    private DataLoadResult sampleSuccess(String category, int count) {
-        return new DataLoadResult(true, category, count, count + " Loading completed", LocalDateTime.of(2026, 3, 21, 9, 0));
+    private DataLoadResponse sampleSuccess(String category, int count) {
+        return new DataLoadResponse(true, category, count, count + " Loading completed", LocalDateTime.of(2026, 3, 21, 9, 0));
     }
 
     @Test

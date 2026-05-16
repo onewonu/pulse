@@ -1,4 +1,4 @@
-package com.pulse.dto;
+package com.pulse.dto.search;
 
 public enum CongestionLevel {
     LOW,

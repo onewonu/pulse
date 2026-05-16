@@ -1,8 +1,8 @@
-package com.pulse.dto;
+package com.pulse.dto.search;
 
 import java.util.List;
 
-public record StationSearchResult(
+public record StationSearchResponse(
     int totalCount,
     List<StationItem> stations
 ) {

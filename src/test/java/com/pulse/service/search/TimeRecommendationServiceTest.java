@@ -2,8 +2,8 @@ package com.pulse.service.search;
 
 import com.pulse.api.odsay.OdsayClient;
 import com.pulse.api.odsay.dto.OdsaySubwayScheduleResponse;
-import com.pulse.dto.TimeRecommendationRequest;
-import com.pulse.dto.TimeRecommendationResult;
+import com.pulse.dto.search.TimeRecommendationRequest;
+import com.pulse.dto.search.TimeRecommendationResponse;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
@@ -131,7 +131,7 @@ class TimeRecommendationServiceTest {
                 .thenReturn(List.of(passenger1, passenger2, passenger3));
 
         // When
-        TimeRecommendationResult result = timeRecommendationService.recommendTimes(request);
+        TimeRecommendationResponse result = timeRecommendationService.recommendTimes(request);
 
         // Then
         assertThat(result).isNotNull();
@@ -139,7 +139,7 @@ class TimeRecommendationServiceTest {
         assertThat(result.arrivalStationId()).isEqualTo("2000");
         assertThat(result.recommendations()).hasSize(1);
 
-        TimeRecommendationResult.TimeRecommendation recommendation = result.recommendations().getFirst();
+        TimeRecommendationResponse.TimeRecommendation recommendation = result.recommendations().getFirst();
         assertThat(recommendation.departureTime()).isEqualTo(LocalTime.of(9, 30, 0));
         assertThat(recommendation.arrivalTime()).isEqualTo(LocalTime.of(9, 35, 0));
         assertThat(recommendation.totalTime()).isEqualTo(5);

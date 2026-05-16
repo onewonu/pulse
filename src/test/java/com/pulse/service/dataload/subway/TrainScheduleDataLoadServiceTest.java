@@ -1,7 +1,7 @@
 package com.pulse.service.dataload.subway;
 
 import com.pulse.api.seoulmetro.SeoulMetroClient;
-import com.pulse.dto.DataLoadResult;
+import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.mapper.TrainScheduleMapper;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
@@ -48,7 +48,7 @@ class TrainScheduleDataLoadServiceTest {
         when(subwayStationRepository.findAll()).thenReturn(List.of());
 
         // When
-        DataLoadResult result = service.loadTrainSchedules("평일");
+        DataLoadResponse result = service.loadTrainSchedules("평일");
 
         // Then
         assertThat(result).isNotNull();
@@ -65,7 +65,7 @@ class TrainScheduleDataLoadServiceTest {
         when(subwayTrainScheduleRepository.count()).thenReturn(100L);
 
         // When
-        DataLoadResult result = service.deleteAllTrainSchedules();
+        DataLoadResponse result = service.deleteAllTrainSchedules();
 
         // Then
         assertThat(result).isNotNull();
