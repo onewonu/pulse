@@ -46,6 +46,6 @@ seoul-metro-api:
   data-type: JSON
   num-of-rows: 1000
 
-masterdata:
+master-data:
   lines-path: file:/home/ec2-user/pulse/data/lines.json
   stations-path: file:/home/ec2-user/pulse/data/stations.json

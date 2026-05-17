@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationProperties(prefix = "masterdata")
+@ConfigurationProperties(prefix = "master-data")
 public class MasterDataProperties {
 
     private String linesPath = "classpath:data/lines.json";
