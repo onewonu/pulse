@@ -1,5 +1,6 @@
 package com.pulse.service.dataload.subway;
 
+import com.pulse.annotation.DataLoadOperation;
 import com.pulse.api.seoulmetro.SeoulMetroClient;
 import com.pulse.api.seoulmetro.dto.SeoulMetroTrainScheduleResponse;
 import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
@@ -8,24 +9,22 @@ import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
 import com.pulse.exception.dataload.ApiCommunicationException;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
+import com.pulse.mapper.TrainScheduleMapper;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.LineDirectionResolver;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
-import com.pulse.mapper.TrainScheduleMapper;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-import java.util.UUID;
-import java.util.Arrays;
-import java.util.Objects;
 
 @Service
 @Transactional
@@ -60,35 +59,33 @@ public class TrainScheduleDataLoadService {
         return DataLoadResponse.success("All train schedules deleted", (int) count);
     }
 
+    @DataLoadOperation
     public DataLoadResponse loadTrainSchedules(String dayType) {
-        String operationId = UUID.randomUUID().toString().substring(0, 8);
+        deleteExistingSchedules(dayType);
 
-        deleteExistingSchedules(dayType, operationId);
-
-        List<StationDirection> stationDirections = generateStationDirections(operationId);
+        List<StationDirection> stationDirections = generateStationDirections();
 
         List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(
                 stationDirections,
                 dayType,
-                new ConcurrentHashMap<>(),
-                operationId
+                new ConcurrentHashMap<>()
         );
 
-        Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules, operationId);
-        int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap, operationId);
+        Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules);
+        int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap);
 
         return DataLoadResponse.success("Train schedules (" + dayType + ")", totalCount);
     }
 
-    private void deleteExistingSchedules(String dayType, String operationId) {
+    private void deleteExistingSchedules(String dayType) {
         scheduleRepository.deleteByDayType(dayType);
         entityManager.flush();
         entityManager.clear();
 
-        log.info("[{}] Deleted existing schedules for dayType: {}", operationId, dayType);
+        log.info("Deleted existing schedules for dayType: {}", dayType);
     }
 
-    private List<StationDirection> generateStationDirections(String operationId) {
+    private List<StationDirection> generateStationDirections() {
         List<SubwayStation> stations = stationRepository.findAll();
         List<StationDirection> stationDirections = stations.stream()
                 .flatMap(station -> {
@@ -107,8 +104,8 @@ public class TrainScheduleDataLoadService {
                 })
                 .toList();
 
-        log.info("[{}] Generated {} station-direction combinations from {} stations",
-                operationId, stationDirections.size(), stations.size());
+        log.info("Generated {} station-direction combinations from {} stations",
+                stationDirections.size(), stations.size());
 
         return stationDirections;
     }
@@ -116,19 +113,21 @@ public class TrainScheduleDataLoadService {
     private List<SubwayTrainSchedule> fetchSchedulesFromApi(
             List<StationDirection> stationDirections,
             String dayType,
-            Map<String, SubwayStation> stationCache,
-            String operationId
+            Map<String, SubwayStation> stationCache
     ) {
+        Map<String, String> mdcContext = MDC.getCopyOfContextMap();
         return stationDirections.parallelStream()
-                .flatMap(sd -> fetchSchedulesForDirection(sd, dayType, stationCache, operationId))
+                .flatMap(sd -> {
+                    if (mdcContext != null) MDC.setContextMap(mdcContext);
+                    return fetchSchedulesForDirection(sd, dayType, stationCache);
+                })
                 .toList();
     }
 
     private Stream<SubwayTrainSchedule> fetchSchedulesForDirection(
             StationDirection direction,
             String dayType,
-            Map<String, SubwayStation> stationCache,
-            String operationId
+            Map<String, SubwayStation> stationCache
     ) {
         try {
             SeoulMetroTrainScheduleResponse response = apiClient.getTrainSchedule(
@@ -143,8 +142,7 @@ public class TrainScheduleDataLoadService {
             return convertToScheduleEntities(items, direction, stationCache).stream();
         } catch (ApiCommunicationException | ApiResponseInvalidException e) {
 
-            log.warn("[{}] Failed to fetch schedule for line={}, station={}, direction={}: {}",
-                    operationId,
+            log.warn("Failed to fetch schedule for line={}, station={}, direction={}: {}",
                     direction.lineName(),
                     direction.stationName(),
                     direction.updownType(),
@@ -173,7 +171,7 @@ public class TrainScheduleDataLoadService {
                 .toList();
     }
 
-    private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules, String operationId) {
+    private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules) {
         Map<String, SubwayTrainSchedule> uniqueMap = new LinkedHashMap<>();
 
         for (SubwayTrainSchedule schedule : schedules) {
@@ -181,8 +179,7 @@ public class TrainScheduleDataLoadService {
             uniqueMap.putIfAbsent(key, schedule);
         }
 
-        log.info("[{}] Deduplicated schedules: {} fetched -> {} unique",
-                operationId, schedules.size(), uniqueMap.size());
+        log.info("Deduplicated schedules: {} fetched -> {} unique", schedules.size(), uniqueMap.size());
 
         return uniqueMap;
     }
@@ -195,10 +192,10 @@ public class TrainScheduleDataLoadService {
                 schedule.getDayType());
     }
 
-    private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap, String operationId) {
+    private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap) {
         scheduleRepository.saveAll(uniqueSchedulesMap.values());
 
-        log.info("[{}] Saved {} schedules to database", operationId, uniqueSchedulesMap.size());
+        log.info("Saved {} schedules to database", uniqueSchedulesMap.size());
 
         return uniqueSchedulesMap.size();
     }
