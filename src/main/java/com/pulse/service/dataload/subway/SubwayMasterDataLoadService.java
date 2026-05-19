@@ -66,7 +66,6 @@ public class SubwayMasterDataLoadService {
 
         List<SubwayLine> lines = loadLinesFromJson();
         subwayLineRepository.saveAll(lines);
-        entityManager.flush();
 
         Map<String, SubwayLine> lineCache = lines.stream()
                 .collect(Collectors.toMap(SubwayLine::getLineName, Function.identity()));
