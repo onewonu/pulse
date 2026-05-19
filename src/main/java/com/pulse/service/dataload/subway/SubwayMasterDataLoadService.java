@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -66,7 +68,10 @@ public class SubwayMasterDataLoadService {
         subwayLineRepository.saveAll(lines);
         entityManager.flush();
 
-        List<SubwayStation> stations = loadStationsFromJson();
+        Map<String, SubwayLine> lineCache = lines.stream()
+                .collect(Collectors.toMap(SubwayLine::getLineName, Function.identity()));
+
+        List<SubwayStation> stations = loadStationsFromJson(lineCache);
         subwayStationRepository.saveAll(stations);
 
         log.info("Subway master data loading completed: {} lines, {} stations (total: {})",
@@ -103,7 +108,7 @@ public class SubwayMasterDataLoadService {
         }
     }
 
-    private List<SubwayStation> loadStationsFromJson() {
+    private List<SubwayStation> loadStationsFromJson(Map<String, SubwayLine> lineCache) {
         try {
             Resource resource = resourceLoader.getResource(masterDataProperties.getStationsPath());
             InputStream inputStream = resource.getInputStream();
@@ -111,7 +116,7 @@ public class SubwayMasterDataLoadService {
 
             List<SubwayStation> stations = exportData.stationSearchResults().stream()
                     .flatMap(searchResult -> searchResult.results().stream())
-                    .map(this::processStationData)
+                    .map(stationData -> processStationData(stationData, lineCache))
                     .flatMap(Optional::stream)
                     .toList();
 
@@ -124,23 +129,20 @@ public class SubwayMasterDataLoadService {
         }
     }
 
-    private Optional<SubwayStation> processStationData(StationMasterData stationData) {
+    private Optional<SubwayStation> processStationData(StationMasterData stationData, Map<String, SubwayLine> lineCache) {
         String lineName = stationData.laneName();
 
-        SubwayLine line = subwayLineRepository.findById(lineName).orElse(null);
-        if (line == null) {
-
-            log.warn("Line not found for station: {} (line: {})",
-                    stationData.stationName(), lineName);
-
+        if (!lineCache.containsKey(lineName)) {
+            log.warn("Line not found for station: {} (line: {})", stationData.stationName(), lineName);
             return Optional.empty();
         }
+
+        SubwayLine line = lineCache.get(lineName);
 
         Double latitude = stationData.getLatitude();
         Double longitude = stationData.getLongitude();
 
         if (latitude == null || longitude == null) {
-
             log.warn("Invalid coordinates for station: {} (lat: {}, lng: {})",
                     stationData.stationName(), stationData.y(), stationData.x());
 
