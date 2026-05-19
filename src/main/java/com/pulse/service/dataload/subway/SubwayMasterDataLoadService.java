@@ -1,11 +1,12 @@
 package com.pulse.service.dataload.subway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pulse.annotation.DataLoadOperation;
 import com.pulse.config.MasterDataProperties;
 import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.dto.masterdata.LinesData;
-import com.pulse.dto.masterdata.StationMasterData;
 import com.pulse.dto.masterdata.StationExportData;
+import com.pulse.dto.masterdata.StationMasterData;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.exception.dataload.MasterDataLoadException;
@@ -13,17 +14,17 @@ import com.pulse.repository.subway.SubwayLineRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.StationNameNormalizer;
 import jakarta.persistence.EntityManager;
-import com.pulse.annotation.DataLoadOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -88,9 +89,8 @@ public class SubwayMasterDataLoadService {
     }
 
     private List<SubwayLine> loadLinesFromJson() {
-        try {
-            Resource resource = resourceLoader.getResource(masterDataProperties.getLinesPath());
-            InputStream inputStream = resource.getInputStream();
+        try (InputStream inputStream = resourceLoader.getResource(masterDataProperties.getLinesPath()).getInputStream()
+        ) {
             LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
             List<SubwayLine> lines = linesData.lines().stream()
@@ -107,9 +107,8 @@ public class SubwayMasterDataLoadService {
     }
 
     private List<SubwayStation> loadStationsFromJson(Map<String, SubwayLine> lineCache) {
-        try {
-            Resource resource = resourceLoader.getResource(masterDataProperties.getStationsPath());
-            InputStream inputStream = resource.getInputStream();
+        try (InputStream inputStream = resourceLoader.getResource(masterDataProperties.getStationsPath()).getInputStream()
+        ) {
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
             List<SubwayStation> stations = exportData.stationSearchResults().stream()
