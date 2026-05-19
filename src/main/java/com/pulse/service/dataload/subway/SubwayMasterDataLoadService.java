@@ -96,7 +96,7 @@ public class SubwayMasterDataLoadService {
                     .toList();
 
         } catch (IOException e) {
-            throw new MasterDataLoadException("Failed to load lines.json", e);
+            throw new MasterDataLoadException("Failed to load: " + masterDataProperties.getLinesPath(), e);
         }
     }
 
@@ -112,7 +112,7 @@ public class SubwayMasterDataLoadService {
                     .toList();
 
         } catch (IOException e) {
-            throw new MasterDataLoadException("Failed to load stations.json", e);
+            throw new MasterDataLoadException("Failed to load: " + masterDataProperties.getStationsPath(), e);
         }
     }
 
