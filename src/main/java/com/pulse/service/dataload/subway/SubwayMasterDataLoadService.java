@@ -81,9 +81,8 @@ public class SubwayMasterDataLoadService {
     }
 
     private void deleteAllExistingMasterData() {
-        subwayStationRepository.deleteAll();
-        subwayLineRepository.deleteAll();
-        entityManager.flush();
+        subwayStationRepository.deleteAllInBatch();
+        subwayLineRepository.deleteAllInBatch();
         entityManager.clear();
 
         log.info("Existing subway master data has been deleted");
