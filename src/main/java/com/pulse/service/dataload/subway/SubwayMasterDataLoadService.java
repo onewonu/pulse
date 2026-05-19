@@ -129,12 +129,12 @@ public class SubwayMasterDataLoadService {
     private Optional<SubwayStation> processStationData(StationMasterData stationData, Map<String, SubwayLine> lineCache) {
         String lineName = stationData.laneName();
 
-        if (!lineCache.containsKey(lineName)) {
+        SubwayLine line = lineCache.get(lineName);
+
+        if (line == null) {
             log.warn("Line not found for station: {} (line: {})", stationData.stationName(), lineName);
             return Optional.empty();
         }
-
-        SubwayLine line = lineCache.get(lineName);
 
         Double latitude = stationData.getLatitude();
         Double longitude = stationData.getLongitude();
