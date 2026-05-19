@@ -84,8 +84,6 @@ public class SubwayMasterDataLoadService {
         subwayStationRepository.deleteAllInBatch();
         subwayLineRepository.deleteAllInBatch();
         entityManager.clear();
-
-        log.info("Existing subway master data has been deleted");
     }
 
     private List<SubwayLine> loadLinesFromJson() {
@@ -93,13 +91,9 @@ public class SubwayMasterDataLoadService {
         ) {
             LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
-            List<SubwayLine> lines = linesData.lines().stream()
+            return linesData.lines().stream()
                     .map(lineInfo -> SubwayLine.of(lineInfo.lineName(), lineInfo.color()))
                     .toList();
-
-            log.info("Loaded {} lines from JSON", lines.size());
-
-            return lines;
 
         } catch (IOException e) {
             throw new MasterDataLoadException("Failed to load lines.json", e);
@@ -111,15 +105,11 @@ public class SubwayMasterDataLoadService {
         ) {
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
-            List<SubwayStation> stations = exportData.stationSearchResults().stream()
+            return exportData.stationSearchResults().stream()
                     .flatMap(searchResult -> searchResult.results().stream())
                     .map(stationData -> processStationData(stationData, lineCache))
                     .flatMap(Optional::stream)
                     .toList();
-
-            log.info("Loaded {} stations from JSON", stations.size());
-
-            return stations;
 
         } catch (IOException e) {
             throw new MasterDataLoadException("Failed to load stations.json", e);
