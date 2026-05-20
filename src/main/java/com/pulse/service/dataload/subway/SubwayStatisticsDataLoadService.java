@@ -122,49 +122,35 @@ public class SubwayStatisticsDataLoadService {
             MasterDataCaches caches
     ) {
         Map<String, SubwayPassengerHourly> hourlyDataMap = new HashMap<>();
-        int skippedCount = 0;
+        int lineSkippedCount = 0;
+        int stationSkippedCount = 0;
 
         for (SubwayPassengerData data : apiDataList) {
-            List<SubwayPassengerHourly> hourlyDataList = convertToHourlyPassenger(data, caches);
+            String normalizedLineName = LineNameNormalizer.normalize(data.getSbwyRoutLnNm());
+            SubwayLine line = caches.lineCache().get(normalizedLineName);
 
-            if (hourlyDataList.isEmpty()) {
-                skippedCount++;
-                continue;
-            }
-
-            for (SubwayPassengerHourly hourly : hourlyDataList) {
-                String key = generateUniqueKey(hourly);
-                hourlyDataMap.put(key, hourly);
+            if (line == null) {
+                log.debug("Skipping data for line not in master data: {}", data.getSbwyRoutLnNm());
+                lineSkippedCount++;
+            } else {
+                String normalizedStationName = StationNameNormalizer.normalize(data.getSttn());
+                SubwayStation station = caches.stationCache().get(normalizedStationName + "|" + normalizedLineName);
+                if (station == null) {
+                    log.warn("Skipping data for station not in master data: {} on {}",
+                            data.getSttn(), data.getSbwyRoutLnNm());
+                    stationSkippedCount++;
+                } else {
+                    for (SubwayPassengerHourly hourly : mapper.toSubwayPassengerHourlyList(data, station)) {
+                        hourlyDataMap.put(generateUniqueKey(hourly), hourly);
+                    }
+                }
             }
         }
 
-        log.info("Completed processing: {} API records -> {} unique hourly records (skipped {})",
-                apiDataList.size(), hourlyDataMap.size(), skippedCount);
+        log.info("Completed processing: {} API records -> {} unique hourly records (line skipped: {}, station skipped: {})",
+                apiDataList.size(), hourlyDataMap.size(), lineSkippedCount, stationSkippedCount);
 
         return hourlyDataMap;
-    }
-
-    private List<SubwayPassengerHourly> convertToHourlyPassenger(
-            SubwayPassengerData data,
-            MasterDataCaches caches
-    ) {
-        String normalizedLineName = LineNameNormalizer.normalize(data.getSbwyRoutLnNm());
-        SubwayLine line = caches.lineCache().get(normalizedLineName);
-        if (line == null) {
-            log.debug("Skipping data for line not in master data: {}", data.getSbwyRoutLnNm());
-            return List.of();
-        }
-
-        String normalizedStationName = StationNameNormalizer.normalize(data.getSttn());
-        String stationKey = normalizedStationName + "|" + normalizedLineName;
-        SubwayStation station = caches.stationCache().get(stationKey);
-        if (station == null) {
-            log.warn("Skipping data for station not in master data: {} on {}",
-                    data.getSttn(), data.getSbwyRoutLnNm());
-            return List.of();
-        }
-
-        return mapper.toSubwayPassengerHourlyList(data, station);
     }
 
     private String generateUniqueKey(SubwayPassengerHourly hourly) {
