@@ -11,14 +11,12 @@ import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
-import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,38 +34,31 @@ public class SubwayStatisticsDataLoadService {
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
-    private final SubwayPassengerHourlyRepository subwayPassengerRepository;
     private final SeoulApiProperties properties;
+    private final SubwayPassengerHourlyService passengerHourlyService;
 
     public SubwayStatisticsDataLoadService(
             SeoulOpenDataClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SubwayPassengerHourlyRepository subwayPassengerRepository,
-            SeoulApiProperties properties
+            SeoulApiProperties properties,
+            SubwayPassengerHourlyService passengerHourlyService
     ) {
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
-        this.subwayPassengerRepository = subwayPassengerRepository;
         this.properties = properties;
+        this.passengerHourlyService = passengerHourlyService;
     }
 
-    @Transactional
-    public DataLoadResponse deleteStatisticsByYearMonth(String yearMonth) {
-        int deletedCount = subwayPassengerRepository.deleteByYearMonth(yearMonth);
-        return DataLoadResponse.success("Subway statistics deleted", deletedCount);
-    }
-
-    @Transactional
     @DataLoadOperation
     public DataLoadResponse loadSubwayStatisticsData(String yearMonth) {
         MasterDataCaches caches = loadMasterDataCaches();
         List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth);
         Map<String, SubwayPassengerHourly> hourlyDataMap = processPassengerData(apiDataList, caches);
-        int totalCount = savePassengerData(hourlyDataMap);
+        int totalCount = passengerHourlyService.savePassengerData(hourlyDataMap);
 
         return DataLoadResponse.success("Subway statistics data (" + yearMonth + ")", totalCount);
     }
@@ -163,11 +154,6 @@ public class SubwayStatisticsDataLoadService {
                 hourly.getSubwayLine().getLineName(),
                 hourly.getSubwayStation().getStationName(),
                 hourly.getHourSlot());
-    }
-
-    private int savePassengerData(Map<String, SubwayPassengerHourly> hourlyDataMap) {
-        subwayPassengerRepository.saveAll(hourlyDataMap.values());
-        return hourlyDataMap.size();
     }
 
     private record MasterDataCaches(
