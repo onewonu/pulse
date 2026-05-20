@@ -72,7 +72,7 @@ public class SubwayStatisticsDataLoadService {
         Map<String, SubwayLine> lineCache = subwayLineRepository.findAll().stream()
                 .collect(Collectors.toMap(SubwayLine::getLineName, Function.identity()));
 
-        Map<String, SubwayStation> stationCache = subwayStationRepository.findAll().stream()
+        Map<String, SubwayStation> stationCache = subwayStationRepository.findAllWithLine().stream()
                 .collect(Collectors.toMap(
                         station -> station.getStationName() + "|" + station.getSubwayLine().getLineName(),
                         Function.identity()
