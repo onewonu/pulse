@@ -25,7 +25,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class SubwayStatisticsDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
@@ -53,11 +52,13 @@ public class SubwayStatisticsDataLoadService {
         this.properties = properties;
     }
 
+    @Transactional
     public DataLoadResponse deleteStatisticsByYearMonth(String yearMonth) {
         int deletedCount = subwayPassengerRepository.deleteByYearMonth(yearMonth);
         return DataLoadResponse.success("Subway statistics deleted", deletedCount);
     }
 
+    @Transactional
     @DataLoadOperation
     public DataLoadResponse loadSubwayStatisticsData(String yearMonth) {
         MasterDataCaches caches = loadMasterDataCaches();
