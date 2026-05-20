@@ -29,7 +29,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class SubwayMasterDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayMasterDataLoadService.class);
@@ -57,6 +56,7 @@ public class SubwayMasterDataLoadService {
         this.masterDataProperties = masterDataProperties;
     }
 
+    @Transactional
     @DataLoadOperation
     public DataLoadResponse loadMasterDataFromJson() {
         log.info("Start loading subway master data: lines={}, stations={}",
