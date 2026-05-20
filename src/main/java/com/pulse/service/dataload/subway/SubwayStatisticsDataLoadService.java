@@ -88,31 +88,33 @@ public class SubwayStatisticsDataLoadService {
         List<SubwayPassengerData> allData = new ArrayList<>();
         int startIndex = 1;
         int pageNumber = 0;
-        boolean hasMoreData = true;
+        List<SubwayPassengerData> pageData = fetchPage(yearMonth, startIndex);
 
-        while (hasMoreData) {
+        while (!pageData.isEmpty()) {
             pageNumber++;
-            int endIndex = startIndex + properties.getPageSize() - 1;
-            SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
+            allData.addAll(pageData);
 
-            List<SubwayPassengerData> pageData = (response != null) ? response.getData() : null;
+            log.info("Fetched page {} ({} records, {} total)", pageNumber, pageData.size(), allData.size());
 
-            if (pageData != null && !pageData.isEmpty()) {
-                allData.addAll(pageData);
-
-                log.info("Fetched page {} ({} records in this page, {} total)",
-                        pageNumber, pageData.size(), allData.size());
-
-                startIndex = endIndex + 1;
-            } else {
-                hasMoreData = false;
-            }
+            startIndex += properties.getPageSize();
+            pageData = fetchPage(yearMonth, startIndex);
         }
 
-        log.info("Completed fetching subway statistics data: {} API records from {} pages",
-                allData.size(), pageNumber);
-
+        log.info("Completed fetching: {} records from {} pages", allData.size(), pageNumber);
         return allData;
+    }
+
+    private List<SubwayPassengerData> fetchPage(String yearMonth, int startIndex) {
+        int endIndex = startIndex + properties.getPageSize() - 1;
+        SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
+
+        if (response == null) {
+            log.warn("API returned null response at startIndex {}", startIndex);
+            return List.of();
+        }
+
+        List<SubwayPassengerData> data = response.getData();
+        return (data != null) ? data : List.of();
     }
 
     private Map<String, SubwayPassengerHourly> processPassengerData(
