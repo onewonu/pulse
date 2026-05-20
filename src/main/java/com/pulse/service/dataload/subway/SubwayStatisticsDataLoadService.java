@@ -174,10 +174,8 @@ public class SubwayStatisticsDataLoadService {
     }
 
     private int savePassengerData(Map<String, SubwayPassengerHourly> hourlyDataMap) {
-        List<SubwayPassengerHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
-        subwayPassengerRepository.saveAll(uniqueHourlyData);
-
-        return uniqueHourlyData.size();
+        subwayPassengerRepository.saveAll(hourlyDataMap.values());
+        return hourlyDataMap.size();
     }
 
     private record MasterDataCaches(
