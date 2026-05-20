@@ -1,5 +1,6 @@
 package com.pulse.service.dataload.subway;
 
+import com.pulse.annotation.DataLoadOperation;
 import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
@@ -14,13 +15,15 @@ import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
-import com.pulse.annotation.DataLoadOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
