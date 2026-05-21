@@ -15,7 +15,6 @@ import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.LineDirectionResolver;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
-import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -28,32 +27,34 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-@Transactional
 public class TrainScheduleDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(TrainScheduleDataLoadService.class);
     private static final String REGULAR_SCHEDULE = "N";
 
-    private final EntityManager entityManager;
+    private static final int BATCH_SIZE = 500;
+
     private final SeoulMetroClient apiClient;
     private final SubwayStationRepository stationRepository;
     private final SubwayTrainScheduleRepository scheduleRepository;
+    private final SubwayTrainScheduleSaveService saveService;
     private final TrainScheduleMapper mapper;
 
     public TrainScheduleDataLoadService(
-            EntityManager entityManager,
             SeoulMetroClient apiClient,
             SubwayStationRepository stationRepository,
             SubwayTrainScheduleRepository scheduleRepository,
+            SubwayTrainScheduleSaveService saveService,
             TrainScheduleMapper mapper
     ) {
-        this.entityManager = entityManager;
         this.apiClient = apiClient;
         this.stationRepository = stationRepository;
         this.scheduleRepository = scheduleRepository;
+        this.saveService = saveService;
         this.mapper = mapper;
     }
 
+    @Transactional
     public DataLoadResponse deleteAllTrainSchedules() {
         long count = scheduleRepository.count();
         scheduleRepository.deleteAll();
@@ -62,7 +63,7 @@ public class TrainScheduleDataLoadService {
 
     @DataLoadOperation
     public DataLoadResponse loadTrainSchedules(String dayType) {
-        deleteExistingSchedules(dayType);
+        saveService.deleteByDayType(dayType);
 
         List<StationDirection> stationDirections = generateStationDirections();
         Map<String, SubwayStation> stationCache = buildStationCache();
@@ -77,14 +78,6 @@ public class TrainScheduleDataLoadService {
         int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap);
 
         return DataLoadResponse.success("Train schedules (" + dayType + ")", totalCount);
-    }
-
-    private void deleteExistingSchedules(String dayType) {
-        scheduleRepository.deleteByDayType(dayType);
-        entityManager.flush();
-        entityManager.clear();
-
-        log.info("Deleted existing schedules for dayType: {}", dayType);
     }
 
     private List<StationDirection> generateStationDirections() {
@@ -206,11 +199,21 @@ public class TrainScheduleDataLoadService {
     }
 
     private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap) {
-        scheduleRepository.saveAll(uniqueSchedulesMap.values());
+        List<SubwayTrainSchedule> schedules = new ArrayList<>(uniqueSchedulesMap.values());
+        int savedCount = 0;
 
-        log.info("Saved {} schedules to database", uniqueSchedulesMap.size());
+        for (int i = 0; i < schedules.size(); i += BATCH_SIZE) {
+            List<SubwayTrainSchedule> batch = schedules.subList(i, Math.min(i + BATCH_SIZE, schedules.size()));
 
-        return uniqueSchedulesMap.size();
+            try {
+                savedCount += saveService.saveBatch(batch);
+            } catch (Exception e) {
+                log.warn("Failed to save batch [{}-{}]: {}", i, i + batch.size() - 1, e.getMessage());
+            }
+        }
+
+        log.info("Saved {} / {} schedules to database", savedCount, uniqueSchedulesMap.size());
+        return savedCount;
     }
 
     private record StationDirection(
