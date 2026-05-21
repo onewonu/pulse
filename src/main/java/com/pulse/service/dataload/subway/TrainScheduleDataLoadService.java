@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -112,7 +113,8 @@ public class TrainScheduleDataLoadService {
                                 station.getSubwayLine().getLineName()
                         ),
                         Function.identity(),
-                        (a, b) -> a
+                        (a, b) -> a,
+                        ConcurrentHashMap::new
                 ));
     }
 
