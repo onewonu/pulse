@@ -65,8 +65,9 @@ public class TrainScheduleDataLoadService {
     public DataLoadResponse loadTrainSchedules(String dayType) {
         saveService.deleteByDayType(dayType);
 
-        List<StationDirection> stationDirections = generateStationDirections();
-        Map<String, SubwayStation> stationCache = buildStationCache();
+        List<SubwayStation> stations = stationRepository.findAll();
+        List<StationDirection> stationDirections = generateStationDirections(stations);
+        Map<String, SubwayStation> stationCache = buildStationCache(stations);
 
         List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(
                 stationDirections,
@@ -80,8 +81,7 @@ public class TrainScheduleDataLoadService {
         return DataLoadResponse.success("Train schedules (" + dayType + ")", totalCount);
     }
 
-    private List<StationDirection> generateStationDirections() {
-        List<SubwayStation> stations = stationRepository.findAll();
+    private List<StationDirection> generateStationDirections(List<SubwayStation> stations) {
         List<StationDirection> stationDirections = stations.stream()
                 .flatMap(station -> {
                     String lineName = station.getSubwayLine().getLineName();
@@ -105,8 +105,8 @@ public class TrainScheduleDataLoadService {
         return stationDirections;
     }
 
-    private Map<String, SubwayStation> buildStationCache() {
-        return stationRepository.findAll().stream()
+    private Map<String, SubwayStation> buildStationCache(List<SubwayStation> stations) {
+        return stations.stream()
                 .collect(Collectors.toMap(
                         station -> station.getStationName() + "|" + LineNameNormalizer.denormalize(
                                 station.getSubwayLine().getLineName()
