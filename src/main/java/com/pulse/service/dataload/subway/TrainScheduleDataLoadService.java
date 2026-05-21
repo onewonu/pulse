@@ -23,7 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -64,11 +65,12 @@ public class TrainScheduleDataLoadService {
         deleteExistingSchedules(dayType);
 
         List<StationDirection> stationDirections = generateStationDirections();
+        Map<String, SubwayStation> stationCache = buildStationCache();
 
         List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(
                 stationDirections,
                 dayType,
-                new ConcurrentHashMap<>()
+                stationCache
         );
 
         Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules);
@@ -108,6 +110,17 @@ public class TrainScheduleDataLoadService {
                 stationDirections.size(), stations.size());
 
         return stationDirections;
+    }
+
+    private Map<String, SubwayStation> buildStationCache() {
+        return stationRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        station -> station.getStationName() + "|" + LineNameNormalizer.denormalize(
+                                station.getSubwayLine().getLineName()
+                        ),
+                        Function.identity(),
+                        (a, b) -> a
+                ));
     }
 
     private List<SubwayTrainSchedule> fetchSchedulesFromApi(
