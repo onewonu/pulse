@@ -23,6 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -124,12 +128,29 @@ public class TrainScheduleDataLoadService {
             Map<String, SubwayStation> stationCache
     ) {
         Map<String, String> mdcContext = MDC.getCopyOfContextMap();
-        return stationDirections.parallelStream()
-                .flatMap(sd -> {
-                    if (mdcContext != null) MDC.setContextMap(mdcContext);
-                    return fetchSchedulesForDirection(sd, dayType, stationCache);
-                })
-                .toList();
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<List<SubwayTrainSchedule>>> futures = stationDirections.stream()
+                    .map(sd -> executor.submit(() -> {
+                        if (mdcContext != null) MDC.setContextMap(mdcContext);
+                        return fetchSchedulesForDirection(sd, dayType, stationCache).toList();
+                    }))
+                    .toList();
+
+            return futures.stream()
+                    .flatMap(future -> {
+                        try {
+                            return future.get().stream();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return Stream.empty();
+                        } catch (ExecutionException e) {
+                            log.warn("Unexpected error fetching schedules: {}", e.getMessage());
+                            return Stream.empty();
+                        }
+                    })
+                    .toList();
+        }
     }
 
     private Stream<SubwayTrainSchedule> fetchSchedulesForDirection(
