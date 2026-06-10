@@ -1,11 +1,12 @@
 package com.pulse.service.dataload.subway;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pulse.annotation.DataLoadOperation;
 import com.pulse.config.MasterDataProperties;
 import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.dto.masterdata.LinesData;
-import com.pulse.dto.masterdata.StationMasterData;
 import com.pulse.dto.masterdata.StationExportData;
+import com.pulse.dto.masterdata.StationMasterData;
 import com.pulse.entity.subway.SubwayLine;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.exception.dataload.MasterDataLoadException;
@@ -15,17 +16,19 @@ import com.pulse.util.StationNameNormalizer;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class SubwayMasterDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayMasterDataLoadService.class);
@@ -53,90 +56,73 @@ public class SubwayMasterDataLoadService {
         this.masterDataProperties = masterDataProperties;
     }
 
+    @Transactional
+    @DataLoadOperation
     public DataLoadResponse loadMasterDataFromJson() {
-        String operationId = UUID.randomUUID().toString().substring(0, 8);
-
-        log.info("[{}] Start loading subway master data: lines={}, stations={}",
-                operationId,
+        log.info("Start loading subway master data: lines={}, stations={}",
                 masterDataProperties.getLinesPath(),
                 masterDataProperties.getStationsPath());
 
-        deleteAllExistingMasterData(operationId);
+        deleteAllExistingMasterData();
 
-        List<SubwayLine> lines = loadLinesFromJson(operationId);
+        List<SubwayLine> lines = loadLinesFromJson();
         subwayLineRepository.saveAll(lines);
-        entityManager.flush();
 
-        List<SubwayStation> stations = loadStationsFromJson(operationId);
+        Map<String, SubwayLine> lineCache = lines.stream()
+                .collect(Collectors.toMap(SubwayLine::getLineName, Function.identity()));
+
+        List<SubwayStation> stations = loadStationsFromJson(lineCache);
         subwayStationRepository.saveAll(stations);
 
-        log.info("[{}] Subway master data loading completed: {} lines, {} stations (total: {})",
-                operationId, lines.size(), stations.size(), lines.size() + stations.size());
+        log.info("Subway master data loading completed: {} lines, {} stations (total: {})",
+                lines.size(), stations.size(), lines.size() + stations.size());
 
         return DataLoadResponse.success("Subway master data", lines.size() + stations.size());
     }
 
-    private void deleteAllExistingMasterData(String operationId) {
-        subwayStationRepository.deleteAll();
-        subwayLineRepository.deleteAll();
-        entityManager.flush();
+    private void deleteAllExistingMasterData() {
+        subwayStationRepository.deleteAllInBatch();
+        subwayLineRepository.deleteAllInBatch();
         entityManager.clear();
-
-        log.info("[{}] Existing subway master data has been deleted", operationId);
     }
 
-    private List<SubwayLine> loadLinesFromJson(String operationId) {
-        try {
-            Resource resource = resourceLoader.getResource(masterDataProperties.getLinesPath());
-            InputStream inputStream = resource.getInputStream();
+    private List<SubwayLine> loadLinesFromJson() {
+        try (InputStream inputStream = resourceLoader.getResource(masterDataProperties.getLinesPath()).getInputStream()
+        ) {
             LinesData linesData = objectMapper.readValue(inputStream, LinesData.class);
 
-            List<SubwayLine> lines = linesData.lines().stream()
+            return linesData.lines().stream()
                     .map(lineInfo -> SubwayLine.of(lineInfo.lineName(), lineInfo.color()))
                     .toList();
 
-            log.info("[{}] Loaded {} lines from JSON", operationId, lines.size());
-
-            return lines;
-
         } catch (IOException e) {
-            throw new MasterDataLoadException("Failed to load lines.json", e);
+            throw new MasterDataLoadException("Failed to load: " + masterDataProperties.getLinesPath(), e);
         }
     }
 
-    private List<SubwayStation> loadStationsFromJson(String operationId) {
-        try {
-            Resource resource = resourceLoader.getResource(masterDataProperties.getStationsPath());
-            InputStream inputStream = resource.getInputStream();
+    private List<SubwayStation> loadStationsFromJson(Map<String, SubwayLine> lineCache) {
+        try (InputStream inputStream = resourceLoader.getResource(masterDataProperties.getStationsPath()).getInputStream()
+        ) {
             StationExportData exportData = objectMapper.readValue(inputStream, StationExportData.class);
 
-            List<SubwayStation> stations = exportData.stationSearchResults().stream()
+            return exportData.stationSearchResults().stream()
                     .flatMap(searchResult -> searchResult.results().stream())
-                    .map(stationData -> processStationData(stationData, operationId))
+                    .map(stationData -> processStationData(stationData, lineCache))
                     .flatMap(Optional::stream)
                     .toList();
 
-            log.info("[{}] Loaded {} stations from JSON", operationId, stations.size());
-
-            return stations;
-
         } catch (IOException e) {
-            throw new MasterDataLoadException("Failed to load stations.json", e);
+            throw new MasterDataLoadException("Failed to load: " + masterDataProperties.getStationsPath(), e);
         }
     }
 
-    private Optional<SubwayStation> processStationData(
-            StationMasterData stationData,
-            String operationId
-    ) {
+    private Optional<SubwayStation> processStationData(StationMasterData stationData, Map<String, SubwayLine> lineCache) {
         String lineName = stationData.laneName();
 
-        SubwayLine line = subwayLineRepository.findById(lineName).orElse(null);
+        SubwayLine line = lineCache.get(lineName);
+
         if (line == null) {
-
-            log.warn("[{}] Line not found for station: {} (line: {})",
-                    operationId, stationData.stationName(), lineName);
-
+            log.warn("Line not found for station: {} (line: {})", stationData.stationName(), lineName);
             return Optional.empty();
         }
 
@@ -144,9 +130,8 @@ public class SubwayMasterDataLoadService {
         Double longitude = stationData.getLongitude();
 
         if (latitude == null || longitude == null) {
-
-            log.warn("[{}] Invalid coordinates for station: {} (lat: {}, lng: {})",
-                    operationId, stationData.stationName(), stationData.y(), stationData.x());
+            log.warn("Invalid coordinates for station: {} (lat: {}, lng: {})",
+                    stationData.stationName(), stationData.y(), stationData.x());
 
             return Optional.empty();
         }

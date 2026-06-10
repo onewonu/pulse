@@ -21,5 +21,6 @@ public interface SubwayStationRepository extends JpaRepository<SubwayStation, St
             @Param("lineName") String lineName
     );
 
-    List<SubwayStation> findByStationName(String stationName);
+    @Query("SELECT s FROM SubwayStation s JOIN FETCH s.subwayLine")
+    List<SubwayStation> findAllWithLine();
 }

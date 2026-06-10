@@ -23,7 +23,7 @@ logging:
   file:
     name: /home/ec2-user/pulse/logs/application.log
   pattern:
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{operationId:-}] %-5level %logger{36} - %msg%n"
 
 server:
   port: 8080
@@ -46,6 +46,6 @@ seoul-metro-api:
   data-type: JSON
   num-of-rows: 1000
 
-masterdata:
+master-data:
   lines-path: file:/home/ec2-user/pulse/data/lines.json
   stations-path: file:/home/ec2-user/pulse/data/stations.json

@@ -1,5 +1,6 @@
 package com.pulse.service.dataload.subway;
 
+import com.pulse.annotation.DataLoadOperation;
 import com.pulse.api.seoulmetro.SeoulMetroClient;
 import com.pulse.api.seoulmetro.dto.SeoulMetroTrainScheduleResponse;
 import com.pulse.api.seoulmetro.dto.TrainScheduleItem;
@@ -8,88 +9,84 @@ import com.pulse.entity.subway.SubwayStation;
 import com.pulse.entity.subway.SubwayTrainSchedule;
 import com.pulse.exception.dataload.ApiCommunicationException;
 import com.pulse.exception.dataload.ApiResponseInvalidException;
+import com.pulse.mapper.TrainScheduleMapper;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.repository.subway.SubwayTrainScheduleRepository;
 import com.pulse.util.LineDirectionResolver;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
-import com.pulse.mapper.TrainScheduleMapper;
-import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.UUID;
-import java.util.Arrays;
-import java.util.Objects;
 
 @Service
-@Transactional
 public class TrainScheduleDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(TrainScheduleDataLoadService.class);
     private static final String REGULAR_SCHEDULE = "N";
 
-    private final EntityManager entityManager;
+    private static final int BATCH_SIZE = 500;
+
     private final SeoulMetroClient apiClient;
     private final SubwayStationRepository stationRepository;
     private final SubwayTrainScheduleRepository scheduleRepository;
+    private final SubwayTrainScheduleSaveService saveService;
     private final TrainScheduleMapper mapper;
 
     public TrainScheduleDataLoadService(
-            EntityManager entityManager,
             SeoulMetroClient apiClient,
             SubwayStationRepository stationRepository,
             SubwayTrainScheduleRepository scheduleRepository,
+            SubwayTrainScheduleSaveService saveService,
             TrainScheduleMapper mapper
     ) {
-        this.entityManager = entityManager;
         this.apiClient = apiClient;
         this.stationRepository = stationRepository;
         this.scheduleRepository = scheduleRepository;
+        this.saveService = saveService;
         this.mapper = mapper;
     }
 
+    @Transactional
     public DataLoadResponse deleteAllTrainSchedules() {
         long count = scheduleRepository.count();
         scheduleRepository.deleteAll();
         return DataLoadResponse.success("All train schedules deleted", (int) count);
     }
 
+    @DataLoadOperation
     public DataLoadResponse loadTrainSchedules(String dayType) {
-        String operationId = UUID.randomUUID().toString().substring(0, 8);
+        saveService.deleteByDayType(dayType);
 
-        deleteExistingSchedules(dayType, operationId);
-
-        List<StationDirection> stationDirections = generateStationDirections(operationId);
+        List<SubwayStation> stations = stationRepository.findAll();
+        List<StationDirection> stationDirections = generateStationDirections(stations);
+        Map<String, SubwayStation> stationCache = buildStationCache(stations);
 
         List<SubwayTrainSchedule> allSchedules = fetchSchedulesFromApi(
                 stationDirections,
                 dayType,
-                new ConcurrentHashMap<>(),
-                operationId
+                stationCache
         );
 
-        Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules, operationId);
-        int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap, operationId);
+        Map<String, SubwayTrainSchedule> uniqueSchedulesMap = deduplicateSchedules(allSchedules);
+        int totalCount = saveSchedulesToDatabase(uniqueSchedulesMap);
 
         return DataLoadResponse.success("Train schedules (" + dayType + ")", totalCount);
     }
 
-    private void deleteExistingSchedules(String dayType, String operationId) {
-        scheduleRepository.deleteByDayType(dayType);
-        entityManager.flush();
-        entityManager.clear();
-
-        log.info("[{}] Deleted existing schedules for dayType: {}", operationId, dayType);
-    }
-
-    private List<StationDirection> generateStationDirections(String operationId) {
-        List<SubwayStation> stations = stationRepository.findAll();
+    private List<StationDirection> generateStationDirections(List<SubwayStation> stations) {
         List<StationDirection> stationDirections = stations.stream()
                 .flatMap(station -> {
                     String lineName = station.getSubwayLine().getLineName();
@@ -107,28 +104,59 @@ public class TrainScheduleDataLoadService {
                 })
                 .toList();
 
-        log.info("[{}] Generated {} station-direction combinations from {} stations",
-                operationId, stationDirections.size(), stations.size());
+        log.info("Generated {} station-direction combinations from {} stations",
+                stationDirections.size(), stations.size());
 
         return stationDirections;
+    }
+
+    private Map<String, SubwayStation> buildStationCache(List<SubwayStation> stations) {
+        return stations.stream()
+                .collect(Collectors.toMap(
+                        station -> station.getStationName() + "|" + LineNameNormalizer.denormalize(
+                                station.getSubwayLine().getLineName()
+                        ),
+                        Function.identity(),
+                        (a, b) -> a,
+                        ConcurrentHashMap::new
+                ));
     }
 
     private List<SubwayTrainSchedule> fetchSchedulesFromApi(
             List<StationDirection> stationDirections,
             String dayType,
-            Map<String, SubwayStation> stationCache,
-            String operationId
+            Map<String, SubwayStation> stationCache
     ) {
-        return stationDirections.parallelStream()
-                .flatMap(sd -> fetchSchedulesForDirection(sd, dayType, stationCache, operationId))
-                .toList();
+        Map<String, String> mdcContext = MDC.getCopyOfContextMap();
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<List<SubwayTrainSchedule>>> futures = stationDirections.stream()
+                    .map(sd -> executor.submit(() -> {
+                        if (mdcContext != null) MDC.setContextMap(mdcContext);
+                        return fetchSchedulesForDirection(sd, dayType, stationCache).toList();
+                    }))
+                    .toList();
+
+            return futures.stream()
+                    .flatMap(future -> {
+                        try {
+                            return future.get().stream();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return Stream.empty();
+                        } catch (ExecutionException e) {
+                            log.warn("Unexpected error fetching schedules: {}", e.getMessage());
+                            return Stream.empty();
+                        }
+                    })
+                    .toList();
+        }
     }
 
     private Stream<SubwayTrainSchedule> fetchSchedulesForDirection(
             StationDirection direction,
             String dayType,
-            Map<String, SubwayStation> stationCache,
-            String operationId
+            Map<String, SubwayStation> stationCache
     ) {
         try {
             SeoulMetroTrainScheduleResponse response = apiClient.getTrainSchedule(
@@ -143,8 +171,7 @@ public class TrainScheduleDataLoadService {
             return convertToScheduleEntities(items, direction, stationCache).stream();
         } catch (ApiCommunicationException | ApiResponseInvalidException e) {
 
-            log.warn("[{}] Failed to fetch schedule for line={}, station={}, direction={}: {}",
-                    operationId,
+            log.warn("Failed to fetch schedule for line={}, station={}, direction={}: {}",
                     direction.lineName(),
                     direction.stationName(),
                     direction.updownType(),
@@ -173,7 +200,7 @@ public class TrainScheduleDataLoadService {
                 .toList();
     }
 
-    private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules, String operationId) {
+    private Map<String, SubwayTrainSchedule> deduplicateSchedules(List<SubwayTrainSchedule> schedules) {
         Map<String, SubwayTrainSchedule> uniqueMap = new LinkedHashMap<>();
 
         for (SubwayTrainSchedule schedule : schedules) {
@@ -181,8 +208,7 @@ public class TrainScheduleDataLoadService {
             uniqueMap.putIfAbsent(key, schedule);
         }
 
-        log.info("[{}] Deduplicated schedules: {} fetched -> {} unique",
-                operationId, schedules.size(), uniqueMap.size());
+        log.info("Deduplicated schedules: {} fetched -> {} unique", schedules.size(), uniqueMap.size());
 
         return uniqueMap;
     }
@@ -195,12 +221,22 @@ public class TrainScheduleDataLoadService {
                 schedule.getDayType());
     }
 
-    private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap, String operationId) {
-        scheduleRepository.saveAll(uniqueSchedulesMap.values());
+    private int saveSchedulesToDatabase(Map<String, SubwayTrainSchedule> uniqueSchedulesMap) {
+        List<SubwayTrainSchedule> schedules = new ArrayList<>(uniqueSchedulesMap.values());
+        int savedCount = 0;
 
-        log.info("[{}] Saved {} schedules to database", operationId, uniqueSchedulesMap.size());
+        for (int i = 0; i < schedules.size(); i += BATCH_SIZE) {
+            List<SubwayTrainSchedule> batch = schedules.subList(i, Math.min(i + BATCH_SIZE, schedules.size()));
 
-        return uniqueSchedulesMap.size();
+            try {
+                savedCount += saveService.saveBatch(batch);
+            } catch (Exception e) {
+                log.warn("Failed to save batch [{}-{}]: {}", i, i + batch.size() - 1, e.getMessage());
+            }
+        }
+
+        log.info("Saved {} / {} schedules to database", savedCount, uniqueSchedulesMap.size());
+        return savedCount;
     }
 
     private record StationDirection(

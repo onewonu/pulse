@@ -1,5 +1,6 @@
 package com.pulse.service.dataload.subway;
 
+import com.pulse.annotation.DataLoadOperation;
 import com.pulse.api.seoulopendata.SeoulOpenDataClient;
 import com.pulse.api.seoulopendata.dto.subway.SubwayApiResponse;
 import com.pulse.api.seoulopendata.dto.subway.SubwayPassengerData;
@@ -10,21 +11,21 @@ import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
-import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import com.pulse.util.LineNameNormalizer;
 import com.pulse.util.StationNameNormalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class SubwayStatisticsDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(SubwayStatisticsDataLoadService.class);
@@ -33,137 +34,118 @@ public class SubwayStatisticsDataLoadService {
     private final SubwayDataMapper mapper;
     private final SubwayLineRepository subwayLineRepository;
     private final SubwayStationRepository subwayStationRepository;
-    private final SubwayPassengerHourlyRepository subwayPassengerRepository;
     private final SeoulApiProperties properties;
+    private final SubwayPassengerHourlyService passengerHourlyService;
 
     public SubwayStatisticsDataLoadService(
             SeoulOpenDataClient apiClient,
             SubwayDataMapper mapper,
             SubwayLineRepository subwayLineRepository,
             SubwayStationRepository subwayStationRepository,
-            SubwayPassengerHourlyRepository subwayPassengerRepository,
-            SeoulApiProperties properties
+            SeoulApiProperties properties,
+            SubwayPassengerHourlyService passengerHourlyService
     ) {
         this.apiClient = apiClient;
         this.mapper = mapper;
         this.subwayLineRepository = subwayLineRepository;
         this.subwayStationRepository = subwayStationRepository;
-        this.subwayPassengerRepository = subwayPassengerRepository;
         this.properties = properties;
+        this.passengerHourlyService = passengerHourlyService;
     }
 
-    public DataLoadResponse deleteStatisticsByYearMonth(String yearMonth) {
-        int deletedCount = subwayPassengerRepository.deleteByYearMonth(yearMonth);
-        return DataLoadResponse.success("Subway statistics deleted", deletedCount);
-    }
-
+    @DataLoadOperation
     public DataLoadResponse loadSubwayStatisticsData(String yearMonth) {
-        String operationId = UUID.randomUUID().toString().substring(0, 8);
-        MasterDataCaches caches = loadMasterDataCaches(operationId);
-        List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth, operationId);
-        Map<String, SubwayPassengerHourly> hourlyDataMap = processPassengerData(apiDataList, caches, operationId);
-        int totalCount = savePassengerData(hourlyDataMap);
+        MasterDataCaches caches = loadMasterDataCaches();
+        List<SubwayPassengerData> apiDataList = fetchAllDataFromApi(yearMonth);
+        Map<String, SubwayPassengerHourly> hourlyDataMap = processPassengerData(apiDataList, caches);
+        int totalCount = passengerHourlyService.savePassengerData(hourlyDataMap);
 
         return DataLoadResponse.success("Subway statistics data (" + yearMonth + ")", totalCount);
     }
 
-    private MasterDataCaches loadMasterDataCaches(String operationId) {
+    private MasterDataCaches loadMasterDataCaches() {
         Map<String, SubwayLine> lineCache = subwayLineRepository.findAll().stream()
                 .collect(Collectors.toMap(SubwayLine::getLineName, Function.identity()));
 
-        Map<String, SubwayStation> stationCache = subwayStationRepository.findAll().stream()
+        Map<String, SubwayStation> stationCache = subwayStationRepository.findAllWithLine().stream()
                 .collect(Collectors.toMap(
                         station -> station.getStationName() + "|" + station.getSubwayLine().getLineName(),
                         Function.identity()
                 ));
 
-        log.info("[{}] Loaded master data into cache: {} lines, {} stations",
-                operationId, lineCache.size(), stationCache.size());
+        log.info("Loaded master data into cache: {} lines, {} stations",
+                lineCache.size(), stationCache.size());
 
         return new MasterDataCaches(lineCache, stationCache);
     }
 
-    private List<SubwayPassengerData> fetchAllDataFromApi(String yearMonth, String operationId) {
+    private List<SubwayPassengerData> fetchAllDataFromApi(String yearMonth) {
         List<SubwayPassengerData> allData = new ArrayList<>();
         int startIndex = 1;
         int pageNumber = 0;
-        boolean hasMoreData = true;
+        List<SubwayPassengerData> pageData = fetchPage(yearMonth, startIndex);
 
-        while (hasMoreData) {
+        while (!pageData.isEmpty()) {
             pageNumber++;
-            int endIndex = startIndex + properties.getPageSize() - 1;
-            SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
+            allData.addAll(pageData);
 
-            List<SubwayPassengerData> pageData = (response != null) ? response.getData() : null;
+            log.info("Fetched page {} ({} records, {} total)", pageNumber, pageData.size(), allData.size());
 
-            if (pageData != null && !pageData.isEmpty()) {
-                allData.addAll(pageData);
-
-                log.info("[{}] Fetched page {} ({} records in this page, {} total)",
-                        operationId, pageNumber, pageData.size(), allData.size());
-
-                startIndex = endIndex + 1;
-            } else {
-                hasMoreData = false;
-            }
+            startIndex += properties.getPageSize();
+            pageData = fetchPage(yearMonth, startIndex);
         }
 
-        log.info("[{}] Completed fetching subway statistics data: {} API records from {} pages",
-                operationId, allData.size(), pageNumber);
-
+        log.info("Completed fetching: {} records from {} pages", allData.size(), pageNumber);
         return allData;
+    }
+
+    private List<SubwayPassengerData> fetchPage(String yearMonth, int startIndex) {
+        int endIndex = startIndex + properties.getPageSize() - 1;
+        SubwayApiResponse response = apiClient.fetchSubwayPassengerData(yearMonth, startIndex, endIndex);
+
+        if (response == null) {
+            log.warn("API returned null response at startIndex {}", startIndex);
+            return List.of();
+        }
+
+        List<SubwayPassengerData> data = response.getData();
+        return (data != null) ? data : List.of();
     }
 
     private Map<String, SubwayPassengerHourly> processPassengerData(
             List<SubwayPassengerData> apiDataList,
-            MasterDataCaches caches,
-            String operationId
+            MasterDataCaches caches
     ) {
         Map<String, SubwayPassengerHourly> hourlyDataMap = new HashMap<>();
-        int skippedCount = 0;
+        int lineSkippedCount = 0;
+        int stationSkippedCount = 0;
 
         for (SubwayPassengerData data : apiDataList) {
-            List<SubwayPassengerHourly> hourlyDataList = convertToHourlyPassenger(data, caches, operationId);
+            String normalizedLineName = LineNameNormalizer.normalize(data.getSbwyRoutLnNm());
+            SubwayLine line = caches.lineCache().get(normalizedLineName);
 
-            if (hourlyDataList.isEmpty()) {
-                skippedCount++;
-                continue;
-            }
-
-            for (SubwayPassengerHourly hourly : hourlyDataList) {
-                String key = generateUniqueKey(hourly);
-                hourlyDataMap.put(key, hourly);
+            if (line == null) {
+                log.debug("Skipping data for line not in master data: {}", data.getSbwyRoutLnNm());
+                lineSkippedCount++;
+            } else {
+                String normalizedStationName = StationNameNormalizer.normalize(data.getSttn());
+                SubwayStation station = caches.stationCache().get(normalizedStationName + "|" + normalizedLineName);
+                if (station == null) {
+                    log.warn("Skipping data for station not in master data: {} on {}",
+                            data.getSttn(), data.getSbwyRoutLnNm());
+                    stationSkippedCount++;
+                } else {
+                    for (SubwayPassengerHourly hourly : mapper.toSubwayPassengerHourlyList(data, station)) {
+                        hourlyDataMap.put(generateUniqueKey(hourly), hourly);
+                    }
+                }
             }
         }
 
-        log.info("[{}] Completed processing: {} API records -> {} unique hourly records (skipped {})",
-                operationId, apiDataList.size(), hourlyDataMap.size(), skippedCount);
+        log.info("Completed processing: {} API records -> {} unique hourly records (line skipped: {}, station skipped: {})",
+                apiDataList.size(), hourlyDataMap.size(), lineSkippedCount, stationSkippedCount);
 
         return hourlyDataMap;
-    }
-
-    private List<SubwayPassengerHourly> convertToHourlyPassenger(
-            SubwayPassengerData data,
-            MasterDataCaches caches,
-            String operationId
-    ) {
-        String normalizedLineName = LineNameNormalizer.normalize(data.getSbwyRoutLnNm());
-        SubwayLine line = caches.lineCache().get(normalizedLineName);
-        if (line == null) {
-            log.debug("[{}] Skipping data for line not in master data: {}", operationId, data.getSbwyRoutLnNm());
-            return List.of();
-        }
-
-        String normalizedStationName = StationNameNormalizer.normalize(data.getSttn());
-        String stationKey = normalizedStationName + "|" + normalizedLineName;
-        SubwayStation station = caches.stationCache().get(stationKey);
-        if (station == null) {
-            log.warn("[{}] Skipping data for station not in master data: {} on {}",
-                    operationId, data.getSttn(), data.getSbwyRoutLnNm());
-            return List.of();
-        }
-
-        return mapper.toSubwayPassengerHourlyList(data, station);
     }
 
     private String generateUniqueKey(SubwayPassengerHourly hourly) {
@@ -172,13 +154,6 @@ public class SubwayStatisticsDataLoadService {
                 hourly.getSubwayLine().getLineName(),
                 hourly.getSubwayStation().getStationName(),
                 hourly.getHourSlot());
-    }
-
-    private int savePassengerData(Map<String, SubwayPassengerHourly> hourlyDataMap) {
-        List<SubwayPassengerHourly> uniqueHourlyData = new ArrayList<>(hourlyDataMap.values());
-        subwayPassengerRepository.saveAll(uniqueHourlyData);
-
-        return uniqueHourlyData.size();
     }
 
     private record MasterDataCaches(

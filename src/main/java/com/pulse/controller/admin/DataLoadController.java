@@ -2,6 +2,7 @@ package com.pulse.controller.admin;
 
 import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.service.dataload.subway.SubwayMasterDataLoadService;
+import com.pulse.service.dataload.subway.SubwayPassengerHourlyService;
 import com.pulse.service.dataload.subway.SubwayStatisticsDataLoadService;
 import com.pulse.service.dataload.subway.TrainScheduleDataLoadService;
 import jakarta.validation.constraints.NotBlank;
@@ -24,15 +25,18 @@ public class DataLoadController {
 
     private final SubwayMasterDataLoadService subwayMasterDataLoadService;
     private final SubwayStatisticsDataLoadService subwayStatisticsDataLoadService;
+    private final SubwayPassengerHourlyService subwayPassengerHourlyService;
     private final TrainScheduleDataLoadService trainScheduleDataLoadService;
 
     public DataLoadController(
             SubwayMasterDataLoadService subwayMasterDataLoadService,
             SubwayStatisticsDataLoadService subwayStatisticsDataLoadService,
+            SubwayPassengerHourlyService subwayPassengerHourlyService,
             TrainScheduleDataLoadService trainScheduleDataLoadService
     ) {
         this.subwayMasterDataLoadService = subwayMasterDataLoadService;
         this.subwayStatisticsDataLoadService = subwayStatisticsDataLoadService;
+        this.subwayPassengerHourlyService = subwayPassengerHourlyService;
         this.trainScheduleDataLoadService = trainScheduleDataLoadService;
     }
 
@@ -75,7 +79,7 @@ public class DataLoadController {
             @Pattern(regexp = "^\\d{6}$", message = "yearMonth must be 6 digits in yyyyMM format")
             String yearMonth
     ) {
-        DataLoadResponse result = subwayStatisticsDataLoadService.deleteStatisticsByYearMonth(yearMonth);
+        DataLoadResponse result = subwayPassengerHourlyService.deleteByYearMonth(yearMonth);
         return ResponseEntity.ok(result);
     }
 
