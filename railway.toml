@@ -1,5 +1,5 @@
 [build]
-buildCommand = "./gradlew clean build -x check -x test -x asciidoctor -Pproduction"
+buildCommand = "./gradlew clean build -Pproduction"
 
 [deploy]
 startCommand = "java -jar build/libs/pulse-0.0.1-SNAPSHOT.jar"

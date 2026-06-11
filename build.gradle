@@ -67,10 +67,8 @@ tasks.register('generateDocs', Copy) {
 }
 
 bootJar {
-    if (!project.hasProperty('production')) {
-        dependsOn asciidoctor
-        from(layout.buildDirectory.dir('docs/asciidoc')) {
-            into 'static/docs'
-        }
+    dependsOn asciidoctor
+    from(layout.buildDirectory.dir('docs/asciidoc')) {
+        into 'static/docs'
     }
 }
