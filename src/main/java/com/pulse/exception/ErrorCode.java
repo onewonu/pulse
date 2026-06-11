@@ -10,8 +10,6 @@ public enum ErrorCode {
     NO_SCHEDULES_AVAILABLE(HttpStatus.NOT_FOUND, "No train schedules in time range"),
     INCOMPLETE_CONGESTION_DATA(HttpStatus.PARTIAL_CONTENT, "Congestion data incomplete for time range"),
 
-    AWS_CONFIGURATION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AWS configuration error occurred"),
-
     TOKEN_MISSING(HttpStatus.UNAUTHORIZED, "Authorization token is missing"),
     ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Access token has expired"),
     ACCESS_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Access token is invalid or malformed"),

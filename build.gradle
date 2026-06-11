@@ -31,10 +31,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
 
-    implementation platform('software.amazon.awssdk:bom:2.20.0')
-    implementation 'software.amazon.awssdk:secretsmanager'
-    implementation 'software.amazon.awssdk:ssm'
-
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
