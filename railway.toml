@@ -1,5 +1,4 @@
 [build]
-builder = "nixpacks"
 buildCommand = "./gradlew clean build -x check -x test -x asciidoctor -Pproduction"
 
 [deploy]
