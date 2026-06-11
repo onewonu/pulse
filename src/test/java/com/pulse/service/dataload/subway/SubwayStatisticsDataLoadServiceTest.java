@@ -10,7 +10,6 @@ import com.pulse.entity.subway.SubwayPassengerHourly;
 import com.pulse.entity.subway.SubwayStation;
 import com.pulse.mapper.SubwayDataMapper;
 import com.pulse.repository.subway.SubwayLineRepository;
-import com.pulse.repository.subway.SubwayPassengerHourlyRepository;
 import com.pulse.repository.subway.SubwayStationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,7 +42,7 @@ class SubwayStatisticsDataLoadServiceTest {
     private SubwayStationRepository subwayStationRepository;
 
     @Mock
-    private SubwayPassengerHourlyRepository subwayPassengerHourlyRepository;
+    private SubwayPassengerHourlyService subwayPassengerHourlyService;
 
     @Mock
     private SeoulApiProperties seoulApiProperties;
@@ -67,7 +66,7 @@ class SubwayStatisticsDataLoadServiceTest {
                 37.554648,
                 126.972559
         );
-        when(subwayStationRepository.findAll()).thenReturn(List.of(station));
+        when(subwayStationRepository.findAllWithLine()).thenReturn(List.of(station));
 
         SubwayPassengerData apiData = new SubwayPassengerData();
         apiData.setSbwyRoutLnNm("1호선");
@@ -95,7 +94,7 @@ class SubwayStatisticsDataLoadServiceTest {
         when(subwayDataMapper.toSubwayPassengerHourlyList(any(SubwayPassengerData.class), any(SubwayStation.class)))
                 .thenReturn(List.of(hourly));
 
-        when(subwayPassengerHourlyRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(subwayPassengerHourlyService.savePassengerData(any())).thenReturn(1);
 
         // When
         DataLoadResponse result = service.loadSubwayStatisticsData("202401");
@@ -104,25 +103,9 @@ class SubwayStatisticsDataLoadServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.success()).isTrue();
         verify(subwayLineRepository, times(1)).findAll();
-        verify(subwayStationRepository, times(1)).findAll();
+        verify(subwayStationRepository, times(1)).findAllWithLine();
         verify(seoulOpenDataClient, atLeastOnce()).fetchSubwayPassengerData(eq("202401"), anyInt(), anyInt());
-        verify(subwayPassengerHourlyRepository, times(1))
-                .saveAll(argThat(data -> !((List<?>) data).isEmpty()));
+        verify(subwayPassengerHourlyService, times(1)).savePassengerData(any());
     }
 
-    @Test
-    @DisplayName("통계 데이터 삭제 성공")
-    void deleteStatisticsData_Success() {
-        // Given
-        String yearMonth = "202401";
-        when(subwayPassengerHourlyRepository.deleteByYearMonth(yearMonth)).thenReturn(100);
-
-        // When
-        DataLoadResponse result = service.deleteStatisticsByYearMonth(yearMonth);
-
-        // Then
-        assertThat(result).isNotNull();
-        assertThat(result.success()).isTrue();
-        verify(subwayPassengerHourlyRepository, times(1)).deleteByYearMonth(yearMonth);
-    }
 }

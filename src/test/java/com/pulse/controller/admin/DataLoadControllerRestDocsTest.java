@@ -2,6 +2,7 @@ package com.pulse.controller.admin;
 
 import com.pulse.dto.dataload.DataLoadResponse;
 import com.pulse.service.dataload.subway.SubwayMasterDataLoadService;
+import com.pulse.service.dataload.subway.SubwayPassengerHourlyService;
 import com.pulse.service.dataload.subway.SubwayStatisticsDataLoadService;
 import com.pulse.service.dataload.subway.TrainScheduleDataLoadService;
 import com.pulse.support.RestDocsSupport;
@@ -25,11 +26,12 @@ class DataLoadControllerRestDocsTest extends RestDocsSupport {
 
     private final SubwayMasterDataLoadService subwayMasterDataLoadService = mock(SubwayMasterDataLoadService.class);
     private final SubwayStatisticsDataLoadService subwayStatisticsDataLoadService = mock(SubwayStatisticsDataLoadService.class);
+    private final SubwayPassengerHourlyService subwayPassengerHourlyService = mock(SubwayPassengerHourlyService.class);
     private final TrainScheduleDataLoadService trainScheduleDataLoadService = mock(TrainScheduleDataLoadService.class);
 
     @Override
     protected Object controller() {
-        return new DataLoadController(subwayMasterDataLoadService, subwayStatisticsDataLoadService, trainScheduleDataLoadService);
+        return new DataLoadController(subwayMasterDataLoadService, subwayStatisticsDataLoadService, subwayPassengerHourlyService, trainScheduleDataLoadService);
     }
 
     private DataLoadResponse sampleSuccess(String category, int count) {
@@ -113,7 +115,7 @@ class DataLoadControllerRestDocsTest extends RestDocsSupport {
     @DisplayName("지하철 통계 데이터 삭제")
     void deleteSubwayStatistics() throws Exception {
         // given
-        given(subwayStatisticsDataLoadService.deleteStatisticsByYearMonth(any()))
+        given(subwayPassengerHourlyService.deleteByYearMonth(any()))
                 .willReturn(sampleSuccess("subwayStatistics", 1500));
 
         // when & then

@@ -23,7 +23,6 @@ import org.springframework.core.io.ResourceLoader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -79,8 +78,6 @@ class SubwayMasterDataLoadServiceTest {
         when(objectMapper.readValue(any(InputStream.class), eq(LinesData.class))).thenReturn(linesData);
         when(objectMapper.readValue(any(InputStream.class), eq(StationExportData.class))).thenReturn(stationExportData);
 
-        SubwayLine mockLine = SubwayLine.of("수도권 1호선", "#003DA5");
-        when(subwayLineRepository.findById("수도권 1호선")).thenReturn(Optional.of(mockLine));
         when(subwayLineRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(subwayStationRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -90,8 +87,8 @@ class SubwayMasterDataLoadServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.success()).isTrue();
-        verify(subwayStationRepository, times(1)).deleteAll();
-        verify(subwayLineRepository, times(1)).deleteAll();
+        verify(subwayStationRepository, times(1)).deleteAllInBatch();
+        verify(subwayLineRepository, times(1)).deleteAllInBatch();
         verify(subwayLineRepository, times(1)).saveAll(argThat(lines -> ((List<?>) lines).size() == 1));
         verify(subwayStationRepository, times(1)).saveAll(argThat(stations -> ((List<?>) stations).size() == 1));
     }
