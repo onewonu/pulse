@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+buildCommand = "./gradlew clean build -x check -x test -x asciidoctor -Pproduction"
+
+[deploy]
+startCommand = "java -jar build/libs/pulse-0.0.1-SNAPSHOT.jar"
