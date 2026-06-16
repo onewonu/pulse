@@ -59,9 +59,7 @@
 
 ### 배포 및 인프라
 
-[![AWS EC2](https://img.shields.io/badge/AWS-EC2-FF9900.svg)](https://aws.amazon.com/ec2/)
-[![AWS CodeDeploy](https://img.shields.io/badge/AWS-CodeDeploy-FF9900.svg)](https://aws.amazon.com/codedeploy/)
-[![AWS Secrets Manager](https://img.shields.io/badge/AWS-Secrets_Manager-FF9900.svg)](https://aws.amazon.com/secrets-manager/)
+[![Railway](https://img.shields.io/badge/Railway-Deployed-0B0D0E.svg)](https://railway.app/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub-Actions-2088FF.svg)](https://github.com/features/actions)
 
 <br/><br/>
@@ -339,22 +337,17 @@ Odsay API(CID=1000, 서울 수도권 필터)로 역을 검색해 이름·좌표�
 
 ## 배포 프로세스
 
-**GitHub Actions + AWS CodeDeploy** 기반 자동화 파이프라인입니다.
+**Railway** 기반 자동화 파이프라인입니다.
 
 ```
-GitHub Push
+GitHub Push (main)
     ↓
-GitHub Actions: 빌드(./gradlew clean build) → ZIP 패키징 → S3 업로드
+Railway: 소스 감지 → Nixpacks 빌드(./gradlew clean build -Pproduction)
     ↓
-AWS CodeDeploy: EC2 Lifecycle Hook 순차 실행
-    ├─ ApplicationStop   : 기존 프로세스 종료
-    ├─ BeforeInstall     : 기존 JAR 삭제
-    ├─ AfterInstall      : 파일 권한 설정
-    ├─ ApplicationStart  : Spring Boot 시작 (prod 프로파일, JVM Xms256m/Xmx768m)
-    └─ ValidateService   : 헬스체크 성공 시 배포 완료, 실패 시 자동 롤백
+컨테이너 교체 배포 (railway 프로파일로 실행)
 ```
 
-**환경 변수**: `application-prod.yml` 로드 시 AWS Secrets Manager에서 DB·JWT·외부 API 자격증명을 가져와 `@ConfigurationProperties`에 바인딩합니다.
+**환경 변수**: Railway 대시보드에서 DB·JWT·외부 API 자격증명을 환경 변수로 주입합니다.
 
 ## 프로젝트 구조
 
@@ -386,7 +379,6 @@ pulse/
 │   ├── config/                        # Spring 설정 및 @ConfigurationProperties
 │   │   ├── SecurityConfig.java        # 보안 설정
 │   │   ├── WebConfig.java             # CORS 설정
-│   │   ├── AwsSecretsConfig.java      # AWS Secrets Manager 연동
 │   │   ├── JwtProperties.java
 │   │   ├── KakaoApiProperties.java
 │   │   ├── GoogleApiProperties.java
@@ -455,7 +447,7 @@ pulse/
 ├── src/main/resources/
 │   ├── application.yml                # 기본 설정
 │   ├── application-local.yml          # 로컬 개발
-│   ├── application-prod.yml           # 프로덕션
+│   ├── application-railway.yml        # 프로덕션 (Railway)
 │   └── data/                          # 마스터 데이터
 │       ├── lines.json                 # 노선 정보
 │       └── stations.json              # 역 정보
@@ -479,15 +471,7 @@ pulse/
 │   │   └── search/
 │   └── support/
 │       └── RestDocsSupport.java       # RestDocs 공통 설정
-├── scripts/                           # 배포 스크립트
-│   ├── stop_application.sh
-│   ├── before_install.sh
-│   ├── after_install.sh
-│   ├── start_application.sh
-│   └── validate_service.sh
-├── .github/workflows/
-│   └── deploy.yml                     # GitHub Actions CI/CD
-├── appspec.yml                        # AWS CodeDeploy 설정
+├── railway.toml                       # Railway 배포 설정
 ├── build.gradle                       # Gradle 빌드 설정
 └── README.md                          # 이 파일
 ```
