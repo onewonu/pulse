@@ -73,5 +73,5 @@ jwt:
   refresh-token-expiration-seconds: 2592000
 
 master-data:
-  lines-path: classpath:data/lines.json
-  stations-path: classpath:data/stations.json
+  lines-path: file:/app/data/lines.json
+  stations-path: file:/app/data/stations.json
