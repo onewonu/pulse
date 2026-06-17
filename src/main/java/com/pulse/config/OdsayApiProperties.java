@@ -10,6 +10,7 @@ public class OdsayApiProperties {
     private String baseUrl;
     private String key;
     private int displayCount;
+    private String referer;
 
     public String getBaseUrl() {
         return baseUrl;
@@ -23,6 +24,10 @@ public class OdsayApiProperties {
         return displayCount;
     }
 
+    public String getReferer() {
+        return referer;
+    }
+
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
     }
@@ -33,5 +38,9 @@ public class OdsayApiProperties {
 
     public void setDisplayCount(int displayCount) {
         this.displayCount = displayCount;
+    }
+
+    public void setReferer(String referer) {
+        this.referer = referer;
     }
 }

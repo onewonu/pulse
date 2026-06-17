@@ -49,7 +49,7 @@ public class OdsayClient {
         String urlString = buildStationSearchUrl(stationName);
 
         try {
-            String rawResponse = getRawResponse(urlString);
+            String rawResponse = getRawResponse(urlString, properties.getReferer());
 
             OdsayStationSearchResponse response = objectMapper.readValue(rawResponse, OdsayStationSearchResponse.class);
 
@@ -79,7 +79,7 @@ public class OdsayClient {
         String urlString = buildSubwayScheduleUrl(sid, eid, day, time);
 
         try {
-            String rawResponse = getRawResponse(urlString);
+            String rawResponse = getRawResponse(urlString, properties.getReferer());
 
             OdsaySubwayScheduleResponse response = objectMapper.readValue(rawResponse, OdsaySubwayScheduleResponse.class);
 
@@ -111,12 +111,15 @@ public class OdsayClient {
                 "&output=" + FORMAT;
     }
 
-    private static String getRawResponse(String urlString) throws IOException {
+    private static String getRawResponse(String urlString, String referer) throws IOException {
         URL url = URI.create(urlString).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
         try {
             connection.setRequestProperty("Content-type", "application/json");
+            if (referer != null && !referer.isBlank()) {
+                connection.setRequestProperty("Referer", referer);
+            }
             return readResponse(connection);
         } finally {
             connection.disconnect();
