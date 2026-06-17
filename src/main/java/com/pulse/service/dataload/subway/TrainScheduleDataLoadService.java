@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,8 +37,8 @@ public class TrainScheduleDataLoadService {
 
     private static final Logger log = LoggerFactory.getLogger(TrainScheduleDataLoadService.class);
     private static final String REGULAR_SCHEDULE = "N";
-
     private static final int BATCH_SIZE = 500;
+    private static final int MAX_CONCURRENT_REQUESTS = 50;
 
     private final SeoulMetroClient apiClient;
     private final SubwayStationRepository stationRepository;
@@ -128,12 +129,18 @@ public class TrainScheduleDataLoadService {
             Map<String, SubwayStation> stationCache
     ) {
         Map<String, String> mdcContext = MDC.getCopyOfContextMap();
+        Semaphore semaphore = new Semaphore(MAX_CONCURRENT_REQUESTS);
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<List<SubwayTrainSchedule>>> futures = stationDirections.stream()
                     .map(sd -> executor.submit(() -> {
                         if (mdcContext != null) MDC.setContextMap(mdcContext);
-                        return fetchSchedulesForDirection(sd, dayType, stationCache).toList();
+                        semaphore.acquire();
+                        try {
+                            return fetchSchedulesForDirection(sd, dayType, stationCache).toList();
+                        } finally {
+                            semaphore.release();
+                        }
                     }))
                     .toList();
 
