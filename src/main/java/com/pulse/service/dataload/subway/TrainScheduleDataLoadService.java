@@ -145,7 +145,8 @@ public class TrainScheduleDataLoadService {
                             Thread.currentThread().interrupt();
                             return Stream.empty();
                         } catch (ExecutionException e) {
-                            log.warn("Unexpected error fetching schedules: {}", e.getMessage());
+                            Throwable toLog = e.getCause() != null ? e.getCause() : e;
+                            log.warn("Unexpected error fetching schedules: {}", toLog.getMessage(), toLog);
                             return Stream.empty();
                         }
                     })
@@ -170,12 +171,13 @@ public class TrainScheduleDataLoadService {
             List<TrainScheduleItem> items = extractItemsFromResponse(response);
             return convertToScheduleEntities(items, direction, stationCache).stream();
         } catch (ApiCommunicationException | ApiResponseInvalidException e) {
-
-            log.warn("Failed to fetch schedule for line={}, station={}, direction={}: {}",
+            Throwable cause = e.getCause();
+            log.warn("Failed to fetch schedule for line={}, station={}, direction={}: {} | cause: {}",
                     direction.lineName(),
                     direction.stationName(),
                     direction.updownType(),
-                    e.getMessage());
+                    e.getMessage(),
+                    cause != null ? cause.getMessage() : "none");
 
             return Stream.empty();
         }
